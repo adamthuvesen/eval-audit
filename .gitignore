@@ -45,3 +45,11 @@ checkpoints/
 *.parquet
 *.duckdb
 *.sqlite
+
+# Scouting fixtures are intentionally tracked (they are the contract for the
+# next change). The exception below overrides the *.parquet rule above.
+!scouting/**/*.parquet
+
+# Local scouting download cache: encrypted zips and decrypted JSON traces.
+# Regenerable from huggingface.co/datasets/agent-evals/hal_traces.
+.scout-cache/
