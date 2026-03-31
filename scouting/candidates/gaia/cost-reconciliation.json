@@ -1,0 +1,58 @@
+{
+  "candidate": "gaia",
+  "outcome": "reconciled",
+  "runs_compared": 2,
+  "task_rows_used_for_reconciliation": 2,
+  "mape": 0.0,
+  "provider_pricing_source": "https://openai.com/api/pricing/ + https://www.anthropic.com/pricing#anthropic-api (snapshot 2026-05-02)",
+  "pricing_note": "Prices reflect snapshots in effect at trace generation time. OpenAI o3 was originally $10/$40 (Apr 2025) and dropped to $2/$8 on 2025-06-10. TAU-bench traces here are from Oct 2025 (post-cut). GAIA traces are from Apr 2025 but do not use o3 in this scouting sample, so the price-cut window does not affect GAIA reconciliation. Further price cuts after the trace dates (e.g., o3 below $2/$8) are not applied because the trace-time price is what HAL would have charged.",
+  "divergences": [],
+  "caveats": [],
+  "per_run": [
+    {
+      "label": "gaia_hg_o4mini_high",
+      "agent": "HAL Generalist Agent (o4-mini-2025-04-16 high)",
+      "run_id": "gaia_hal_generalist_agent_o4mini20250416_high_1745167285",
+      "reported_cost_usd": 59.3913,
+      "reconstructed_cost_usd": 59.3913,
+      "abs_pct_error": 0.0,
+      "breakdown": [
+        {
+          "model": "o4-mini-2025-04-16",
+          "in_tokens": 33757942,
+          "out_tokens": 5058544,
+          "in_price_per_m": 1.1,
+          "out_price_per_m": 4.4,
+          "cost_usd": 59.3913
+        }
+      ]
+    },
+    {
+      "label": "gaia_hg_claude37",
+      "agent": "HAL Generalist Agent (claude-3-7-sonnet-20250219)",
+      "run_id": "gaia_hal_generalist_agent_claude37sonnet20250219_1744772193",
+      "reported_cost_usd": 130.6782,
+      "reconstructed_cost_usd": 130.6782,
+      "abs_pct_error": 0.0,
+      "breakdown": [
+        {
+          "model": "claude-3-7-sonnet-20250219",
+          "in_tokens": 39682554,
+          "out_tokens": 754728,
+          "in_price_per_m": 3.0,
+          "out_price_per_m": 15.0,
+          "cost_usd": 130.3686
+        },
+        {
+          "model": "gpt-4o-2024-11-20",
+          "in_tokens": 57232,
+          "out_tokens": 16656,
+          "in_price_per_m": 2.5,
+          "out_price_per_m": 10.0,
+          "cost_usd": 0.3096
+        }
+      ]
+    }
+  ],
+  "reconciled_at": "2026-05-02T06:58:26.990206+00:00"
+}

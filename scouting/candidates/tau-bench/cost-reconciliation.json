@@ -1,0 +1,116 @@
+{
+  "candidate": "tau-bench",
+  "outcome": "as_reported_only",
+  "runs_compared": 3,
+  "task_rows_used_for_reconciliation": 3,
+  "mape": 0.3334,
+  "provider_pricing_source": "https://openai.com/api/pricing/ + https://www.anthropic.com/pricing#anthropic-api (snapshot 2026-05-02)",
+  "pricing_note": "Prices reflect snapshots in effect at trace generation time. OpenAI o3 was originally $10/$40 (Apr 2025) and dropped to $2/$8 on 2025-06-10. TAU-bench traces here are from Oct 2025 (post-cut). GAIA traces are from Apr 2025 but do not use o3 in this scouting sample, so the price-cut window does not affect GAIA reconciliation. Further price cuts after the trace dates (e.g., o3 below $2/$8) are not applied because the trace-time price is what HAL would have charged.",
+  "divergences": [
+    {
+      "agent_id": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+      "reported_cost_usd": 8.3797,
+      "reconstructed_cost_usd": 11.3597,
+      "abs_pct_error": 0.3556,
+      "hypothesis": "HAL reported $8.38 which is BELOW reconstructed $11.36 (26.2% lower). Likely cause: prompt-caching discount applied at trace time but not visible in raw prompt_tokens. Investigate prompt_tokens_details.cached_tokens in raw_logging_results."
+    },
+    {
+      "agent_id": "Taubench ToolCalling (claude-3.7-sonnet)",
+      "reported_cost_usd": 15.4455,
+      "reconstructed_cost_usd": 16.9344,
+      "abs_pct_error": 0.0964,
+      "hypothesis": "HAL reported $15.45 which is BELOW reconstructed $16.93 (8.8% lower). Likely cause: prompt-caching discount applied at trace time but not visible in raw prompt_tokens. Investigate prompt_tokens_details.cached_tokens in raw_logging_results."
+    },
+    {
+      "agent_id": "Taubench ToolCalling (o3-2025-04-16)",
+      "reported_cost_usd": 32.2354,
+      "reconstructed_cost_usd": 14.5636,
+      "abs_pct_error": 0.5482,
+      "hypothesis": "HAL reported $32.24 which is ABOVE reconstructed $14.56 (121.3% higher). Likely cause: trace was costed against an older OpenAI price table (pre-2025-06-10 cuts) even though the run timestamp is later, or a harness-specific surcharge."
+    }
+  ],
+  "caveats": [
+    "reconstruction error too high; mape=0.3334; downstream cost analysis must use HAL's reported total_cost as-is and propagate uncertainty"
+  ],
+  "per_run": [
+    {
+      "label": "tc_o4mini",
+      "agent": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+      "run_id": "taubench_airline_taubench_toolcalling_o4mini20250416_high_1760993011",
+      "reported_cost_usd": 8.3797,
+      "reconstructed_cost_usd": 11.3597,
+      "abs_pct_error": 0.3556,
+      "breakdown": [
+        {
+          "model": "gpt-4o-2024-08-06",
+          "in_tokens": 504354,
+          "out_tokens": 16758,
+          "in_price_per_m": 2.5,
+          "out_price_per_m": 10.0,
+          "cost_usd": 1.4285
+        },
+        {
+          "model": "o4-mini-2025-04-16",
+          "in_tokens": 4634822,
+          "out_tokens": 1098396,
+          "in_price_per_m": 1.1,
+          "out_price_per_m": 4.4,
+          "cost_usd": 9.9312
+        }
+      ]
+    },
+    {
+      "label": "tc_claude37",
+      "agent": "Taubench ToolCalling (claude-3.7-sonnet)",
+      "run_id": "taubench_airline_taubench_toolcalling_claude37sonnet_1760379497",
+      "reported_cost_usd": 15.4455,
+      "reconstructed_cost_usd": 16.9344,
+      "abs_pct_error": 0.0964,
+      "breakdown": [
+        {
+          "model": "openai/gpt-4o",
+          "in_tokens": 527368,
+          "out_tokens": 17046,
+          "in_price_per_m": 2.5,
+          "out_price_per_m": 10.0,
+          "cost_usd": 1.4889
+        },
+        {
+          "model": "anthropic/claude-3.7-sonnet",
+          "in_tokens": 4610506,
+          "out_tokens": 107597,
+          "in_price_per_m": 3.0,
+          "out_price_per_m": 15.0,
+          "cost_usd": 15.4455
+        }
+      ]
+    },
+    {
+      "label": "tc_o3",
+      "agent": "Taubench ToolCalling (o3-2025-04-16)",
+      "run_id": "taubench_airline_taubench_toolcalling_o320250416_1760994863",
+      "reported_cost_usd": 32.2354,
+      "reconstructed_cost_usd": 14.5636,
+      "abs_pct_error": 0.5482,
+      "breakdown": [
+        {
+          "model": "gpt-4o-2024-08-06",
+          "in_tokens": 484630,
+          "out_tokens": 17646,
+          "in_price_per_m": 2.5,
+          "out_price_per_m": 10.0,
+          "cost_usd": 1.388
+        },
+        {
+          "model": "o3-2025-04-16",
+          "in_tokens": 5190220,
+          "out_tokens": 349392,
+          "in_price_per_m": 2.0,
+          "out_price_per_m": 8.0,
+          "cost_usd": 13.1756
+        }
+      ]
+    }
+  ],
+  "reconciled_at": "2026-05-02T06:58:22.013639+00:00"
+}
