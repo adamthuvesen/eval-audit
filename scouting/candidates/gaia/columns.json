@@ -1,0 +1,230 @@
+{
+  "candidate": "gaia",
+  "source_url": "https://huggingface.co/datasets/agent-evals/hal_traces",
+  "retrieved_at": "2026-05-02T06:50:59.915649+00:00",
+  "artifact_version": null,
+  "tables": [
+    {
+      "name": "per_task",
+      "row_count_sampled": 330,
+      "n_runs_sampled": 2,
+      "agents_sampled": [
+        "HAL Generalist Agent (claude-3-7-sonnet-20250219)",
+        "HAL Generalist Agent (o4-mini-2025-04-16 high)"
+      ],
+      "columns": [
+        {
+          "raw_name": "agent_id",
+          "semantic_role": "agent_id",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"HAL Generalist Agent (o4-mini-2025-04-16 high)\""
+        },
+        {
+          "raw_name": "agent_short",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"gaia_hg_o4mini_high\"",
+          "notes": "Short label assigned by the inventory script for joins."
+        },
+        {
+          "raw_name": "agent_display",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"HAL Generalist (o4-mini High)\"",
+          "notes": "Human-readable label for plots and tables."
+        },
+        {
+          "raw_name": "model_id",
+          "semantic_role": "model_id",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"o4-mini-2025-04-16\""
+        },
+        {
+          "raw_name": "benchmark_id",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"gaia\"",
+          "notes": "Benchmark identifier; constant within this candidate (gaia)."
+        },
+        {
+          "raw_name": "run_id",
+          "semantic_role": "run_id",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"gaia_hal_generalist_agent_o4mini20250416_high_1745167285\""
+        },
+        {
+          "raw_name": "task_id",
+          "semantic_role": "task_id",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"c61d22de-5f6c-4958-a7f6-5e9707bd3466\"",
+          "notes": "GAIA task IDs are UUIDs from the gaia-benchmark/GAIA validation set."
+        },
+        {
+          "raw_name": "score_raw",
+          "semantic_role": "partial_credit",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"true\"",
+          "notes": "JSON-encoded raw grader score. Bool in GAIA airline-style (true/false). Null when outcome_status='errored'."
+        },
+        {
+          "raw_name": "success_bool",
+          "semantic_role": "success",
+          "dtype": "int64",
+          "null_rate": 0.0,
+          "example": "1"
+        },
+        {
+          "raw_name": "outcome_status",
+          "semantic_role": "outcome_status",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"graded\"",
+          "notes": "Structural outcome state: 'graded' or 'errored'. No errored tasks observed in either GAIA sample."
+        },
+        {
+          "raw_name": "grader_explanation",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"Evaluated egalitarian as a string.\"",
+          "notes": "Truncated grader-side explanation string ('Evaluated X as a number.' etc.). Grader meta-text, not model output, but kept short for safety."
+        },
+        {
+          "raw_name": "tokens_in_by_model",
+          "semantic_role": "tokens_in_by_model",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"{\\\"o4-mini-2025-04-16\\\": 69380}\"",
+          "notes": "JSON-encoded {model_name: prompt_tokens}."
+        },
+        {
+          "raw_name": "tokens_out_by_model",
+          "semantic_role": "tokens_out_by_model",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"{\\\"o4-mini-2025-04-16\\\": 12448}\"",
+          "notes": "JSON-encoded {model_name: completion_tokens}."
+        },
+        {
+          "raw_name": "tokens_in_total",
+          "semantic_role": "tokens_in",
+          "dtype": "int64",
+          "null_rate": 0.0,
+          "example": "69380",
+          "notes": "Sum of tokens_in_by_model."
+        },
+        {
+          "raw_name": "tokens_out_total",
+          "semantic_role": "tokens_out",
+          "dtype": "int64",
+          "null_rate": 0.0,
+          "example": "12448",
+          "notes": "Sum of tokens_out_by_model."
+        },
+        {
+          "raw_name": "n_llm_calls",
+          "semantic_role": "other",
+          "dtype": "int64",
+          "null_rate": 0.0,
+          "example": "18",
+          "notes": "Count of Weave LLM calls aggregated to this task; complexity proxy."
+        },
+        {
+          "raw_name": "models_used",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"[\\\"o4-mini-2025-04-16\\\"]\"",
+          "notes": "JSON list of model names invoked at least once on this task."
+        },
+        {
+          "raw_name": "latency_total_s",
+          "semantic_role": "latency_s",
+          "dtype": "float64",
+          "null_rate": 0.0,
+          "example": "72.289388"
+        },
+        {
+          "raw_name": "first_call_ts",
+          "semantic_role": "timestamp",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"2025-04-20T16:41:37.126093+00:00\"",
+          "notes": "ISO 8601 UTC; first LLM call for this task."
+        },
+        {
+          "raw_name": "last_call_ts",
+          "semantic_role": "timestamp",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"2025-04-20T16:42:49.415481+00:00\"",
+          "notes": "ISO 8601 UTC; last LLM call for this task."
+        },
+        {
+          "raw_name": "run_total_cost_usd",
+          "semantic_role": "cost_usd",
+          "dtype": "float64",
+          "null_rate": 0.0,
+          "example": "59.3913298",
+          "notes": "Aggregate cost for the run. Per-task cost must be reconstructed."
+        },
+        {
+          "raw_name": "run_total_usage_json",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"{\\\"o4-mini-2025-04-16\\\": {\\\"completion_tokens\\\": 5058544, \\\"prompt_tokens\\\": 33757942}}\"",
+          "notes": "JSON-encoded total_usage block; per-model token totals across the run."
+        },
+        {
+          "raw_name": "run_level_accuracies",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"{\\\"overall\\\": 0.5454545454545454, \\\"level_1\\\": 0.6037735849056604, \\\"level_2\\\": 0.5348837209302325, \\\"level_3\\\": 0.46153846153846156}\"",
+          "notes": "JSON-encoded {overall, level_1, level_2, level_3} aggregate accuracies. GAIA exposes per-level aggregates but NOT per-task level \u2014 that requires joining the gated gaia-benchmark/GAIA dataset."
+        },
+        {
+          "raw_name": "git_commit",
+          "semantic_role": "rerun_metadata",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"798e6deda95e708eab887474f076294e1d5f8bb2\"",
+          "notes": "HAL harness commit at run time."
+        },
+        {
+          "raw_name": "run_date",
+          "semantic_role": "timestamp",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"2025-04-20\"",
+          "notes": "Date string from config; not strictly run start, but ISO-style date."
+        }
+      ]
+    },
+    {
+      "name": "per_run",
+      "row_count_sampled": 0,
+      "note": "One zip = one agent's complete run on GAIA validation (165 tasks). Per-run fields inlined into per_task rows.",
+      "columns": []
+    },
+    {
+      "name": "per_call",
+      "row_count_sampled": 0,
+      "note": "Each Weave-traced LLM call. ~4,000-4,500 calls per zip. Used only to reconstruct per-task token sums; raw call payloads contain proprietary inputs/outputs and must not be republished.",
+      "columns": []
+    }
+  ],
+  "structural_findings": {
+    "task_category_unavailable_per_task": "GAIA tasks have difficulty Levels 1/2/3, but raw_eval_results does NOT include a level field. Aggregate level_1_accuracy / level_2_accuracy / level_3_accuracy are exposed in results, but per-task stratification requires joining the GATED source dataset gaia-benchmark/GAIA. This affects stratified analysis plans.",
+    "score_is_boolean_explanation_is_grader_text": "GAIA per-task = {score: bool, explanation: str}. The explanation field appears to be short grader meta-text ('Evaluated X as a number.') rather than model output, but is truncated to 500 chars in this fixture for safety."
+  }
+}
