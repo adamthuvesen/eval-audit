@@ -1,139 +1,349 @@
 # rigor
 
-> Experimental-rigor harness for agent benchmarking. Proper randomization, MDE-aware sample sizing, multi-comparison correction, cost-efficiency in the primary score. The A/B-test mindset applied to agent eval.
+> Study-specification, reanalysis, and reporting toolkit for agent benchmarks. Treat agent evals like experiments, not score tables.
 
-**Status:** brain dump · v0 design phase · 2026-05-02
+**Status:** v0 spec · Exhibit A selected · 2026-05-02
 
 ---
 
-## The pitch in one paragraph
+## The pitch
 
-`rigor` is a Python package that wraps existing agent benchmarks (Terminal-Bench, OSWorld, BrowseComp, HumanEval, AutoResearchBench, etc.) and replaces their statistical methodology with something a causal-inference person wouldn't be embarrassed by: proper randomization across seeds and configs, minimum-detectable-effect-aware sample-size guidance, multi-comparison correction when comparing N agents, cost-per-success and quality-cost-pareto reporting in the primary score, and a structural failure-mode taxonomy beyond binary success. The launch story: take one widely-cited benchmark result and show it isn't statistically significant under proper analysis.
+`rigor` helps researchers and practitioners make agent benchmark claims auditable. It provides:
+
+- a study-specification schema for declaring evaluation plans and benchmark claims
+- a reanalysis pipeline for public or private run-level benchmark data
+- statistical reporting that separates robust findings from leaderboard noise
+- cost-quality analysis that makes tradeoffs explicit instead of hiding them in a single rank
+
+The v0 is deliberately narrow: **study specifications + HAL/public-data reanalysis + polished report**. It is not a new benchmark runner, not a leaderboard, and not a pile of adapters.
 
 ## Why this exists
 
-### The methodology gap
+Most agent benchmark reporting still looks more like a scoreboard than an experiment. Common failure modes:
 
-A 2026 review of 15 major agent benchmarks (Springer, *Artificial Intelligence Review*) found:
+- point estimates without uncertainty intervals
+- many pairwise model comparisons without multiple-comparison correction
+- binary success rates that hide task/category-level variation
+- unclear seed strategies, stopping rules, and rerun policies
+- cost reported as metadata rather than analyzed as part of the decision
+- claims stated more strongly than the observed data supports
 
-- **0/15** integrate safety or security into scoring
-- **0/15** include cost-efficiency in their primary evaluation protocol
-- **13/15** rely *exclusively* on binary success measures
+The opportunity is not to dunk on benchmark authors. The opportunity is to give the field a better default workflow:
 
-Princeton's HAL leaderboard partially fixes this (token-cost tracking, reproducibility), but it doesn't address the deeper statistical-methodology gap: most benchmark papers report point estimates with no confidence intervals, no multi-comparison adjustment, and treat comparisons of N agents as if they're N independent two-sample tests. The "Long-Horizon Task Mirage" paper (April 2026) demonstrated that long-horizon failure modes are **structural shifts in failure composition**, not just lower success rates — meaning the binary-success scoring everyone uses is *actively misleading*.
+> Declare the claim, declare the analysis plan, analyze run-level data, report what survives uncertainty and correction.
 
-### The differentiation
+That is the agent-eval equivalent of bringing A/B-test discipline to a field that is still mostly publishing leaderboards.
 
-Almost everyone running agent benchmarks treats them as software-engineering reproducibility problems. The combination of **(deep experimentation/A-B-testing background) × (causal-inference instincts) × (production agentic systems experience)** is genuinely rare. `rigor` is the project that converts that combination into a public artifact.
+## What v0 is
 
-This is also The project's most natural research-portfolio piece: it leans hardest into existing skills, has the lowest novelty-of-method risk, and can plausibly be a workshop paper at NeurIPS 2026 / ICLR 2027 ("Methodological audit of agent benchmarks: power, MDE, and multi-comparison failures across 15 widely-cited evaluations").
+### 1. Study specifications and analysis plans
 
-## v0 scope (4–6 weeks of evening/weekend work)
+A YAML/Pydantic schema for agent benchmark studies:
 
-A Python package that:
+```yaml
+study:
+  id: taubench-airline-frontier-2026-05
+  benchmark: taubench_airline
+  analysis_mode: declared_reanalysis
+  data_observation: summary_seen
 
-1. **Wraps existing benchmark harnesses** — provides adapters for Terminal-Bench 2.0, OSWorld-Verified, BrowseComp, HumanEval, AutoResearchBench, and HAL. Each adapter exposes a standardized `BenchmarkRun` object.
-2. **Adds proper randomization** — multi-seed runs by default, with seed-stratified analysis. Detects when results aren't seed-stable.
-3. **Computes MDE / required-N upfront** — given a target effect size and significance level, tells the user how many runs they need *before* they spend $10K running them.
-4. **Multi-comparison correction** — when comparing N agents, defaults to Holm-Bonferroni or Benjamini-Hochberg. Flags reports that don't apply correction.
-5. **Cost-efficiency in primary score** — every metric reported alongside cost (tokens, $, wall-clock). Default reporting is a quality × cost Pareto frontier.
-6. **Failure-mode taxonomy** — not just success/fail, but a structural breakdown: planning errors, memory errors, tool errors, hallucination errors, refusal errors, timeout errors. Per the Long-Horizon Task Mirage paper.
-7. **Publishes one reproduced result** with a finding: "[widely-cited benchmark X] reports method A is 4.2 points better than method B; under proper multi-seed analysis with multi-comparison correction, this difference is not statistically significant."
+primary_outcome:
+  name: success_rate
+  unit: task
+  direction: higher_is_better
 
-API sketch:
+agents:
+  - id: taubench_toolcalling_o4mini_high
+  - id: hal_generalist_claude37_sonnet
+  - id: taubench_toolcalling_o3_medium
 
-```python
-import rigor
+design:
+  task_sampling: fixed_public_validation_set
+  run_strategy: observed_public_runs
+  observed_runs_per_agent: 1
+  rerun_policy: recommend_if_decision_sensitive
 
-# Define what we're testing
-study = rigor.Study(
-    benchmark="terminal-bench-2.0",
-    agents=["claude-opus-4-7", "gpt-5-5", "gemini-3-pro"],
-    n_seeds=20,
-    target_mde=0.03,  # detect 3-percentage-point differences
-    alpha=0.05,
-    cost_weight=0.3,  # 30% weight on cost in composite score
-)
+inference:
+  alpha: 0.05
+  correction_method: holm_bonferroni
+  comparison_family: declared_claims
+  target_mde: 0.03
 
-# Power analysis before spending money
-plan = study.power_analysis()
-print(plan.required_n_per_arm)  # → 47 runs per agent
-print(plan.estimated_cost_usd)  # → $1,240
+cost:
+  metrics:
+    - leaderboard_total_usd
+    - trace_total_usd
+    - usd_per_attempt
+    - usd_per_success
+    - wall_clock_seconds
+  primary_view: pareto_frontier
 
-# Run it (or import previously-run data)
-results = study.run()  # or study.load("results.json")
-
-# Get the report — with confidence intervals, MC correction, Pareto plot
-report = results.report()
-report.to_html("agent-comparison-2026-05.html")
-
-# The honest summary
-print(report.honest_summary())
-# → "Under multi-seed (n=20) analysis with Holm-Bonferroni correction (α=0.05),
-#    no pairwise difference between the three agents is statistically significant
-#    on success rate. claude-opus-4-7 dominates on the cost-quality Pareto frontier."
+claims:
+  - id: o4mini_high_preferred_to_claude37
+    text: "o4-mini High is preferred to Claude 3.7 Sonnet for TAU-bench Airline deployment under equal observed success and lower cost."
+    treatment: taubench_toolcalling_o4mini_high
+    control: hal_generalist_claude37_sonnet
+    outcome: success_rate
 ```
 
-## v1+ stretch goals
+Pre-registration is one use mode, not the name for every analysis. `rigor` should make the distinction explicit:
 
-- **Bayesian re-analysis** of public benchmark results — pull HAL leaderboard data, redo the analysis with proper hierarchical models, publish a "shadow leaderboard" with credible intervals.
-- **Failure-mode taxonomy auto-classification** — fine-tune a small model (or use Claude Haiku) to classify failure traces into the structural taxonomy. Currently most papers eyeball this.
-- **Sequential testing / early stopping** — bring proper sequential analysis (mSPRT, Always Valid Inference) to expensive agent benchmarks. Save 50%+ of compute.
-- **Integration with `counter`** — when failures cluster around a specific decision, counter can attribute the failure to that decision causally.
-- **A paper.** Title sketch: *"Methodological audit of LLM-agent benchmarks: a power and multi-comparison analysis of 15 widely-cited evaluations."* Submission target: NeurIPS 2026 Workshop on Foundation Model Evaluation.
+| Mode | Use when | Report wording |
+|---|---|---|
+| `preregistered` | The analysis plan was written before the analyst saw the relevant data. | "This confirmatory analysis was preregistered before data observation." |
+| `declared_reanalysis` | The analysis plan was written for existing data, with some prior knowledge of the result source. | "This reanalysis plan was declared after data collection and may be post hoc." |
+| `exploratory` | The goal is discovery, diagnosis, or hypothesis generation. | "These findings are exploratory and should not be treated as confirmatory." |
 
-## Technical approach (rough)
+The CLI should validate the file and render a clean study-spec document:
 
-Three layers:
+```bash
+rigor spec validate study.yaml
+rigor spec render study.yaml --out study-spec.html
+```
 
-1. **Adapter layer.** One adapter per benchmark, normalizing their output into a standard `Result` schema (run_id, agent_id, seed, success, sub-tasks, latency_s, tokens_in, tokens_out, cost_usd, failure_mode, full_trace_ref).
-2. **Statistics layer.** A small set of well-tested functions: `power_analysis`, `apply_mc_correction`, `bootstrap_ci`, `pareto_frontier`, `failure_mode_distribution`. No reinventing — built on `scipy.stats`, `statsmodels`, `pingouin`.
-3. **Reporting layer.** A clean HTML report (`jinja2` + `plotly`) that no one will be embarrassed to share. Markdown export for academic papers.
+### 2. Public-data reanalysis
+
+v0 starts with one ingestion target: **HAL TAU-bench Airline**. The first goal is not broad adapter coverage; it is one credible end-to-end example.
+
+```bash
+rigor ingest hal --benchmark taubench_airline --out runs.parquet
+rigor analyze study.yaml runs.parquet --out analysis.json
+rigor report analysis.json --out report.html
+```
+
+The Exhibit A claim is decision-oriented:
+
+> "On TAU-bench Airline, TAU-bench Tool Calling with o4-mini High and HAL Generalist with Claude 3.7 Sonnet both show 56% observed accuracy, but o4-mini High costs substantially less. Should a benchmark consumer treat o4-mini High as the preferred deployment choice, or rerun before switching?"
+
+This is a better first proof than a dramatic leaderboard reversal. It tests whether `rigor` can turn a plausible model-selection decision into an auditable claim with uncertainty, paired task analysis, and cost sensitivity.
+
+The reanalysis should answer:
+
+- What claim was tested?
+- Was it preregistered, declared reanalysis, or exploratory?
+- How much of the data had been observed before the plan was declared?
+- What effect size was the study powered to detect?
+- Which comparisons survive correction?
+- Which conclusions are sensitive to seed/task resampling?
+- Which agents are Pareto-dominated on quality and cost?
+- What claims are unsupported by the observed data?
+- Are leaderboard costs, trace-level costs, and configurable token-pricing costs being compared on the same basis?
+
+### 3. Honest benchmark reports
+
+The report is the product surface. It should be good enough to attach to a workshop paper, an internal model-selection memo, or a benchmark pull request.
+
+Example claim output:
+
+```text
+Claim: o4-mini High is preferred to Claude 3.7 Sonnet for TAU-bench Airline deployment under equal observed success and lower cost.
+Status: inconclusive
+
+Observed success delta: 0.0 percentage points
+Observed cost delta: -$30.75
+95% CI for success delta: [-19.2, +19.2]
+Decision impact: rerun_more_n
+
+Interpretation:
+The observed success rates are tied and o4-mini High is cheaper, but one
+public run per agent is not enough to treat the deployment preference as a
+confirmatory quality claim. Prefer o4-mini High only if the decision is
+primarily cost-constrained; otherwise rerun before switching.
+```
+
+That framing is intentionally non-adversarial. It challenges overclaiming without making the project a gotcha machine.
+
+Real reports should handle many claims at once. The top-level report view should look more like an A/B platform decision table than a paper appendix:
+
+| Claim | Mode | Status | Effect | Adjusted result | Decision impact |
+|---|---|---|---|---|---|
+| Agent A beats Agent B | declared reanalysis | unsupported | +2.4 pp | p_adj = 0.18 | Do not switch on quality alone |
+| Agent C is Pareto-dominated | exploratory | supported | lower quality, higher cost | dominated in 91% of bootstraps | Remove from shortlist |
+| Agent A is cheaper per success | declared reanalysis | inconclusive | -$0.42 | CI crosses zero | Re-run with larger N |
+
+`decision_impact` should be a controlled vocabulary, not arbitrary prose. Start small: `switch`, `hold`, `drop_from_shortlist`, `rerun_more_n`, `hedge_on_cost`, and `inconclusive_no_action`.
+
+## Non-goals for v0
+
+- No new benchmark runner.
+- No six-benchmark adapter layer.
+- No new leaderboard.
+- No auto-classification of failure modes.
+- No default composite score with hidden value judgments.
+- No simultaneous Bayesian and frequentist analysis stacks.
+
+These are tempting because they sound big. They are also how a two-week methodology project becomes an eighteen-week infrastructure treadmill.
+
+## Methodology defaults
+
+v0 should use a boring, defensible frequentist toolkit because that is what most benchmark readers already understand:
+
+- Wilson or Agresti-Coull intervals for binary success rates
+- bootstrap intervals for derived metrics where closed forms are awkward
+- Holm-Bonferroni for confirmatory pairwise comparisons
+- Benjamini-Hochberg for explicitly exploratory families
+- pilot-conditioned MDE alongside upfront target-MDE planning
+- task/category stratification when the underlying data supports it
+- Pareto frontier as the primary cost-quality view
+
+Bayesian hierarchical modeling is valuable, but it belongs in v1 after the schema and reporting workflow are trusted.
+
+## Package shape
+
+```text
+rigor/
+  schema/      StudySpec, RunRecord, AnalysisPlan, Claim
+  spec/        validation, templates, HTML/PDF rendering
+  ingest/      HAL/public-data importer
+  stats/       intervals, MDE, correction, Pareto, sensitivity
+  report/      HTML/Markdown report generation
+  cli.py       init, spec, ingest, analyze, report
+```
 
 Likely dependencies:
-- `pydantic` for the standardized Result schema
-- `polars` for results data
-- `scipy.stats` + `statsmodels` for the methodology
-- `pingouin` for clean stats API
-- `plotly` for the Pareto plot
-- `jinja2` for the HTML report
 
-Likely **non**-dependencies (deliberate):
-- No new agent runner — wrap existing harnesses, don't reimplement
-- No new benchmark — the value is methodology, not benchmark design
-- No vector DB / embedding magic — pure tabular stats
+- `pydantic` for schemas and validation
+- `polars` for run-level data
+- `scipy` and `statsmodels` for statistical methods
+- `plotly` for report charts
+- `jinja2` for HTML rendering
 
-## Why this compounds with the rest
+Deliberate non-dependencies:
+
+- no benchmark harness framework
+- no vector database
+- no model-based trace classifier
+- no custom agent runner
+
+## Exhibit A scouting result
+
+Current choice: **HAL TAU-bench Airline**.
+
+Why it wins:
+
+- compact benchmark: 50 public-test tasks
+- public leaderboard with verified results, costs, run counts, and encrypted trace downloads
+- public traces decrypt into task-level rewards, successful/failed task lists, per-task latencies, token usage, total cost, and run metadata
+- decision-relevant frontier: o4-mini High matches Claude 3.7 Sonnet at 56% observed accuracy while costing much less
+- methodologically relevant context: HAL removed TAU-bench Few Shot results due to data leakage, so the example naturally fits an evidence-quality story without becoming adversarial
+
+Use **GAIA** as Exhibit B after the first importer/report works. GAIA is higher-profile and has level stratification, but it is noisier and less constrained for the first proof.
+
+Open checks before schema lock:
+
+- decrypt and normalize at least three TAU-bench Airline traces: o4-mini High, Claude 3.7 Sonnet, and o3 Medium
+- confirm whether every candidate shares the same 50 tasks, enabling paired task-level comparisons
+- reconcile leaderboard displayed cost with trace-level `total_cost` and configurable token-pricing calculations
+- decide whether v0's first success-rate comparison should use independent intervals, paired tests, or both
+
+## Reusable scouting protocol
+
+Schema design should follow real datasets, not precede them. For future Exhibit B/C candidates:
+
+1. Inspect HAL plus two alternates, likely Terminal-Bench logs and BrowseComp-style public results.
+2. Export or scrape the smallest useful run-level/table-level sample from each.
+3. Inventory the actual columns: agent, model, task, category, seed/run id, success, cost, tokens, latency, trace reference, and rerun metadata.
+4. Check whether cost per attempt and cost per success are directly available or reconstructible.
+5. Identify one concrete model-selection claim that a serious reader might make from the original report.
+6. Pick the candidate only if the resulting report would clarify a real decision.
+
+If no public benchmark satisfies the criteria, v0 should not stall. Plan B is:
+
+- build a synthetic known-ground-truth study to demonstrate that the statistical machinery behaves correctly
+- pair it with the best available real reanalysis, even if the real case is messier or less dramatic
+- consider reaching out to HAL early if richer run-level data would make the collaboration useful to both sides
+
+The synthetic case proves the method. The real case proves relevance.
+
+## Testing approach
+
+A stats library earns trust through tests, not just API polish. v0 should include:
+
+- fixture tests on hand-computed tiny datasets
+- property-based tests for multiple-comparison correction invariants
+- cross-checks against `statsmodels`, `scipy`, or R reference outputs for intervals and p-values
+- snapshot tests for report text so claim wording does not drift into overstatement
+
+## v0 success criteria
+
+v0 is successful when the repo can:
+
+1. Validate and render a study-spec file.
+2. Ingest one real public benchmark result source.
+3. Produce a report with uncertainty intervals, corrected comparisons, MDE context, and cost-quality plots.
+4. Evaluate at least one explicit benchmark claim as supported, unsupported, or inconclusive.
+5. Publish one polished example reanalysis that changes how a serious reader would make or trust a model-selection decision.
+
+The bar is not "many adapters." The bar is "one report that changes how a serious reader thinks about benchmark evidence."
+
+## v1+ ideas
+
+- More public-data importers once v0 proves useful.
+- Mixed-effects or hierarchical models for task/category/benchmark structure.
+- Bayesian reanalysis mode with credible intervals and partial pooling.
+- Sequential testing / always-valid inference for expensive reruns.
+- Failure-mode taxonomy support as a human-labeled schema field.
+- Failure-mode auto-classification only after measuring inter-rater reliability.
+- Shadow reports for widely cited benchmark claims.
+- Integration with `counter` for causal attribution of agent failures.
+
+## Positioning
+
+Bad launch story:
+
+> "We show that a famous benchmark result is not statistically significant."
+
+Better launch story:
+
+> "We show how agent benchmark conclusions change when evaluations use declared analysis plans, cost-aware reporting, uncertainty intervals, and multiple-comparison controls."
+
+The first is politically brittle. The second is useful, durable, and much harder to dismiss.
+
+## Open questions
+
+### What would disqualify Exhibit A?
+
+TAU-bench Airline is the current bet. It should be replaced only if the next sampling pass shows that:
+
+- trace schemas differ too much across runs to normalize cleanly
+- agents do not share a comparable fixed task set
+- cost provenance cannot be explained without guesswork
+- the first report would merely restate the leaderboard instead of changing decision confidence
+
+The replacement question is not "can we find a dramatic reversal?" It is "can we find a decision-relevant claim whose evidential status becomes clearer under a declared analysis plan?"
+
+### Who is v0 for?
+
+The README originally implied three audiences at once:
+
+- practitioners who want a library
+- academics who want a paper
+- labs/journalists who want a leaderboard
+
+The four-to-six-week version can serve one primary audience. The current bet: **researchers and serious practitioners who want auditable benchmark claims**. The library and paper fall out of that; the leaderboard can wait.
+
+## Why this compounds
 
 | Compound with | How |
 |---|---|
-| **counter** (sibling project) | counter's interventional predictions need rigorous evaluation. rigor evaluates them. |
-| **Confidence at Menti** | Menti uses Confidence for product A/B testing. rigor brings the same mindset to agent eval; one is the day-job application, one is the OSS project. |
-| **Autonomous ML Research** | This repo already runs ML experiments; rigor's methodology is what should be running underneath. |
-| **HAL / Princeton's leaderboard** | rigor can publish a "shadow leaderboard" using HAL's raw data with proper statistics. Friendly co-existence. |
-
-## What labs would care about (the elevator pitch)
-
-> *"Almost every published agent benchmark reports point estimates without confidence intervals, no multi-comparison correction, no cost-efficiency in the primary score, and binary success measures that miss structural failure-mode shifts in long-horizon tasks. We built a methodology layer that fixes this and ran it against the top 15 benchmarks. Several widely-cited results don't survive proper analysis. The library is OSS; the audit is a paper."*
-
-That sentence works in a cold DM to anyone at Anthropic Evals, OpenAI Evals, GDM evaluation teams, or the AISI / METR / Apollo Research orbit.
-
-## Open questions / risks
-
-- **Reproducibility friction.** Re-running benchmarks costs real money. v0 should focus on benchmarks where pre-computed result tables exist (HAL has these), so we can do reanalysis without rerunning. Re-running is v1+.
-- **Political risk.** Showing that widely-cited results don't survive proper analysis will annoy the authors. Frame the project as collaborative ("here's how to get more out of your benchmark") not adversarial. The audit paper should name methodology, not authors.
-- **Methodology drift.** Some benchmarks are *deliberately* binary or single-seed because that's what the underlying task supports. v0 should avoid bashing those — focus on the cases where authors *could* have done more rigorous analysis and didn't.
+| **counter** | `counter` produces causal hypotheses about agent failures; `rigor` evaluates whether the evidence supports them. |
+| **Confidence at Menti** | Product experimentation discipline maps directly onto benchmark design and claim validation. |
+| **Autonomous ML Research** | Existing experiment workflows need the same study-specification, MDE, and reporting discipline. |
+| **HAL / Princeton's leaderboard** | HAL is strong infrastructure; `rigor` can complement it with claim-level inference and declared analysis plans. |
 
 ## Decision log
 
-- 2026-05-02 — repo created. Brain dump v0 from chat with the wiki agent.
+- 2026-05-02 — repo created. Initial brain dump focused on an experimental-rigor harness for agent benchmarks.
+- 2026-05-02 — v0 reframed around study specifications, public-data reanalysis, and honest reports. Broad benchmark adapters moved out of v0.
+- 2026-05-02 — terminology tightened: core artifact is a study specification; strict pre-registration is one analysis mode, distinct from declared reanalysis and exploratory work.
+- 2026-05-02 — Exhibit A selected: HAL TAU-bench Airline, focused on cost-aware model selection along the frontier.
 
 ## Cross-references
 
-- Brain wiki: [career plan 2026–2028](local-brain-wiki-career-plan) — rigor is move #2 of Track B and the recommended-first project.
+- Brain wiki: [career plan 2026-2028](local-brain-wiki-career-plan) — `rigor` is move #2 of Track B and the recommended-first project.
 - Brain wiki: [Senior DS career reference](local-brain-wiki-career-reference) — research-portfolio differentiation rationale.
-- Sibling repo: `~/dev/menti/counter` — counterfactual reasoning for agents (causal lens; rigor is the eval lens).
+- Sibling repo: `~/dev/menti/counter` — counterfactual reasoning for agents.
 - Sibling repos: `~/dev/menti/{autonomous-ml-research,autonomous-insights,trace,engram}` — existing pieces of the agent-infra portfolio.
-- Reference: [HAL — Holistic Agent Leaderboard (Princeton)](https://github.com/princeton-pli/hal-harness) — the closest existing infrastructure; rigor complements rather than competes.
-- Reference: [Long-Horizon Task Mirage paper (April 2026)](https://arxiv.org/html/2604.11978v1) — primary motivation for the structural failure-mode taxonomy.
-- Reference: [From benchmarks to deployment — review of agentic evaluation (Springer, 2026)](https://link.springer.com/article/10.1007/s10462-026-11571-0) — primary source for the 0/15-cost-efficiency, 13/15-binary-success findings.
+- Reference: [HAL — Holistic Agent Leaderboard (Princeton)](https://github.com/princeton-pli/hal-harness) — closest existing infrastructure; `rigor` should complement rather than compete.
+- Reference: [Long-Horizon Task Mirage paper (April 2026)](https://arxiv.org/html/2604.11978v1) — motivation for structural failure-mode analysis, but not a v0 auto-classification requirement.
+- Reference: [From benchmarks to deployment — review of agentic evaluation (Springer, 2026)](https://link.springer.com/article/10.1007/s10462-026-11571-0) — motivation for improving benchmark methodology.
