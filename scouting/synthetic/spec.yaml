@@ -1,0 +1,88 @@
+# Generative parameters for the synthetic known-truth study.
+#
+# Purpose:
+#   - Provide a deterministic, ground-truth-known dataset for end-to-end testing
+#     of the v0 statistical engine.
+#   - Serve as Plan B if no public benchmark passes the four selection gates.
+#
+# Noise model rationale (from design.md):
+#   - NOT i.i.d. Bernoulli per task. Real benchmarks have heteroscedastic
+#     per-task variance (some tasks are harder than others) and correlated
+#     per-seed structure (the same agent on the same task tends to succeed or
+#     fail similarly across seeds).
+#   - Modeled as: per-task base difficulty (logit-normal across tasks) +
+#     per-agent skill (logit shift) + per-(agent, task) interaction (small).
+#     Per-seed observation is Bernoulli(p) where p = sigmoid(skill - difficulty).
+#
+# Cost model:
+#   - Per-call token counts are sampled from a log-normal centered on a
+#     per-agent typical scale. Cost per run is tokens * provider price.
+#   - Mixed-model cost is NOT modeled here; the synthetic study uses a single
+#     "primary" model per agent.
+
+study:
+  id: rigor-v0-synthetic-known-truth
+  description: Synthesised known-truth dataset for stats-engine validation.
+
+design:
+  n_agents: 4
+  n_tasks: 60
+  n_seeds_per_task: 5
+  random_seed: 20260502   # date encoded for reproducibility
+
+agents:
+  # Each agent has a skill on the logit scale and a typical token scale.
+  # Names are illustrative; truth.json computes pairwise effects.
+  - id:                  agent_a_strong
+    skill_logit:         1.20            # high skill
+    cost_per_1m_input:   3.00            # premium model
+    cost_per_1m_output:  15.00
+    typical_input_tokens_mean:  6000
+    typical_input_tokens_sigma: 0.45     # log-normal sigma
+    typical_output_tokens_mean: 800
+    typical_output_tokens_sigma: 0.45
+
+  - id:                  agent_b_strong_close
+    skill_logit:         1.10            # very close to agent_a — narrow gap
+    cost_per_1m_input:   1.10            # cheaper model
+    cost_per_1m_output:  4.40
+    typical_input_tokens_mean:  6500
+    typical_input_tokens_sigma: 0.45
+    typical_output_tokens_mean: 1200    # more output tokens (reasoning)
+    typical_output_tokens_sigma: 0.45
+
+  - id:                  agent_c_mid
+    skill_logit:         0.20            # roughly chance
+    cost_per_1m_input:   0.50
+    cost_per_1m_output:  1.50
+    typical_input_tokens_mean:  4500
+    typical_input_tokens_sigma: 0.45
+    typical_output_tokens_mean: 600
+    typical_output_tokens_sigma: 0.45
+
+  - id:                  agent_d_weak
+    skill_logit:         -0.40           # below chance after task variance
+    # Cost set HIGHER than agent_c_mid (lower skill) and roughly equal token mass
+    # so agent_d is strictly Pareto-dominated by agent_c. This gives the stats
+    # engine a clear "drop_from_shortlist" decision target.
+    cost_per_1m_input:   1.20
+    cost_per_1m_output:  3.60
+    typical_input_tokens_mean:  4500
+    typical_input_tokens_sigma: 0.45
+    typical_output_tokens_mean: 600
+    typical_output_tokens_sigma: 0.45
+
+noise_model:
+  task_difficulty_logit_mean:  0.10
+  task_difficulty_logit_sigma: 0.80      # task-level variance — wide spread
+  agent_task_interaction_sigma: 0.20     # per-(agent, task) extra noise
+  base_latency_seconds_mean:    8.0
+  base_latency_seconds_sigma:   0.50     # log-normal on latency
+
+inference_targets:
+  # The reanalysis pipeline should recover these under multi-seed analysis.
+  primary_outcome:    success_rate
+  primary_pair:       [agent_a_strong, agent_b_strong_close]
+  alpha:              0.05
+  expected_holm_bonferroni_significant: false   # narrow gap; Holm should not flag a/b
+  expected_pareto_membership:           [agent_a_strong, agent_b_strong_close, agent_c_mid]
