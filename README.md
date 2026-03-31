@@ -337,6 +337,7 @@ The four-to-six-week version can serve one primary audience. The current bet: **
 - 2026-05-02 — v0 reframed around study specifications, public-data reanalysis, and honest reports. Broad benchmark adapters moved out of v0.
 - 2026-05-02 — terminology tightened: core artifact is a study specification; strict pre-registration is one analysis mode, distinct from declared reanalysis and exploratory work.
 - 2026-05-02 — Exhibit A selected: HAL TAU-bench Airline, focused on cost-aware model selection along the frontier.
+- 2026-05-02 — Scouting completed; Exhibit A revised to **HAL GAIA (HAL Generalist · Claude 3.7 Sonnet vs o4-mini High)** based on cleaner cost reconciliation (MAPE = 0.0). TAU-bench retained as strong secondary; gate matrix in [scouting/exhibit-a-decision.md](scouting/exhibit-a-decision.md).
 
 ## Cross-references
 
