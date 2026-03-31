@@ -1,0 +1,30 @@
+{
+  "candidate": "browsecomp",
+  "source_url": "https://cdn.openai.com/pdf/5e10f4ab-d6f7-442e-9508-59515c65e35d/browsecomp.pdf",
+  "retrieved_at": "2026-05-02T06:54:34.704238+00:00",
+  "retrieval_method": "manual_extraction_from_paper_and_secondary_sources",
+  "artifact_version": null,
+  "sampling_seed": null,
+  "sampling_fraction": null,
+  "data_availability": "aggregate_only",
+  "supplementary_sources": [
+    "https://www.kaggle.com/benchmarks/openai/browsecomp",
+    "https://www.ryanlee.ai/posts/browsecomp/",
+    "https://galileo.ai/blog/what-is-browsecomp-openai-benchmark-web-browsing-agents",
+    "https://github.com/openai/simple-evals"
+  ],
+  "selected_zips": [],
+  "selection_rationale": "Default non-HAL fallback per the design's open question. Included to confirm that the selection gates are not HAL-specific and to surface the broader methodology gap: OpenAI's launch paper for BrowseComp publishes single-point aggregates with no run-level data, no confidence intervals, and no cost figures. This is exactly the kind of benchmark report the rigor project is meant to challenge \u2014 but reanalysis would require data that is not public.",
+  "transformations": [
+    "extracted aggregate accuracies from OpenAI's BrowseComp launch paper and confirming secondary references",
+    "encoded each evaluated configuration as one row (agent_id, model_id, browsing, accuracy, accuracy_lower, accuracy_upper, accuracy_source, note)",
+    "noted that o1's accuracy was reported only as '<10%' so it is encoded as accuracy=null with accuracy_upper=0.10",
+    "noted that GPT-4o (no browsing) was reported as 'near-zero'; encoded as accuracy=0.0 with accuracy_upper=0.01 \u2014 these are NOT confidence intervals"
+  ],
+  "redaction_policy": "No redaction needed: the inventory contains only paper-level aggregate accuracies that are already public. No proprietary or model-trace content.",
+  "leaderboard_cross_check": [],
+  "candidate_claim": null,
+  "scouting_lessons": {
+    "aggregate_only_public_release": "BrowseComp is a clear example of the public-release pattern this project critiques: single-point accuracies, no uncertainty, no per-task data, no cost. Even the headline comparison ('Deep Research is 85x better than GPT-4o') is a ratio of point estimates. Including this as a fallback candidate documents that the v0 toolkit cannot help until the underlying data are released \u2014 the methodology layer is downstream of transparency."
+  }
+}

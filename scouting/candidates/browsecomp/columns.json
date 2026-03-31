@@ -1,0 +1,95 @@
+{
+  "candidate": "browsecomp",
+  "source_url": "https://cdn.openai.com/pdf/5e10f4ab-d6f7-442e-9508-59515c65e35d/browsecomp.pdf",
+  "retrieved_at": "2026-05-02T06:54:34.704035+00:00",
+  "artifact_version": null,
+  "data_availability": "aggregate_only",
+  "tables": [
+    {
+      "name": "leaderboard_aggregates",
+      "row_count_sampled": 5,
+      "n_runs_sampled": null,
+      "agents_sampled": [
+        "GPT-4o (no browsing)",
+        "GPT-4.5 (no browsing)",
+        "GPT-4o with browsing",
+        "OpenAI o1",
+        "Deep Research"
+      ],
+      "columns": [
+        {
+          "raw_name": "agent_id",
+          "semantic_role": "agent_id",
+          "dtype": "string",
+          "null_rate": 0.0,
+          "example": "\"Deep Research\""
+        },
+        {
+          "raw_name": "model_id",
+          "semantic_role": "model_id",
+          "dtype": "string",
+          "null_rate": 0.0,
+          "example": "\"deep-research\""
+        },
+        {
+          "raw_name": "browsing",
+          "semantic_role": "other",
+          "dtype": "bool",
+          "null_rate": 0.0,
+          "example": "true",
+          "notes": "Whether the configuration enables web browsing tools."
+        },
+        {
+          "raw_name": "accuracy",
+          "semantic_role": "success",
+          "dtype": "float64",
+          "null_rate": 0.2,
+          "example": "0.515",
+          "notes": "Reported aggregate accuracy. Some agents have null when only an upper bound was reported."
+        },
+        {
+          "raw_name": "accuracy_lower",
+          "semantic_role": "other",
+          "dtype": "float64",
+          "null_rate": 0.8,
+          "example": "0.0",
+          "notes": "Approximate lower bound of accuracy when only a band was reported. Not a confidence interval."
+        },
+        {
+          "raw_name": "accuracy_upper",
+          "semantic_role": "other",
+          "dtype": "float64",
+          "null_rate": 0.6,
+          "example": "0.1",
+          "notes": "Approximate upper bound of accuracy when only a band was reported. Not a confidence interval."
+        },
+        {
+          "raw_name": "accuracy_source",
+          "semantic_role": "other",
+          "dtype": "string",
+          "null_rate": 0.0,
+          "example": "\"paper\"",
+          "notes": "Source of the accuracy figure."
+        },
+        {
+          "raw_name": "note",
+          "semantic_role": "other",
+          "dtype": "string",
+          "null_rate": 0.0,
+          "example": "...",
+          "notes": "Free-text note on caveats per row."
+        }
+      ]
+    },
+    {
+      "name": "per_task",
+      "row_count_sampled": 0,
+      "note": "BrowseComp does not publish per-task or per-run results. The benchmark dataset (1,266 problems) is in openai/simple-evals on GitHub, but task-level grading outputs from the original paper are not released. The Kaggle leaderboard exposes submission accuracies but no per-task download. Gate 1 (run-level data) FAILS for this candidate.",
+      "columns": []
+    }
+  ],
+  "structural_findings": {
+    "no_run_level_public_data": "BrowseComp's published artifacts cover the dataset (questions and answers) and aggregate accuracies for the agents OpenAI evaluated in the launch paper. There is no public run-level data, no per-task grading record, and no token/cost telemetry. This makes it unusable as Exhibit A under the v0 selection gates.",
+    "binary_outcome_with_no_uncertainty": "Reported accuracies in the launch paper are single point estimates with no confidence intervals, no seed information, and no per-task indicators \u2014 exactly the methodology gap the rigor project is meant to address. BrowseComp is therefore a useful future target for reanalysis IF run-level data is ever released, but not for v0."
+  }
+}
