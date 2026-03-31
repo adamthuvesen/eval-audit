@@ -1,0 +1,210 @@
+{
+  "candidate": "tau-bench",
+  "source_url": "https://huggingface.co/datasets/agent-evals/hal_traces",
+  "retrieved_at": "2026-05-02T06:43:37.957180+00:00",
+  "artifact_version": null,
+  "tables": [
+    {
+      "name": "per_task",
+      "row_count_sampled": 150,
+      "n_runs_sampled": 3,
+      "agents_sampled": [
+        "Taubench ToolCalling (claude-3.7-sonnet)",
+        "Taubench ToolCalling (o3-2025-04-16)",
+        "Taubench ToolCalling (o4-mini-2025-04-16 high)"
+      ],
+      "columns": [
+        {
+          "raw_name": "agent_id",
+          "semantic_role": "agent_id",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"Taubench ToolCalling (o4-mini-2025-04-16 high)\""
+        },
+        {
+          "raw_name": "agent_short",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"tc_o4mini_high\"",
+          "notes": "Short label assigned by the inventory script for joins."
+        },
+        {
+          "raw_name": "agent_display",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"Tool Calling (o4-mini High)\"",
+          "notes": "Human-readable label for plots and tables."
+        },
+        {
+          "raw_name": "model_id",
+          "semantic_role": "model_id",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"openai/o4-mini-2025-04-16\""
+        },
+        {
+          "raw_name": "benchmark_id",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"taubench_airline\"",
+          "notes": "Benchmark identifier; constant within this candidate."
+        },
+        {
+          "raw_name": "run_id",
+          "semantic_role": "run_id",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"taubench_airline_taubench_toolcalling_o4mini20250416_high_1760993011\""
+        },
+        {
+          "raw_name": "task_id",
+          "semantic_role": "task_id",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"0\""
+        },
+        {
+          "raw_name": "reward",
+          "semantic_role": "partial_credit",
+          "dtype": "float64",
+          "null_rate": 0.02,
+          "example": "1.0",
+          "notes": "Raw reward from the benchmark grader. Binary 0.0/1.0 in airline; may be partial in retail. Null when outcome_status='errored'."
+        },
+        {
+          "raw_name": "success_bool",
+          "semantic_role": "success",
+          "dtype": "float64",
+          "null_rate": 0.02,
+          "example": "1.0"
+        },
+        {
+          "raw_name": "outcome_status",
+          "semantic_role": "outcome_status",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"graded\"",
+          "notes": "Structural outcome state: 'graded' (the grader produced a reward) or 'errored' (raw_eval_results was an error string). Distinct from success_bool=0."
+        },
+        {
+          "raw_name": "tokens_in_by_model",
+          "semantic_role": "tokens_in_by_model",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"{\\\"gpt-4o-2024-08-06\\\": 17794, \\\"o4-mini-2025-04-16\\\": 99564}\"",
+          "notes": "JSON-encoded {model_name: prompt_tokens} so cost reconstruction can apply per-model prices."
+        },
+        {
+          "raw_name": "tokens_out_by_model",
+          "semantic_role": "tokens_out_by_model",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"{\\\"gpt-4o-2024-08-06\\\": 498, \\\"o4-mini-2025-04-16\\\": 19276}\"",
+          "notes": "JSON-encoded {model_name: completion_tokens} so cost reconstruction can apply per-model prices."
+        },
+        {
+          "raw_name": "tokens_in_total",
+          "semantic_role": "tokens_in",
+          "dtype": "int64",
+          "null_rate": 0.0,
+          "example": "117358",
+          "notes": "Sum of tokens_in_by_model. Convenience; mixed-model runs should prefer the per-model breakdown."
+        },
+        {
+          "raw_name": "tokens_out_total",
+          "semantic_role": "tokens_out",
+          "dtype": "int64",
+          "null_rate": 0.0,
+          "example": "19774",
+          "notes": "Sum of tokens_out_by_model. Convenience; mixed-model runs should prefer the per-model breakdown."
+        },
+        {
+          "raw_name": "n_llm_calls",
+          "semantic_role": "other",
+          "dtype": "int64",
+          "null_rate": 0.0,
+          "example": "48",
+          "notes": "Count of Weave LLM calls aggregated to this task; complexity proxy."
+        },
+        {
+          "raw_name": "models_used",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"[\\\"gpt-4o-2024-08-06\\\", \\\"o4-mini-2025-04-16\\\"]\"",
+          "notes": "JSON list of model names invoked at least once on this task."
+        },
+        {
+          "raw_name": "latency_total_s",
+          "semantic_role": "latency_s",
+          "dtype": "float64",
+          "null_rate": 0.0,
+          "example": "123.632746"
+        },
+        {
+          "raw_name": "first_call_ts",
+          "semantic_role": "timestamp",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"2025-10-20T20:43:52.473608+00:00\"",
+          "notes": "ISO 8601 UTC; wall-clock start of the first LLM call for this task."
+        },
+        {
+          "raw_name": "last_call_ts",
+          "semantic_role": "timestamp",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"2025-10-20T20:45:56.106354+00:00\"",
+          "notes": "ISO 8601 UTC; wall-clock end of the last LLM call for this task."
+        },
+        {
+          "raw_name": "run_total_cost_usd",
+          "semantic_role": "cost_usd",
+          "dtype": "float64",
+          "null_rate": 0.0,
+          "example": "8.3796796",
+          "notes": "Aggregate cost for the whole run. PER-TASK cost is NOT stored upstream and must be reconstructed from tokens_in_by_model / tokens_out_by_model."
+        },
+        {
+          "raw_name": "run_total_usage_json",
+          "semantic_role": "other",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"{\\\"gpt-4o-2024-08-06\\\": {\\\"cache_creation_input_tokens\\\": 0, \\\"cache_read_input_tokens\\\": 128000, \\\"completion_tokens\\\": 16758, \\\"prompt_tokens\\\": 504354}, \\\"o4-mini-2025-04-16\\\": {\\\"cache_creation_input_tokens\\\": 0, \\\"cache_read_input_tokens\\\": 3612160, \\\"completion_tokens\\\": 1098396, \\\"prompt_tokens\\\": 4634822}}\"",
+          "notes": "JSON-encoded total_usage block from the original trace; per-model token totals across the whole run."
+        },
+        {
+          "raw_name": "git_commit",
+          "semantic_role": "rerun_metadata",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"b64fc7cc5c0aa7ea2fbf197d835805460bcf2e7b\"",
+          "notes": "HAL harness commit at run time."
+        },
+        {
+          "raw_name": "run_date",
+          "semantic_role": "timestamp",
+          "dtype": "object",
+          "null_rate": 0.0,
+          "example": "\"2025-10-20\"",
+          "notes": "Date string from config; not strictly the run start, but ISO-style date."
+        }
+      ]
+    },
+    {
+      "name": "per_run",
+      "row_count_sampled": 0,
+      "note": "One zip = one agent's complete run on the benchmark. Per-run fields are inlined into per_task rows above (agent_id, model_id, run_id, run_total_cost_usd, run_total_usage_json, git_commit, run_date). If a separate per_run table is needed downstream, it can be derived by deduplicating per_task rows on run_id.",
+      "columns": []
+    },
+    {
+      "name": "per_call",
+      "row_count_sampled": 0,
+      "note": "Each Weave-traced LLM call. ~1,500-2,000 calls per zip. Used here only to reconstruct per-task token sums via summary.usage; raw call payloads contain proprietary model inputs/outputs (inputs.messages, output.choices.*.message) that the scouting fixtures must NOT republish. The per-task tokens_in_by_model and tokens_out_by_model columns are the redacted projection of this table.",
+      "columns": []
+    }
+  ]
+}

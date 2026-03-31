@@ -1,0 +1,64 @@
+{
+  "candidate": "tau-bench",
+  "source_url": "https://huggingface.co/datasets/agent-evals/hal_traces",
+  "retrieved_at": "2026-05-02T06:43:37.958388+00:00",
+  "retrieval_method": "huggingface_resolve_per_file",
+  "artifact_version": null,
+  "sampling_seed": null,
+  "sampling_fraction": null,
+  "selected_zips": [
+    "taubench_airline_taubench_toolcalling_o4mini20250416_high_1760993011_UPLOAD.zip",
+    "taubench_airline_taubench_toolcalling_claude37sonnet_1760379497_UPLOAD.zip",
+    "taubench_airline_taubench_toolcalling_o320250416_1760994863_UPLOAD.zip"
+  ],
+  "selection_rationale": "Three TAU-bench Tool Calling runs (same agent harness, three frontier models) spanning the leaderboard top: o4-mini High, Claude 3.7 Sonnet, o3 Medium. Within-harness comparison eliminates the agent-scaffold confound that would appear in a cross-harness comparison (e.g., Tool Calling vs HAL Generalist). The retail variant (taubench_retail) had no zips on the dataset at retrieval time, so this candidate covers airline only.",
+  "transformations": [
+    "decrypted with Fernet/PBKDF2-HMAC-SHA256 using the public anti-scrape value (redacted) (anti-scrape, not security)",
+    "extracted per-task rows from raw_eval_results (success, reward, error flag)",
+    "joined per-task latencies from results.latencies",
+    "aggregated per-task tokens by summing summary.usage[model] over raw_logging_results grouped by weave_task_id",
+    "preserved per-model token breakdown as tokens_in_by_model / tokens_out_by_model (JSON-encoded)",
+    "dropped proprietary fields: raw_logging_results.inputs, raw_logging_results.output, raw_eval_results[*].taken_actions, raw_eval_results[*].task",
+    "added derived columns: success_bool (reward >= 1.0), outcome_status ('graded' | 'errored')"
+  ],
+  "redaction_policy": "HAL encrypts traces specifically to prevent benchmark contamination via scraping. This sample preserves only structural and numeric columns and excludes all model inputs and outputs. Do not republish raw_logging_results, raw_eval_results.task, or raw_eval_results.taken_actions from this candidate.",
+  "leaderboard_cross_check": [
+    {
+      "agent": "TAU-bench Tool Calling (o4-mini High)",
+      "leaderboard_accuracy": 0.56,
+      "leaderboard_cost_usd": 11.36,
+      "sample_accuracy": 0.56,
+      "sample_cost_usd": 8.38,
+      "note": "Accuracy matches; sample cost lower than leaderboard ($8.38 vs $11.36). May reflect a different run or pricing date \u2014 investigate in cost reconciliation (task 5.x)."
+    },
+    {
+      "agent": "TAU-bench Tool Calling (Claude 3.7 Sonnet)",
+      "leaderboard_accuracy": null,
+      "leaderboard_cost_usd": null,
+      "sample_accuracy": 0.44,
+      "sample_cost_usd": 15.45,
+      "note": "Included for sample diversity (3 distinct agents per fixture spec). NOT part of the primary candidate claim. The leaderboard's '56% / $42.11' Claude 3.7 Sonnet entry is the HAL Generalist Agent harness, NOT Tool Calling \u2014 see scouting_lessons.cross_harness_confound below."
+    },
+    {
+      "agent": "TAU-bench Tool Calling (o3 Medium)",
+      "leaderboard_accuracy": 0.54,
+      "leaderboard_cost_usd": 14.56,
+      "sample_accuracy": 0.54,
+      "sample_cost_usd": 32.24,
+      "note": "Accuracy matches; sample cost is 2.2x leaderboard. Cost reconciliation in task 5.x must explain this."
+    }
+  ],
+  "candidate_claim": {
+    "text": "Within the TAU-bench Tool Calling harness, o4-mini High is reported at 56% and o3 Medium at 54%; the reanalysis asks whether that 2 percentage point observed gap supports a model-selection decision, once uncertainty, cost, and task-level outcomes are shown.",
+    "treatment": "tc_o4mini_high",
+    "control": "tc_o3_medium",
+    "outcome": "success_rate",
+    "n_per_arm": 50,
+    "rationale": "Same benchmark, same scaffold/harness, narrow gap, task-level public traces, cost-sensitive decision, and likely underpowered at n=50. This is the cleanest within-harness model-vs-model comparison available in the dataset."
+  },
+  "scouting_lessons": {
+    "cross_harness_confound": "Do not compare leaderboard rows across agent harnesses as if they were model-only effects. The HAL TAU-bench airline leaderboard mixes Tool Calling, HAL Generalist, and TAU few-shot rows in a single ranking. Claude 3.7 Sonnet appears at 56% accuracy under HAL Generalist and at 44% accuracy under Tool Calling \u2014 a 12 percentage point gap attributable to scaffold, not model. The v0 reanalysis must therefore restrict comparisons to a single harness, and the decision document should call this out as a methodological lesson worth surfacing.",
+    "errored_vs_failed": "TAU-bench airline grades 50 tasks per run, but some tasks return error strings instead of a graded reward. Within Tool Calling Claude 3.7 Sonnet, 3/50 tasks errored. The leaderboard's headline accuracy folds errored tasks in as failures, but they are structurally different from a graded failure (e.g., harness crash vs wrong answer). The toolkit's failure-mode taxonomy treats outcome_status as a distinct dimension.",
+    "cost_drift_vs_leaderboard": "Sample costs do not match leaderboard costs precisely: o4-mini $8.38 vs $11.36 and o3 Medium $32.24 vs $14.56. The leaderboard appears to publish a curated or averaged figure rather than the per-trace cost. This is exactly the cost provenance question task 5.x is supposed to resolve."
+  }
+}

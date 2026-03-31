@@ -1,0 +1,4 @@
+# Treat Parquet sample fixtures as binary so diffs stay sane.
+# Scouting fixtures live under scouting/candidates/<name>/sample.parquet
+# and scouting/synthetic/runs.parquet.
+*.parquet binary
