@@ -1,0 +1,13 @@
+{
+  "candidate": "browsecomp",
+  "outcome": "not_applicable",
+  "runs_compared": 0,
+  "mape": null,
+  "provider_pricing_source": null,
+  "divergences": [],
+  "caveats": [
+    "BrowseComp does not publish run-level token counts or cost data. Only paper-level aggregate accuracies are public, with no associated cost figures. Cost reconciliation is not applicable."
+  ],
+  "per_run": [],
+  "reconciled_at": "2026-05-02T06:58:27.016892+00:00"
+}
