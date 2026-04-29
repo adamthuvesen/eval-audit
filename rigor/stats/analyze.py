@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import polars as pl
-from scipy.stats import norm
+from scipy.stats import ttest_rel
 
 from rigor.schema import StudySpec
 from rigor.stats.bootstrap import BootstrapResult, paired_task_bootstrap
@@ -56,18 +56,36 @@ class AnalysisResult:
     bootstrap_seed: int
 
 
-def _two_proportion_z_p(s1: int, n1: int, s2: int, n2: int) -> float:
-    """Two-sided two-proportion z-test p-value (pooled)."""
-    if n1 == 0 or n2 == 0:
+def _paired_task_p_value(
+    treatment_rows: pl.DataFrame,
+    control_rows: pl.DataFrame,
+) -> float:
+    """Paired-task two-sided p-value treating task as the unit of analysis.
+
+    For each task, compute the per-task mean success on each arm (averaging over seeds
+    when present), then run a paired t-test on the per-task differences. This respects
+    within-task clustering, which a naive 2-proportion z-test would ignore.
+    """
+    a_means = (
+        treatment_rows.group_by("task_id")
+        .agg(pl.col("success").cast(pl.Float64).mean().alias("_a"))
+    )
+    b_means = (
+        control_rows.group_by("task_id")
+        .agg(pl.col("success").cast(pl.Float64).mean().alias("_b"))
+    )
+    paired = a_means.join(b_means, on="task_id", how="inner")
+    if paired.height < 2:
         return 1.0
-    p1 = s1 / n1
-    p2 = s2 / n2
-    p_pool = (s1 + s2) / (n1 + n2)
-    se = (p_pool * (1 - p_pool) * (1 / n1 + 1 / n2)) ** 0.5
-    if se == 0:
+    a_vec = paired["_a"].to_numpy()
+    b_vec = paired["_b"].to_numpy()
+    if (a_vec == b_vec).all():
         return 1.0
-    z = (p1 - p2) / se
-    return float(2 * (1 - norm.cdf(abs(z))))
+    res = ttest_rel(a_vec, b_vec)
+    p = float(res.pvalue)
+    if p != p:  # NaN guard
+        return 1.0
+    return p
 
 
 def _check_harness_consistency(
@@ -177,14 +195,7 @@ def analyze(
         )
         bootstraps[claim.id] = boot
 
-        t_summary = by_id[claim.treatment]
-        c_summary = by_id[claim.control]
-        raw_p = _two_proportion_z_p(
-            int(round(t_summary.success_rate * t_summary.n_graded)),
-            t_summary.n_graded,
-            int(round(c_summary.success_rate * c_summary.n_graded)),
-            c_summary.n_graded,
-        )
+        raw_p = _paired_task_p_value(treatment_rows, control_rows)
         raw_p_pairs.append((claim.id, raw_p))
 
     if study.inference.correction_method == "holm_bonferroni":
