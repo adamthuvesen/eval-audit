@@ -119,8 +119,10 @@ def render_report(
     import json
 
     cost_provenance_class = "n/a"
+    cost_recon_data: dict = {}
     if cost_recon.exists():
-        cost_provenance_class = json.loads(cost_recon.read_text()).get("outcome", "n/a")
+        cost_recon_data = json.loads(cost_recon.read_text())
+        cost_provenance_class = cost_recon_data.get("outcome", "n/a")
     source_url = ""
     retrieved_at = ""
     if provenance.exists():
@@ -133,6 +135,35 @@ def render_report(
     parts.append(f"- **price_table_pinned_at:** `{PRICE_TABLE_PINNED_AT}`")
     parts.append(f"- **cost_provenance:** `{cost_provenance_class}`")
     parts.append("")
+
+    if cost_provenance_class == "as_reported_only":
+        parts.append("### Cost provenance caveat\n")
+        parts.append("> ⚠️ Cost provenance: as_reported_only")
+        parts.append("")
+        parts.append(
+            "HAL's reported run-total cost is used directly because per-task cost "
+            "reconstruction from token counts × pinned provider prices does not "
+            "reconcile to HAL's reported total within the toolkit's 1% tolerance. "
+            "Per-task cost analyses are therefore unavailable for this study; "
+            "cost figures below are derived from the reported run-total divided by "
+            "graded successes."
+        )
+        parts.append("")
+        parts.append("**Divergences (per run):**\n")
+        for d in cost_recon_data.get("divergences", []):
+            agent_id = d.get("agent_id", "")
+            reported = float(d.get("reported_cost_usd", 0.0))
+            recon = float(d.get("reconstructed_cost_usd", 0.0))
+            note = d.get("hypothesis", "")
+            parts.append(
+                f"- {agent_id} — reported ${reported:.2f}, reconstructed ${recon:.2f} "
+                f"(note: {note})"
+            )
+        parts.append("")
+        parts.append("**Caveats:**\n")
+        for c in cost_recon_data.get("caveats", []):
+            parts.append(f"- {c}")
+        parts.append("")
 
     # 3. Per-agent summary
     parts.append("## Per-agent summary\n")
