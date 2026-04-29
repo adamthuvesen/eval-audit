@@ -116,15 +116,6 @@ def test_synthetic_validation__pareto_membership_matches_truth(analysis, truth) 
 
 
 @pytest.mark.synthetic_validation
-@pytest.mark.skip(
-    reason=(
-        "Blocked on change `repair-synthetic-fixture-contract`: the current synthetic "
-        "fixture realization (seed 20260502) has observed primary delta ~9.7pp vs true "
-        "delta 1.2pp, so a correctly-clustered paired-task test rejects null where the "
-        "spec expects non-rejection. Re-enable once the fixture is regenerated to land "
-        "the observed delta within ~3pp of the true delta."
-    )
-)
 def test_synthetic_validation__primary_pair_holm_does_not_reject(analysis, truth) -> None:
     """Holm-Bonferroni adjusted p-value for the primary pair does NOT reject at alpha=0.05."""
     primary_pair = tuple(truth["primary_pair"])

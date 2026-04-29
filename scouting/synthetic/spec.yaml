@@ -28,7 +28,12 @@ design:
   n_agents: 4
   n_tasks: 60
   n_seeds_per_task: 5
-  random_seed: 20260502   # date encoded for reproducibility
+  # Selected by `scouting/synthetic/find_seed.py` to satisfy every entry in
+  # `acceptance_criteria:` (see `repair-synthetic-fixture-contract`). The
+  # original 20260502 produced an outlier realization (~9.7pp observed primary
+  # delta vs 1.2pp true delta) that broke the v0 synthetic-validation gate.
+  # Do NOT change without re-running find_seed.py.
+  random_seed: 20260503   # near-original date; first seed to satisfy acceptance_criteria
 
 agents:
   # Each agent has a skill on the logit scale and a typical token scale.
@@ -86,3 +91,15 @@ inference_targets:
   alpha:              0.05
   expected_holm_bonferroni_significant: false   # narrow gap; Holm should not flag a/b
   expected_pareto_membership:           [agent_a_strong, agent_b_strong_close, agent_c_mid]
+
+# Per `repair-synthetic-fixture-contract`: every realization committed at the
+# canonical paths MUST satisfy these criteria. `generate.py` enforces them at
+# write time; `find_seed.py` scans candidate seeds to pick one that passes.
+# DO NOT loosen these tolerances without an OpenSpec change — they are the
+# fixture's contract with the v0 stats engine's synthetic-validation gate.
+acceptance_criteria:
+  primary_delta_tolerance_pp: 3.0    # |observed - true| primary delta, in pp
+  per_agent_rate_tolerance_pp: 7.5   # |observed - expected| per agent, in pp
+  bootstrap_iterations:        2000  # paired-task cluster bootstrap
+  bootstrap_seed:              42
+  alpha:                       0.05
