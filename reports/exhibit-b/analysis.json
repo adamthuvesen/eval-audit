@@ -1,0 +1,104 @@
+{
+  "study_id": "exhibit-b",
+  "per_agent": [
+    {
+      "agent_id": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+      "n_graded": 50,
+      "n_errored": 0,
+      "success_rate": 0.56,
+      "success_rate_ci_low": 0.4230602802165686,
+      "success_rate_ci_high": 0.6883780078874284,
+      "total_cost_usd": 8.3796796,
+      "cost_per_success_usd": 0.2992742714285714
+    },
+    {
+      "agent_id": "Taubench ToolCalling (claude-3.7-sonnet)",
+      "n_graded": 47,
+      "n_errored": 3,
+      "success_rate": 0.44,
+      "success_rate_ci_low": 0.3116219921125717,
+      "success_rate_ci_high": 0.5769397197834315,
+      "total_cost_usd": 15.445473000000002,
+      "cost_per_success_usd": 0.7020669545454546
+    },
+    {
+      "agent_id": "Taubench ToolCalling (o3-2025-04-16)",
+      "n_graded": 50,
+      "n_errored": 0,
+      "success_rate": 0.54,
+      "success_rate_ci_low": 0.40398871399157477,
+      "success_rate_ci_high": 0.6703034780777566,
+      "total_cost_usd": 32.235387,
+      "cost_per_success_usd": 1.1939032222222223
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "o4mini_vs_claude",
+      "text": "Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and Claude 3.7 Sonnet at 44% (folding errored rows in as failures). This reanalysis evaluates whether that 12 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 1.8x cost gap ($8.38 vs $15.45).",
+      "treatment": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+      "control": "Taubench ToolCalling (claude-3.7-sonnet)",
+      "delta_point_estimate": 0.12000000000000005,
+      "delta_ci_low": -0.05999999999999994,
+      "delta_ci_high": 0.28,
+      "raw_p_value": 0.1823516112397044,
+      "adjusted_p_value": 0.5470548337191132,
+      "rejects_null": false,
+      "treatment_total_cost_usd": 8.3796796,
+      "control_total_cost_usd": 15.445473000000002,
+      "bootstrap": [
+        0.12000000000000005,
+        -0.05999999999999994,
+        0.28,
+        10000,
+        42
+      ]
+    },
+    {
+      "claim_id": "o4mini_vs_o3",
+      "text": "Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and o3 Medium at 54%. This reanalysis evaluates whether that 2 percentage point gap supports a model-selection decision once uncertainty and the 3.8x cost gap ($8.38 vs $32.24) are shown.",
+      "treatment": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+      "control": "Taubench ToolCalling (o3-2025-04-16)",
+      "delta_point_estimate": 0.020000000000000018,
+      "delta_ci_low": -0.1204999999999996,
+      "delta_ci_high": 0.17999999999999994,
+      "raw_p_value": 0.7991957088977212,
+      "adjusted_p_value": 0.7991957088977212,
+      "rejects_null": false,
+      "treatment_total_cost_usd": 8.3796796,
+      "control_total_cost_usd": 32.235387,
+      "bootstrap": [
+        0.020000000000000018,
+        -0.1204999999999996,
+        0.17999999999999994,
+        10000,
+        42
+      ]
+    },
+    {
+      "claim_id": "claude_vs_o3",
+      "text": "Within TAU-bench Airline under the Tool Calling harness, Claude 3.7 Sonnet is reported at 44% (with 3 of 50 errored rows folded in as failures) and o3 Medium at 54%. This reanalysis evaluates whether that 10 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 2.1x cost gap ($15.45 vs $32.24).",
+      "treatment": "Taubench ToolCalling (claude-3.7-sonnet)",
+      "control": "Taubench ToolCalling (o3-2025-04-16)",
+      "delta_point_estimate": -0.10000000000000003,
+      "delta_ci_low": -0.26000000000000006,
+      "delta_ci_high": 0.06000000000000005,
+      "raw_p_value": 0.2554024161197576,
+      "adjusted_p_value": 0.5470548337191132,
+      "rejects_null": false,
+      "treatment_total_cost_usd": 15.445473000000002,
+      "control_total_cost_usd": 32.235387,
+      "bootstrap": [
+        -0.10000000000000003,
+        -0.26000000000000006,
+        0.06000000000000005,
+        10000,
+        42
+      ]
+    }
+  ],
+  "pareto_frontier": [
+    "Taubench ToolCalling (o4-mini-2025-04-16 high)"
+  ],
+  "bootstrap_seed": 42
+}
