@@ -16,7 +16,7 @@ from pathlib import Path
 import polars as pl
 
 from rigor.ingest._prices import PRICE_TABLE, PRICE_TABLE_PINNED_AT
-from rigor.ingest.base import IngestContractError, assert_canonical_schema
+from rigor.ingest.base import IngestContractError, validate_run_records
 
 # Locked column mapping from scouting/exhibit-a-decision.md.
 # raw_name -> semantic_role for the GAIA per_task table.
@@ -192,10 +192,11 @@ class HalGaiaAdapter:
                     f"reconstructed={recon:.4f} relative_error={rel:.4f} (threshold 0.01)"
                 )
 
+        self.validate(frame)
         return frame
 
     def validate(self, frame: pl.DataFrame) -> None:
-        assert_canonical_schema(frame)
+        validate_run_records(frame)
         if "harness" in frame.columns and not (frame["harness"] == _HARNESS).all():
             raise IngestContractError(
                 f"hal-gaia adapter expects every row to have harness={_HARNESS!r}"

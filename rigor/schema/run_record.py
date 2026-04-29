@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from rigor.schema.enums import CostProvenance, OutcomeStatus
 
@@ -37,7 +37,7 @@ class RunRecord(BaseModel):
     reconstructed_per_task_cost_usd: float | None
     reported_run_total_cost_usd: float | None = None
     cost_provenance: CostProvenance
-    rerun_metadata: dict[str, str] = {}
+    rerun_metadata: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _graded_rows_have_success(self) -> RunRecord:

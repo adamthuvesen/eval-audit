@@ -93,3 +93,104 @@ def test_analyze__mixed_harness_comparison_is_rejected() -> None:
     assert "hal_tool_calling" in msg
     assert "agent_t" in msg
     assert "agent_c" in msg
+
+
+def test_analyze__benjamini_hochberg_dispatches_to_bh(monkeypatch) -> None:
+    """WHEN correction_method is benjamini_hochberg,
+    THEN analyze reports BH adjusted p-values rather than raw p-values.
+    """
+    import importlib
+
+    from pytest import approx
+
+    from rigor.schema import Claim, Inference
+    from rigor.stats import analyze
+
+    analyze_module = importlib.import_module("rigor.stats.analyze")
+    raw_p_values = iter([0.001, 0.02, 0.04, 0.20])
+
+    def fake_p_value(_treatment_rows, _control_rows) -> float:
+        return next(raw_p_values)
+
+    monkeypatch.setattr(analyze_module, "_paired_task_p_value", fake_p_value)
+
+    treatment = "agent_t"
+    control = "agent_c"
+    rows = [
+        _row(treatment, "t01", "hal_generalist_agent"),
+        _row(treatment, "t02", "hal_generalist_agent"),
+        _row(control, "t01", "hal_generalist_agent"),
+        _row(control, "t02", "hal_generalist_agent"),
+    ]
+    frame = pl.DataFrame(rows)
+    study = _stub_study(treatment, control, "hal_generalist_agent").model_copy(
+        update={
+            "inference": Inference(
+                alpha=0.05,
+                correction_method="benjamini_hochberg",
+                comparison_family="exploratory",
+                target_mde=None,
+            ),
+            "claims": [
+                Claim(
+                    id="c1",
+                    text="treatment beats control",
+                    treatment=treatment,
+                    control=control,
+                    outcome="success_rate",
+                ),
+                Claim(
+                    id="c2",
+                    text="treatment beats control",
+                    treatment=treatment,
+                    control=control,
+                    outcome="success_rate",
+                ),
+                Claim(
+                    id="c3",
+                    text="treatment beats control",
+                    treatment=treatment,
+                    control=control,
+                    outcome="success_rate",
+                ),
+                Claim(
+                    id="c4",
+                    text="treatment beats control",
+                    treatment=treatment,
+                    control=control,
+                    outcome="success_rate",
+                ),
+            ],
+        }
+    )
+
+    result = analyze(study, frame, bootstrap_iterations=10, bootstrap_seed=42)
+
+    adjusted = {claim.claim_id: claim.adjusted_p_value for claim in result.claims}
+    assert adjusted["c1"] == approx(0.004)
+    assert adjusted["c2"] == approx(0.04)
+    assert adjusted["c3"] == approx(0.05333333333333334)
+    assert adjusted["c4"] == approx(0.20)
+
+
+def test_analyze__unsupported_outcome_fails_loudly() -> None:
+    """WHEN analyze receives a StudySpec that bypassed validation with latency_s,
+    THEN it raises before bootstrapping success as though the declaration were valid.
+    """
+    import pytest
+
+    from rigor.stats import analyze
+
+    study = _stub_study("agent_t", "agent_c", "hal_generalist_agent")
+    bad_primary = study.primary_outcome.model_copy(update={"name": "latency_s"})
+    bad_claim = study.claims[0].model_copy(update={"outcome": "latency_s"})
+    bad_study = study.model_copy(update={"primary_outcome": bad_primary, "claims": [bad_claim]})
+    frame = pl.DataFrame([
+        _row("agent_t", "t01", "hal_generalist_agent"),
+        _row("agent_c", "t01", "hal_generalist_agent"),
+    ])
+
+    with pytest.raises(ValueError) as exc_info:
+        analyze(bad_study, frame)
+
+    assert "success_rate" in str(exc_info.value)

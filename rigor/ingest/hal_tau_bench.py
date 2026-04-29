@@ -15,7 +15,7 @@ from pathlib import Path
 
 import polars as pl
 
-from rigor.ingest.base import IngestContractError, assert_canonical_schema
+from rigor.ingest.base import IngestContractError, validate_run_records
 
 # Locked column mapping for scouting/candidates/tau-bench/sample.parquet.
 # raw_name -> semantic_role for the tau-bench per_task table. The
@@ -165,10 +165,12 @@ class HalTauBenchAdapter:
 
         frame = pl.DataFrame(records, strict=False)
         # Sort defensively: downstream group_by + bootstrap rely on stable ordering.
-        return frame.sort(["agent_id", "task_id"])
+        frame = frame.sort(["agent_id", "task_id"])
+        self.validate(frame)
+        return frame
 
     def validate(self, frame: pl.DataFrame) -> None:
-        assert_canonical_schema(frame)
+        validate_run_records(frame)
         if "harness" in frame.columns and not (frame["harness"] == _HARNESS).all():
             raise IngestContractError(
                 f"hal-tau-bench adapter expects every row to have harness={_HARNESS!r}"

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class PrimaryOutcome(BaseModel):
@@ -74,6 +74,81 @@ class StudySpec(BaseModel):
     inference: Inference
     cost: CostConfig
     claims: list[Claim]
+
+    @model_validator(mode="after")
+    def _validate_claim_family_and_v0_scope(self) -> StudySpec:
+        errors: list[str] = []
+
+        if not self.agents:
+            errors.append("agents must contain at least one entry")
+        if not self.claims:
+            errors.append("claims must contain at least one entry")
+        if self.design.observed_runs_per_agent < 1:
+            errors.append(
+                "design.observed_runs_per_agent must be >= 1 "
+                f"(got {self.design.observed_runs_per_agent})"
+            )
+        if not 0.0 < self.inference.alpha < 1.0:
+            errors.append(
+                f"inference.alpha must be > 0 and < 1 (got {self.inference.alpha})"
+            )
+        if self.inference.target_mde is not None and self.inference.target_mde <= 0:
+            errors.append(
+                "inference.target_mde must be positive when declared "
+                f"(got {self.inference.target_mde})"
+            )
+
+        if self.primary_outcome.name != "success_rate":
+            errors.append(
+                "primary_outcome.name must be 'success_rate' in v0 "
+                f"(got {self.primary_outcome.name!r})"
+            )
+        if self.primary_outcome.direction != "higher_is_better":
+            errors.append(
+                "primary_outcome.direction must be 'higher_is_better' in v0 "
+                f"(got {self.primary_outcome.direction!r})"
+            )
+
+        agent_ids = {agent.id for agent in self.agents}
+        claim_ids_seen: set[str] = set()
+        duplicate_claim_ids: set[str] = set()
+
+        for claim in self.claims:
+            if claim.id in claim_ids_seen:
+                duplicate_claim_ids.add(claim.id)
+            claim_ids_seen.add(claim.id)
+
+            if claim.treatment == claim.control:
+                errors.append(
+                    f"claim {claim.id!r} has identical treatment and control "
+                    f"({claim.treatment!r})"
+                )
+            for role, agent_id in (
+                ("treatment", claim.treatment),
+                ("control", claim.control),
+            ):
+                if agent_id not in agent_ids:
+                    errors.append(
+                        f"claim {claim.id!r} references unknown {role} agent_id {agent_id!r}"
+                    )
+
+            if claim.outcome != self.primary_outcome.name:
+                errors.append(
+                    f"claim {claim.id!r} outcome {claim.outcome!r} must match "
+                    f"primary_outcome.name {self.primary_outcome.name!r}"
+                )
+            if claim.outcome != "success_rate":
+                errors.append(
+                    f"claim {claim.id!r} outcome must be 'success_rate' in v0 "
+                    f"(got {claim.outcome!r})"
+                )
+
+        if duplicate_claim_ids:
+            errors.append(f"duplicate claim id(s): {sorted(duplicate_claim_ids)}")
+
+        if errors:
+            raise ValueError("; ".join(errors))
+        return self
 
     @classmethod
     def from_yaml(cls, path: Path | str) -> StudySpec:

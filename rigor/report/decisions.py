@@ -53,3 +53,12 @@ def decision_impact(
         meaningful_gap = cheaper > 0 and (gap / cheaper) >= cost_gap_threshold
         return "hedge_on_cost" if meaningful_gap else "rerun_more_n"
     return "inconclusive_no_action"
+
+
+def direction_matches_claim(direction: str, delta_point_estimate: float) -> bool:
+    """Return whether treatment-control delta matches the declared outcome direction."""
+    if direction == "higher_is_better":
+        return delta_point_estimate >= 0
+    if direction == "lower_is_better":
+        return delta_point_estimate <= 0
+    raise ValueError(f"unsupported primary_outcome.direction={direction!r}")

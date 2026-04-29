@@ -5,7 +5,7 @@ from __future__ import annotations
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from rigor.stats import holm_bonferroni
+from rigor.stats import benjamini_hochberg, holm_bonferroni
 
 _SETTINGS = settings(max_examples=100, deadline=2_000)
 
@@ -62,3 +62,24 @@ def test_holm__family_of_one_is_identity() -> None:
     """A single-claim family adjusts to the raw p-value (already covered as example, kept for parity)."""
     [(_, raw, adj, _)] = holm_bonferroni([("only", 0.04)], alpha=0.05)
     assert raw == adj == 0.04
+
+
+@_SETTINGS
+@given(_claim_family())
+def test_bh__monotonicity_in_raw_p_rank(claims: list) -> None:
+    """BH adjusted p-values are monotonically non-decreasing in sorted-by-raw-p rank."""
+    result = benjamini_hochberg(claims, alpha=0.05)
+    by_id = {cid: (rp, ap) for cid, rp, ap, _ in result}
+    sorted_ids = sorted(by_id, key=lambda cid: by_id[cid][0])
+    adj_in_order = [by_id[cid][1] for cid in sorted_ids]
+    for prev, curr in zip(adj_in_order, adj_in_order[1:], strict=False):
+        assert prev <= curr + 1e-12
+
+
+@_SETTINGS
+@given(_claim_family(), st.floats(min_value=0.001, max_value=0.5))
+def test_bh__adjusted_p_in_unit_interval(claims: list, alpha: float) -> None:
+    """Every BH adjusted p-value lies in [0, 1]."""
+    result = benjamini_hochberg(claims, alpha=alpha)
+    for _, _, adj_p, _ in result:
+        assert 0.0 <= adj_p <= 1.0

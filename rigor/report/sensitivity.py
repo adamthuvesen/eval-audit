@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 import polars as pl
 
-from rigor.report.decisions import ClaimContext, decision_impact
+from rigor.report.decisions import ClaimContext, decision_impact, direction_matches_claim
 from rigor.schema import StudySpec
 from rigor.stats import AnalysisResult, ClaimResult
 from rigor.stats.bootstrap import paired_task_bootstrap
@@ -69,22 +69,25 @@ def _build_context(
 
 
 def _claim_baseline_attrs(
-    claim: ClaimResult, result: AnalysisResult
+    claim: ClaimResult, result: AnalysisResult, study: StudySpec
 ) -> tuple[bool, bool]:
     """Return (treatment_is_dominated, direction_matches_claim) for the claim."""
     treatment_is_dominated = claim.treatment not in result.pareto_frontier
-    direction_matches = claim.delta_point_estimate >= 0
+    direction_matches = direction_matches_claim(
+        study.primary_outcome.direction,
+        claim.delta_point_estimate,
+    )
     return treatment_is_dominated, direction_matches
 
 
 def verdict_with_alpha(
-    claim: ClaimResult, result: AnalysisResult, *, alpha: float
+    claim: ClaimResult, result: AnalysisResult, study: StudySpec, *, alpha: float
 ) -> str:
     """Re-derive the verdict against a perturbed alpha threshold.
 
     Uses the existing raw p-value; no bootstrap re-run.
     """
-    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result)
+    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result, study)
     rejects = claim.adjusted_p_value <= alpha
     ctx = _build_context(
         claim,
@@ -101,11 +104,12 @@ def verdict_with_no_correction(
     claim: ClaimResult,
     all_claims: list[ClaimResult],
     result: AnalysisResult,
+    study: StudySpec,
     *,
     alpha: float,
 ) -> str:
     """Re-derive the verdict with correction_method = none (use raw p)."""
-    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result)
+    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result, study)
     rejects = claim.raw_p_value <= alpha
     ctx = _build_context(
         claim,
@@ -122,10 +126,14 @@ def verdict_with_no_correction(
 
 
 def verdict_with_cost_gap_threshold(
-    claim: ClaimResult, result: AnalysisResult, *, cost_gap_threshold: float
+    claim: ClaimResult,
+    result: AnalysisResult,
+    study: StudySpec,
+    *,
+    cost_gap_threshold: float,
 ) -> str:
     """Re-derive the verdict with a perturbed cost_gap_threshold."""
-    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result)
+    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result, study)
     ctx = _build_context(
         claim,
         rejects_null=claim.rejects_null,
@@ -168,7 +176,10 @@ def verdict_with_errored_excluded(
                 delta_ci_low=claim.delta_ci_low,
                 delta_ci_high=claim.delta_ci_high,
                 treatment_is_dominated=claim.treatment not in result.pareto_frontier,
-                direction_matches_claim=claim.delta_point_estimate >= 0,
+                direction_matches_claim=direction_matches_claim(
+                    study.primary_outcome.direction,
+                    claim.delta_point_estimate,
+                ),
             )
         )
 
@@ -187,7 +198,10 @@ def verdict_with_errored_excluded(
                 delta_ci_low=claim.delta_ci_low,
                 delta_ci_high=claim.delta_ci_high,
                 treatment_is_dominated=claim.treatment not in result.pareto_frontier,
-                direction_matches_claim=claim.delta_point_estimate >= 0,
+                direction_matches_claim=direction_matches_claim(
+                    study.primary_outcome.direction,
+                    claim.delta_point_estimate,
+                ),
             )
         )
 
@@ -233,7 +247,10 @@ def verdict_with_errored_excluded(
     else:
         treatment_is_dominated = False
 
-    direction_matches = boot.delta_point_estimate >= 0
+    direction_matches = direction_matches_claim(
+        study.primary_outcome.direction,
+        boot.delta_point_estimate,
+    )
     ctx = _build_context(
         claim,
         rejects_null=rejects,
@@ -259,13 +276,17 @@ def compute_sensitivity_rows(
     baseline = SensitivityRow(
         dimension="baseline",
         value="locked",
-        verdict=_baseline_verdict(claim, result),
+        verdict=_baseline_verdict(claim, result, study),
     )
 
     rows: list[SensitivityRow] = [baseline]
 
-    rows.append(SensitivityRow("alpha", "0.01", verdict_with_alpha(claim, result, alpha=0.01)))
-    rows.append(SensitivityRow("alpha", "0.10", verdict_with_alpha(claim, result, alpha=0.10)))
+    rows.append(
+        SensitivityRow("alpha", "0.01", verdict_with_alpha(claim, result, study, alpha=0.01))
+    )
+    rows.append(
+        SensitivityRow("alpha", "0.10", verdict_with_alpha(claim, result, study, alpha=0.10))
+    )
     rows.append(
         SensitivityRow(
             "errored_policy",
@@ -285,7 +306,7 @@ def compute_sensitivity_rows(
             "correction_method",
             "none",
             verdict_with_no_correction(
-                claim, all_claims, result, alpha=study.inference.alpha
+                claim, all_claims, result, study, alpha=study.inference.alpha
             ),
         )
     )
@@ -293,26 +314,26 @@ def compute_sensitivity_rows(
         SensitivityRow(
             "cost_gap_threshold",
             "0.05",
-            verdict_with_cost_gap_threshold(claim, result, cost_gap_threshold=0.05),
+            verdict_with_cost_gap_threshold(claim, result, study, cost_gap_threshold=0.05),
         )
     )
     rows.append(
         SensitivityRow(
             "cost_gap_threshold",
             "0.20",
-            verdict_with_cost_gap_threshold(claim, result, cost_gap_threshold=0.20),
+            verdict_with_cost_gap_threshold(claim, result, study, cost_gap_threshold=0.20),
         )
     )
     return rows
 
 
-def _baseline_verdict(claim: ClaimResult, result: AnalysisResult) -> str:
+def _baseline_verdict(claim: ClaimResult, result: AnalysisResult, study: StudySpec) -> str:
     """Recompute the baseline verdict from claim + result, using default thresholds.
 
     This MUST match the verdict the renderer's claim row reports — the spec
     pins this invariant.
     """
-    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result)
+    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result, study)
     ctx = _build_context(
         claim,
         rejects_null=claim.rejects_null,
@@ -322,5 +343,4 @@ def _baseline_verdict(claim: ClaimResult, result: AnalysisResult) -> str:
         direction_matches_claim=direction_matches,
     )
     return decision_impact(ctx)
-
 

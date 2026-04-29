@@ -1,13 +1,18 @@
-.PHONY: test lint format analyze report
+.PHONY: test lint format check analyze report
 
 test:
 	uv run pytest
 
 lint:
-	uv run ruff check rigor tests
+	uv run ruff check .
 
 format:
 	uv run ruff format rigor tests
+
+check:
+	uv run pytest
+	uv run ruff check .
+	openspec validate --all --strict
 
 analyze:
 	uv run rigor analyze studies/exhibit-a.yaml
