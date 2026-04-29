@@ -68,11 +68,11 @@ def _paired_task_p_value(
     """
     a_means = (
         treatment_rows.group_by("task_id")
-        .agg(pl.col("success").cast(pl.Float64).mean().alias("_a"))
+        .agg(pl.col("success").cast(pl.Float64).fill_null(0.0).mean().alias("_a"))
     )
     b_means = (
         control_rows.group_by("task_id")
-        .agg(pl.col("success").cast(pl.Float64).mean().alias("_b"))
+        .agg(pl.col("success").cast(pl.Float64).fill_null(0.0).mean().alias("_b"))
     )
     paired = a_means.join(b_means, on="task_id", how="inner")
     if paired.height < 2:
@@ -122,14 +122,29 @@ def _agent_summary(
     alpha: float,
 ) -> AgentSummary:
     graded = rows.filter(pl.col("outcome_status") == "graded")
+    errored = rows.filter(pl.col("outcome_status") == "errored")
     n_graded = graded.height
-    n_errored = rows.height - n_graded
+    n_errored = errored.height
+    n_total = n_graded + n_errored
     successes = int(graded["success"].cast(pl.Int64).sum()) if n_graded else 0
-    if n_graded > 0:
-        point, lo, hi = wilson_interval(successes, n_graded, alpha)
+    if n_total > 0:
+        point, lo, hi = wilson_interval(successes, n_total, alpha)
     else:
         point, lo, hi = 0.0, 0.0, 1.0
-    total_cost = float(rows["reconstructed_per_task_cost_usd"].sum())
+    # Per design.md: errored rows have None reconstructed cost; sum() ignores None,
+    # so the reconstructed total covers graded rows only — which is the correct
+    # numerator. For as_reported_only studies, reconstructed sums to 0 across the
+    # frame; the renderer falls back to reported_run_total_cost_usd in that path.
+    if rows["reconstructed_per_task_cost_usd"].null_count() == rows.height:
+        # No reconstructed cost available (as_reported_only path): fall back to
+        # the per-(agent, run) reported run total so cost_per_success has a value.
+        per_run = (
+            rows.group_by("run_id")
+            .agg(pl.col("reported_run_total_cost_usd").first().alias("_r"))
+        )
+        total_cost = float(per_run["_r"].sum())
+    else:
+        total_cost = float(rows["reconstructed_per_task_cost_usd"].sum())
     cost_per_success = total_cost / successes if successes else float("inf")
     return AgentSummary(
         agent_id=agent_id,
@@ -177,14 +192,11 @@ def analyze(
     raw_p_pairs: list[tuple[str, float]] = []
     bootstraps: dict[str, BootstrapResult] = {}
     for claim in study.claims:
-        treatment_rows = runs.filter(
-            (pl.col("agent_id") == claim.treatment)
-            & (pl.col("outcome_status") == "graded")
-        )
-        control_rows = runs.filter(
-            (pl.col("agent_id") == claim.control)
-            & (pl.col("outcome_status") == "graded")
-        )
+        # Include errored rows: per the errored-row denominator policy, the bootstrap
+        # treats errored rows as success=0 in the per-task aggregation so paired task
+        # sets stay aligned even when one arm errored on tasks the other graded.
+        treatment_rows = runs.filter(pl.col("agent_id") == claim.treatment)
+        control_rows = runs.filter(pl.col("agent_id") == claim.control)
         boot = paired_task_bootstrap(
             treatment_rows,
             control_rows,
