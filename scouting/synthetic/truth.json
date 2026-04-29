@@ -10,90 +10,90 @@
       "tasks": 60,
       "n_observations": 300,
       "observed_success_rate": 0.7366666666666667,
-      "expected_success_rate": 0.7304163402563348,
-      "observed_mean_cost_usd": 0.033111789999999995,
-      "observed_mean_tokens_in": 6702.78,
-      "observed_mean_tokens_out": 866.8966666666666,
-      "observed_mean_latency_s": 8.975848333333333
+      "expected_success_rate": 0.7210562117334874,
+      "observed_mean_cost_usd": 0.032815239999999996,
+      "observed_mean_tokens_in": 6553.38,
+      "observed_mean_tokens_out": 877.0066666666667,
+      "observed_mean_latency_s": 9.137975666666675
     },
     "agent_b_strong_close": {
       "tasks": 60,
       "n_observations": 300,
-      "observed_success_rate": 0.64,
-      "expected_success_rate": 0.7184909291587053,
-      "observed_mean_cost_usd": 0.014008489999999988,
-      "observed_mean_tokens_in": 7222.696666666667,
-      "observed_mean_tokens_out": 1378.07,
-      "observed_mean_latency_s": 9.127279333333338
+      "observed_success_rate": 0.7333333333333333,
+      "expected_success_rate": 0.709255696685555,
+      "observed_mean_cost_usd": 0.013819953333333338,
+      "observed_mean_tokens_in": 7213.846666666666,
+      "observed_mean_tokens_out": 1337.4266666666667,
+      "observed_mean_latency_s": 9.524800333333337
     },
     "agent_c_mid": {
       "tasks": 60,
       "n_observations": 300,
-      "observed_success_rate": 0.5066666666666667,
-      "expected_success_rate": 0.5389135231733825,
-      "observed_mean_cost_usd": 0.0034970066666666667,
-      "observed_mean_tokens_in": 4955.933333333333,
-      "observed_mean_tokens_out": 679.3733333333333,
-      "observed_mean_latency_s": 9.319550666666673
+      "observed_success_rate": 0.5733333333333334,
+      "expected_success_rate": 0.5238132666977137,
+      "observed_mean_cost_usd": 0.0034784633333333316,
+      "observed_mean_tokens_in": 4925.22,
+      "observed_mean_tokens_out": 677.2266666666667,
+      "observed_mean_latency_s": 9.08006066666667
     },
     "agent_d_weak": {
       "tasks": 60,
       "n_observations": 300,
-      "observed_success_rate": 0.4,
-      "expected_success_rate": 0.40011349484051195,
-      "observed_mean_cost_usd": 0.008740096666666666,
-      "observed_mean_tokens_in": 5214.363333333334,
-      "observed_mean_tokens_out": 689.6933333333334,
-      "observed_mean_latency_s": 8.892813666666664
+      "observed_success_rate": 0.37,
+      "expected_success_rate": 0.3948800795339682,
+      "observed_mean_cost_usd": 0.00840135666666667,
+      "observed_mean_tokens_in": 5069.046666666667,
+      "observed_mean_tokens_out": 644.0333333333333,
+      "observed_mean_latency_s": 9.093432666666677
     }
   },
   "pairwise_true_effects": [
     {
       "agent_a": "agent_a_strong",
       "agent_b": "agent_b_strong_close",
-      "true_delta": 0.0119,
-      "approx_z": 0.327,
-      "approx_unadjusted_p": 0.743721,
+      "true_delta": 0.0118,
+      "approx_z": 0.32,
+      "approx_unadjusted_p": 0.748784,
       "n_per_arm": 300
     },
     {
       "agent_a": "agent_a_strong",
       "agent_b": "agent_c_mid",
-      "true_delta": 0.1915,
-      "approx_z": 4.97,
-      "approx_unadjusted_p": 1e-06,
+      "true_delta": 0.1972,
+      "approx_z": 5.09,
+      "approx_unadjusted_p": 0.0,
       "n_per_arm": 300
     },
     {
       "agent_a": "agent_a_strong",
       "agent_b": "agent_d_weak",
-      "true_delta": 0.3303,
-      "approx_z": 8.655,
+      "true_delta": 0.3262,
+      "approx_z": 8.516,
       "approx_unadjusted_p": 0.0,
       "n_per_arm": 300
     },
     {
       "agent_a": "agent_b_strong_close",
       "agent_b": "agent_c_mid",
-      "true_delta": 0.1796,
-      "approx_z": 4.633,
-      "approx_unadjusted_p": 4e-06,
+      "true_delta": 0.1854,
+      "approx_z": 4.758,
+      "approx_unadjusted_p": 2e-06,
       "n_per_arm": 300
     },
     {
       "agent_a": "agent_b_strong_close",
       "agent_b": "agent_d_weak",
-      "true_delta": 0.3184,
-      "approx_z": 8.292,
+      "true_delta": 0.3144,
+      "approx_z": 8.161,
       "approx_unadjusted_p": 0.0,
       "n_per_arm": 300
     },
     {
       "agent_a": "agent_c_mid",
       "agent_b": "agent_d_weak",
-      "true_delta": 0.1388,
-      "approx_z": 3.44,
-      "approx_unadjusted_p": 0.000582,
+      "true_delta": 0.1289,
+      "approx_z": 3.196,
+      "approx_unadjusted_p": 0.001396,
       "n_per_arm": 300
     }
   ],
