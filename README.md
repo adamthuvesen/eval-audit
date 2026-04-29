@@ -2,7 +2,7 @@
 
 > Study-specification, reanalysis, and reporting toolkit for agent benchmarks. Treat agent evals like experiments, not score tables.
 
-**Status:** v0 spec · Exhibit A selected · 2026-05-02
+**Status:** v0 shipped · Exhibits A & B + cross-harness writeup · 2026-05-02
 
 ---
 
@@ -106,11 +106,19 @@ rigor spec render   studies/exhibit-a.yaml --out study-spec.md --format markdown
 
 ### 2. Public-data reanalysis
 
-v0 ships one end-to-end ingestion target: **HAL GAIA (HAL Generalist Agent traces)**. The first goal is not broad adapter coverage; it is one credible end-to-end example with a `reconciled` cost-provenance class so the cost story is auditable from per-task tokens up to the leaderboard total.
+v0 ships **two** end-to-end ingestion targets across both exercised cost-provenance classes:
+
+- **HAL GAIA** (HAL Generalist Agent harness) — `reconciled` cost provenance. Per-task cost reconstructs from `tokens_in_by_model × pinned prices` and matches HAL's reported run-total within 1%. See [studies/exhibit-a.yaml](studies/exhibit-a.yaml) and [reports/exhibit-a/report.md](reports/exhibit-a/report.md).
+- **HAL TAU-bench Airline** (Tool Calling harness) — `as_reported_only` cost provenance. Per-task cost reconstruction MAPE = 0.33; the renderer surfaces the divergence in a Provenance caveat block and falls back to `reported_run_total / successes` for `cost_per_success_usd`. See [studies/exhibit-b.yaml](studies/exhibit-b.yaml) and [reports/exhibit-b/report.md](reports/exhibit-b/report.md).
+
+The toolkit's v0 bar was "one credible end-to-end example per cost-provenance class." Both shipped.
 
 ```bash
 rigor analyze studies/exhibit-a.yaml --out reports/exhibit-a/analysis.json
 rigor report  studies/exhibit-a.yaml --out reports/exhibit-a/report.md
+
+rigor analyze studies/exhibit-b.yaml --out reports/exhibit-b/analysis.json
+rigor report  studies/exhibit-b.yaml --out reports/exhibit-b/report.md
 ```
 
 The Exhibit A claim is decision-oriented:
@@ -233,7 +241,7 @@ Why it wins (verdict from [scouting/exhibit-a-decision.md](scouting/exhibit-a-de
 - **Decision-relevant claim.** The leaderboard reports a 1.9 pp accuracy gap with a 2.2× cost gap — a real model-selection question a serious reader would ask, not a dramatic reversal.
 - **Public artifacts with provenance metadata.** The two HAL trace zips are pinned by filename in [scouting/candidates/gaia/provenance.json](scouting/candidates/gaia/provenance.json); the column inventory is locked at [scouting/candidates/gaia/columns.json](scouting/candidates/gaia/columns.json).
 
-Use **TAU-bench Tool Calling** as Exhibit B (secondary candidate). TAU-bench passed all four selection gates but its cost reconciliation is `as_reported_only` (MAPE = 0.33; reconstructed costs diverge from reported in opposite directions across agents — likely prompt-caching discounts and stale price snapshots). It exercises a different cost-provenance branch the toolkit needs to handle for real, and it carries the project's most decision-relevant scouting finding: a **12 pp cross-harness scaffold effect** for Claude 3.7 Sonnet (56% under HAL Generalist vs 44% under Tool Calling), which is the strongest argument the project has for "benchmark rows are not model effects." That writeup is its own follow-up change.
+**Exhibit B** is **TAU-bench Tool Calling** (HAL Airline traces). It passed all four selection gates but its cost reconciliation is `as_reported_only` (MAPE = 0.33; reconstructed costs diverge from reported in opposite directions across agents — likely prompt-caching discounts and stale price snapshots). Exhibit B exercises that cost-provenance branch end-to-end and carries the project's most decision-relevant scouting finding: a **12 pp cross-harness scaffold effect** for Claude 3.7 Sonnet (56% under HAL Generalist vs 44% under Tool Calling), the strongest argument the project has for "benchmark rows are not model effects." The reanalysis lives at [reports/exhibit-b/report.md](reports/exhibit-b/report.md); the cross-harness finding is written up at [reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md).
 
 Resolved checks before schema lock (now historical; settled by the scouting phase):
 
@@ -348,6 +356,7 @@ The four-to-six-week version can serve one primary audience. The current bet: **
 - 2026-05-02 — Scouting completed; Exhibit A revised to **HAL GAIA (HAL Generalist · Claude 3.7 Sonnet vs o4-mini High)** based on cleaner cost reconciliation (MAPE = 0.0). TAU-bench retained as strong secondary; gate matrix in [scouting/exhibit-a-decision.md](scouting/exhibit-a-decision.md).
 - 2026-05-02 — Synthetic fixture contract added (`repair-synthetic-fixture-contract` archived); seed `20260502 → 20260503` to land observed primary delta within 3pp of true delta and unblock the v0 synthetic-validation gate.
 - 2026-05-02 — `v0-exhibit-a-reanalysis` landed: schema, GAIA + synthetic ingest, stats engine (Wilson, paired-task bootstrap, Holm-Bonferroni, Pareto), and markdown report. First Exhibit A reanalysis at [reports/exhibit-a/report.md](reports/exhibit-a/report.md): claim **inconclusive** at adjusted p=0.70, decision_impact `hedge_on_cost` (Claude 56.4% vs o4-mini 54.5%, +1.82 pp; CIs overlap, Claude 2.2× more expensive).
+- 2026-05-02 — `exhibit-b-tau-bench-reanalysis` landed: HAL TAU-bench Tool Calling adapter, errored-row denominator policy at `analyze()` level, cost-provenance caveat sub-block in the report renderer. Exhibit B reanalysis at [reports/exhibit-b/report.md](reports/exhibit-b/report.md) hits leaderboard-matching success rates (o4-mini 56%, Claude 44%, o3 54%); cross-harness writeup at [reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md) makes the 12 pp Claude scaffold gap explicit. v0 success bar (two reanalyses across both exercised cost-provenance classes) closed.
 
 ## Cross-references
 

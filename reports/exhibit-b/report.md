@@ -61,23 +61,25 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 
 ## Residual risks
 
-**Inherited from scouting decision** (verbatim from `scouting/exhibit-a-decision.md`):
+**Inherited from scouting decision** (verbatim from `scouting/tau-bench-decision.md`):
 
-1. **Single-run-per-agent on HAL.** GAIA exposes one run per (agent, model) — there are no published seed-replications for the chosen pair. The reanalysis will treat task as the unit and use task-level bootstrap to express uncertainty. This is methodologically defensible but should be called out: we cannot disentangle agent-skill variance from run-to-run variance without additional reruns, and HAL traces do not provide them.
+1. **Cost is `as_reported_only` and the per-task estimate is coarse.** HAL's reported run-total cost is used directly; per-task cost reconstruction from `tokens_in_by_model × pinned prices` does not reconcile to the reported total within the toolkit's 1% tolerance. The renderer's Provenance section surfaces the per-run divergences and caveats from [scouting/candidates/tau-bench/cost-reconciliation.json](candidates/tau-bench/cost-reconciliation.json) verbatim. The `cost_per_success_usd` value is `reported_run_total_cost_usd / successes` — a coarser estimate than Exhibit A's reconstructed per-task figure.
 
-2. **Per-task difficulty Level metadata is upstream-gated.** GAIA tasks have Levels 1/2/3 in the source `gaia-benchmark/GAIA` dataset (gated on Hugging Face), but HAL's `raw_eval_results` drops the field. Stratified per-level analysis requires re-joining the gated dataset. The toolkit should make this join first-class rather than hidden.
+2. **Cross-harness scaffold confound (the project's strongest scouting finding).** Within TAU-bench Airline, Claude 3.7 Sonnet sits at 56% under the HAL Generalist Agent harness and at 44% under the Tool Calling harness — a 12 percentage point gap on the same model and the same benchmark. The toolkit's `analyze()` refuses cross-harness comparisons (`CrossHarnessComparisonError`); the writeup at [reports/cross-harness-confound/notes.md](../reports/cross-harness-confound/notes.md) makes the finding explicit using Exhibit B's Tool Calling number as data and the upstream leaderboard's HAL Generalist number as a citation. The 12 pp gap is best read as scaffold effect coexisting with sampling-decision drift the leaderboard does not separate, not as scaffold-effect-full-stop.
 
-3. **HAL traces may regenerate.** The `agent-evals/hal_traces` Hugging Face dataset is updated as new agents are uploaded. The two zips selected for Exhibit A (`gaia_hal_generalist_agent_o4mini20250416_high_1745167285_UPLOAD.zip` and `gaia_hal_generalist_agent_claude37sonnet20250219_1744772193_UPLOAD.zip`) are pinned by filename in [scouting/candidates/gaia/provenance.json](candidates/gaia/provenance.json). If those filenames change, the next change MUST detect the drift and either re-pin or open a follow-up scout.
+3. **Errored vs failed are structurally distinct, denominator-collapsed.** TAU-bench Airline grades 50 tasks per run; some return error strings instead of a graded reward. Within Tool Calling, Claude 3.7 Sonnet has 3/50 errored rows. The leaderboard's headline "44%" folds those errored rows in as failures, and the toolkit's [errored-row denominator policy](../openspec/specs/stats-engine/spec.md) does the same at the `analyze()` level so paired-task sets stay aligned across arms. The `n_errored` column in the per-agent summary preserves the structural distinction so a reader can always see "this agent's 44% includes 3 upstream errors that the harness could not grade."
 
-4. **Within-harness only.** The Exhibit A claim compares two models WITHIN the HAL Generalist agent harness on GAIA. Cross-harness comparisons (HAL Generalist vs HF Open Deep Research, or HAL Generalist on GAIA vs Tool Calling on TAU-bench) are out of scope for v0 — the cross-harness confound observed during scouting (Claude 3.7 Sonnet at 56% under HAL Generalist vs 44% under Tool Calling on TAU-bench) is the exact reason.
+4. **Sample costs do not match leaderboard costs precisely.** o4-mini reports $8.38 in the sample vs $11.36 on the leaderboard; o3 Medium reports $32.24 vs $14.56. The leaderboard appears to publish a curated or averaged figure rather than the per-trace cost. The toolkit reports the per-trace cost (HAL's reported run-total) and surfaces the divergence in the Provenance caveat block; that is the honest answer given `as_reported_only`.
 
-5. **Reanalysis inherits HAL's sampling decisions.** HAL ran o4-mini at `reasoning_effort=high` and Claude 3.7 Sonnet at default. The reanalysis cannot disentangle "reasoning effort" from "model" within this Exhibit A; this is documented but not corrected.
+5. **Single-run-per-agent on HAL.** Like Exhibit A, TAU-bench exposes one run per (agent, model). The reanalysis treats task as the unit and uses task-level paired-cluster bootstrap to express uncertainty. We cannot disentangle agent-skill variance from run-to-run variance without additional reruns, and HAL traces do not provide them.
+
+6. **HAL traces may regenerate.** The `agent-evals/hal_traces` Hugging Face dataset updates as new agents are uploaded. The three zips selected for Exhibit B are pinned by filename in [scouting/candidates/tau-bench/provenance.json](candidates/tau-bench/provenance.json). If those filenames change, the next change MUST detect the drift and either re-pin or open a follow-up scout.
 
 ---
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-02T09:15:57.392200+00:00`
-- **git_commit:** `9ab45b2`
+- **rendered_at:** `2026-05-02T12:00:26.883698+00:00`
+- **git_commit:** `fcdaa04`
 - **fixture_sha256:** `3d8a0434b5ce3eb32735a767758a9c0281148a25e2956dad7d8c886416ffa7b3`
 - **bootstrap_seed:** `42`
