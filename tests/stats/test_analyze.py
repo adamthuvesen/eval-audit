@@ -30,7 +30,7 @@ def _row(agent_id: str, task_id: str, harness: str) -> dict:
     }
 
 
-def _stub_study(treatment: str, control: str, harness: str) -> "StudySpec":  # noqa: F821
+def _stub_study(treatment: str, control: str, harness: str):
     from rigor.schema import StudySpec
 
     return StudySpec(
