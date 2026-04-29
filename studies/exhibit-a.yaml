@@ -15,9 +15,14 @@ primary_outcome:
   unit: task
   direction: higher_is_better
 
+# Agent IDs are the verbatim long-form values from the locked GAIA column
+# mapping (scouting/exhibit-a-decision.md). The HAL fixture's `agent_id` raw
+# column passes through to RunRecord.agent_id without renaming, so studies
+# must use the same string. The shorter `agent_short` column lives only in
+# rerun_metadata for human readability.
 agents:
-  - id: gaia_hg_claude37
-  - id: gaia_hg_o4mini_high
+  - id: "HAL Generalist Agent (claude-3-7-sonnet-20250219)"
+  - id: "HAL Generalist Agent (o4-mini-2025-04-16 high)"
 
 design:
   task_sampling: fixed_public_validation_set
@@ -47,6 +52,6 @@ claims:
       whether that 1.9 pp accuracy advantage is statistically distinguishable
       from noise on n=165, and whether it is decision-relevant given the cost
       gap.
-    treatment: gaia_hg_claude37
-    control: gaia_hg_o4mini_high
+    treatment: "HAL Generalist Agent (claude-3-7-sonnet-20250219)"
+    control: "HAL Generalist Agent (o4-mini-2025-04-16 high)"
     outcome: success_rate
