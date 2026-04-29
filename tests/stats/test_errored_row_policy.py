@@ -279,3 +279,86 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     # successes = 5 graded-true rows (errored rows can never count as success).
     assert abs(agent.total_cost_usd - 0.80) < 1e-9
     assert abs(agent.cost_per_success_usd - (0.80 / 5)) < 1e-9
+
+
+# Hypothesis property test: for any random agent row distribution with errored,
+# graded-success, and graded-fail counts, the recovered success_rate is consistent.
+
+from hypothesis import given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+
+@given(
+    n_successes=st.integers(min_value=0, max_value=30),
+    n_failures=st.integers(min_value=0, max_value=30),
+    n_errored=st.integers(min_value=0, max_value=10),
+)
+@settings(max_examples=40, deadline=None)
+def test_errored_row_policy__property_success_rate_invariants(
+    n_successes: int, n_failures: int, n_errored: int
+) -> None:
+    """For any randomly generated agent row distribution with
+    0 <= n_errored <= n_total, success_rate * n_total equals the count of graded
+    successes, AND success_rate <= n_graded / n_total (an errored row cannot
+    increase the success rate vs the graded-only computation).
+    """
+    from rigor.stats import analyze
+
+    n_total = n_successes + n_failures + n_errored
+    if n_total < 2:  # bootstrap needs at least one task per arm to do anything
+        return
+
+    rows: list[dict] = []
+    task_idx = 0
+    for _ in range(n_successes):
+        rows.append(_row(
+            agent_id="agent",
+            task_id=f"t{task_idx:03d}",
+            outcome_status="graded",
+            success=True,
+        ))
+        task_idx += 1
+    for _ in range(n_failures):
+        rows.append(_row(
+            agent_id="agent",
+            task_id=f"t{task_idx:03d}",
+            outcome_status="graded",
+            success=False,
+        ))
+        task_idx += 1
+    for _ in range(n_errored):
+        rows.append(_row(
+            agent_id="agent",
+            task_id=f"t{task_idx:03d}",
+            outcome_status="errored",
+            success=None,
+            reconstructed_cost=None,
+        ))
+        task_idx += 1
+    # Pair against a control with same task_id set so paired bootstrap can run.
+    for i in range(n_total):
+        rows.append(_row(
+            agent_id="control",
+            task_id=f"t{i:03d}",
+            outcome_status="graded",
+            success=False,
+        ))
+
+    frame = pl.DataFrame(rows, strict=False)
+    study = _stub_study("agent", "control")
+    result = analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
+
+    by_id = {s.agent_id: s for s in result.per_agent}
+    agent = by_id["agent"]
+    assert agent.n_graded == n_successes + n_failures
+    assert agent.n_errored == n_errored
+    # Recovered count of graded successes = round(success_rate * n_total).
+    recovered = round(agent.success_rate * n_total)
+    assert recovered == n_successes
+    # An errored row cannot increase success_rate vs the graded-only ratio.
+    n_graded = n_successes + n_failures
+    if n_graded > 0:
+        graded_only_rate = n_successes / n_graded
+        # success_rate uses n_total in denominator; n_total >= n_graded; so
+        # success_rate <= graded_only_rate (with equality when n_errored == 0).
+        assert agent.success_rate <= graded_only_rate + 1e-12
