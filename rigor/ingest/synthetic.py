@@ -8,7 +8,7 @@ from pathlib import Path
 import polars as pl
 import yaml
 
-from rigor.ingest.base import IngestContractError, assert_canonical_schema
+from rigor.ingest.base import IngestContractError, validate_run_records
 
 
 class SyntheticAdapter:
@@ -66,9 +66,10 @@ class SyntheticAdapter:
         if "_run_total" in frame.columns:
             frame = frame.drop("_run_total")
 
+        self.validate(frame)
         return frame
 
     def validate(self, frame: pl.DataFrame) -> None:
-        assert_canonical_schema(frame)
+        validate_run_records(frame)
         if "harness" in frame.columns and not (frame["harness"] == "synthetic").all():
             raise IngestContractError("synthetic adapter expects every row to have harness='synthetic'")

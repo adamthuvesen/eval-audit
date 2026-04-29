@@ -9,13 +9,17 @@ from scipy.stats import ttest_rel
 
 from rigor.schema import StudySpec
 from rigor.stats.bootstrap import BootstrapResult, paired_task_bootstrap
-from rigor.stats.correction import holm_bonferroni
+from rigor.stats.correction import benjamini_hochberg, holm_bonferroni
 from rigor.stats.intervals import wilson_interval
 from rigor.stats.pareto import pareto_frontier
 
 
 class CrossHarnessComparisonError(RuntimeError):
     """Raised when analyze() is asked to compare agents across different harnesses."""
+
+
+class UnsupportedOutcomeError(ValueError):
+    """Raised when analyze() receives an outcome declaration outside v0 support."""
 
 
 @dataclass(frozen=True)
@@ -86,6 +90,25 @@ def _paired_task_p_value(
     if p != p:  # NaN guard
         return 1.0
     return p
+
+
+def _validate_supported_outcome(study: StudySpec) -> str:
+    """Return the frame column for the validated v0 outcome contract."""
+    if (
+        study.primary_outcome.name != "success_rate"
+        or study.primary_outcome.direction != "higher_is_better"
+    ):
+        raise UnsupportedOutcomeError(
+            "v0 analysis supports only primary_outcome.name='success_rate' "
+            "with direction='higher_is_better'"
+        )
+    for claim in study.claims:
+        if claim.outcome != "success_rate":
+            raise UnsupportedOutcomeError(
+                f"v0 analysis supports only claim outcome 'success_rate' "
+                f"(claim_id={claim.id!r}, outcome={claim.outcome!r})"
+            )
+    return "success"
 
 
 def _check_harness_consistency(
@@ -166,6 +189,7 @@ def analyze(
     bootstrap_seed: int = 42,
 ) -> AnalysisResult:
     """Run the declared-claim analysis end-to-end."""
+    outcome_col = _validate_supported_outcome(study)
     # Eager pre-check: refuse cross-harness comparisons before any compute.
     _check_harness_consistency(study, runs)
 
@@ -200,7 +224,7 @@ def analyze(
         boot = paired_task_bootstrap(
             treatment_rows,
             control_rows,
-            outcome="success",
+            outcome=outcome_col,
             n_iter=bootstrap_iterations,
             alpha=alpha,
             seed=bootstrap_seed,
@@ -212,8 +236,12 @@ def analyze(
 
     if study.inference.correction_method == "holm_bonferroni":
         corrected = holm_bonferroni(raw_p_pairs, alpha=alpha)
+    elif study.inference.correction_method == "benjamini_hochberg":
+        corrected = benjamini_hochberg(raw_p_pairs, alpha=alpha)
     else:
-        corrected = [(cid, rp, rp, rp <= alpha) for cid, rp in raw_p_pairs]
+        raise ValueError(
+            f"unsupported correction_method={study.inference.correction_method!r}"
+        )
 
     by_claim_id = {cid: (rp, ap, rej) for cid, rp, ap, rej in corrected}
 

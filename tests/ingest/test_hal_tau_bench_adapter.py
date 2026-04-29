@@ -131,3 +131,15 @@ def test_hal_tau_bench__run_total_replicated_per_agent_run(taubench_dir: Path) -
     )
     for row in merged.iter_rows(named=True):
         assert abs(row["got"] - row["expected"]) < 1e-9
+
+
+def test_hal_tau_bench__loaded_fixture_passes_adapter_validation(taubench_dir: Path) -> None:
+    """WHEN the committed TAU-bench fixture is loaded,
+    THEN the returned frame passes full RunRecord row validation.
+    """
+    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
+
+    adapter = HalTauBenchAdapter()
+    frame = adapter.load(taubench_dir)
+
+    adapter.validate(frame)

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 import polars as pl
+from pydantic import ValidationError
 
 from rigor.schema import RunRecord
 
@@ -38,3 +39,18 @@ def assert_canonical_schema(frame: pl.DataFrame) -> None:
         if extra:
             parts.append(f"unexpected columns: {sorted(extra)}")
         raise IngestContractError("; ".join(parts))
+
+
+def validate_run_records(frame: pl.DataFrame) -> None:
+    """Validate every row through the canonical RunRecord Pydantic model."""
+    assert_canonical_schema(frame)
+    for idx, row in enumerate(frame.iter_rows(named=True)):
+        row = dict(row)
+        for token_field in ("tokens_in_by_model", "tokens_out_by_model"):
+            value = row.get(token_field)
+            if isinstance(value, dict):
+                row[token_field] = {k: v for k, v in value.items() if v is not None}
+        try:
+            RunRecord.model_validate(row)
+        except ValidationError as exc:
+            raise IngestContractError(f"row {idx} violates RunRecord: {exc}") from exc

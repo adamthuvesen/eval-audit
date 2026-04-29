@@ -178,3 +178,29 @@ def test_report__cross_harness_study_produces_no_report_file(repo_root: Path, tm
             repo_root=repo_root,
         )
     assert not out_path.exists(), "report file was written despite cross-harness rejection"
+
+
+def test_report__unsupported_lower_is_better_study_is_not_rendered(
+    exhibit_a_inputs, repo_root: Path
+) -> None:
+    """WHEN rendering receives a StudySpec that bypassed validation with lower_is_better,
+    THEN rendering fails before emitting a claim row.
+    """
+    from rigor.report.markdown import render_report
+
+    study, runs, result = exhibit_a_inputs
+    bad_primary = study.primary_outcome.model_copy(update={"direction": "lower_is_better"})
+    bad_study = study.model_copy(update={"primary_outcome": bad_primary})
+
+    with pytest.raises(ValueError) as exc_info:
+        render_report(
+            result,
+            bad_study,
+            runs,
+            clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
+            git_commit="deadbeef",
+            fixture_sha256="0" * 64,
+            repo_root=repo_root,
+        )
+
+    assert "higher_is_better" in str(exc_info.value)

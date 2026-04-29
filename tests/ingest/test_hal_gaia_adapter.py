@@ -140,3 +140,15 @@ def test_hal_gaia__adapter_reads_provenance_from_scouting_fixture(gaia_dir: Path
     frame = adapter.load(gaia_dir)
 
     assert (frame["cost_provenance"] == expected_outcome).all()
+
+
+def test_hal_gaia__loaded_fixture_passes_adapter_validation(gaia_dir: Path) -> None:
+    """WHEN the committed GAIA fixture is loaded,
+    THEN the returned frame passes full RunRecord row validation.
+    """
+    from rigor.ingest.hal_gaia import HalGaiaAdapter
+
+    adapter = HalGaiaAdapter()
+    frame = adapter.load(gaia_dir)
+
+    adapter.validate(frame)

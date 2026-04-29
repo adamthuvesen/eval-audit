@@ -30,6 +30,10 @@ def paired_task_bootstrap(
     Both arms must share the exact same set of task_id values; the function refuses
     to silently align mismatched task sets.
     """
+    for label, arm in (("arm_a", arm_a), ("arm_b", arm_b)):
+        if outcome not in arm.columns:
+            raise ValueError(f"{label} is missing outcome column {outcome!r}")
+
     tasks_a = set(arm_a["task_id"].to_list())
     tasks_b = set(arm_b["task_id"].to_list())
     if tasks_a != tasks_b:
@@ -45,16 +49,19 @@ def paired_task_bootstrap(
     # bootstraps non-deterministic across processes.
     # Errored rows (success == None) are coerced to 0.0 here so they contribute as
     # failures to the per-task arm mean, matching the errored-row denominator policy.
-    a_means = (
-        arm_a.group_by("task_id")
-        .agg(pl.col(outcome).cast(pl.Float64).fill_null(0.0).mean().alias("_a"))
-        .sort("task_id")
-    )
-    b_means = (
-        arm_b.group_by("task_id")
-        .agg(pl.col(outcome).cast(pl.Float64).fill_null(0.0).mean().alias("_b"))
-        .sort("task_id")
-    )
+    try:
+        a_means = (
+            arm_a.group_by("task_id")
+            .agg(pl.col(outcome).cast(pl.Float64).fill_null(0.0).mean().alias("_a"))
+            .sort("task_id")
+        )
+        b_means = (
+            arm_b.group_by("task_id")
+            .agg(pl.col(outcome).cast(pl.Float64).fill_null(0.0).mean().alias("_b"))
+            .sort("task_id")
+        )
+    except Exception as exc:
+        raise ValueError(f"outcome column {outcome!r} cannot be used numerically") from exc
     paired = a_means.join(b_means, on="task_id", how="inner").sort("task_id")
     a_vec = paired["_a"].to_numpy()
     b_vec = paired["_b"].to_numpy()

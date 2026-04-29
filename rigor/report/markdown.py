@@ -15,6 +15,7 @@ from rigor.report.decisions import (
     DECISION_IMPACT_VOCAB,
     ClaimContext,
     decision_impact,
+    direction_matches_claim,
 )
 from rigor.schema import StudySpec
 from rigor.stats import AnalysisResult, analyze
@@ -42,6 +43,23 @@ def _format_currency(value: float) -> str:
 
 def _format_rate(value: float) -> str:
     return f"{value:.4f}"
+
+
+def _validate_report_outcome(study: StudySpec) -> None:
+    if (
+        study.primary_outcome.name != "success_rate"
+        or study.primary_outcome.direction != "higher_is_better"
+    ):
+        raise ValueError(
+            "v0 reports support only primary_outcome.name='success_rate' "
+            "with direction='higher_is_better'"
+        )
+    for claim in study.claims:
+        if claim.outcome != "success_rate":
+            raise ValueError(
+                f"v0 reports support only claim outcome 'success_rate' "
+                f"(claim_id={claim.id!r}, outcome={claim.outcome!r})"
+            )
 
 
 # Aliases for the residual-risks decision-document path. The renderer resolves
@@ -129,6 +147,7 @@ def render_report(
     parameters are passed through so the perturbed bootstrap matches the
     baseline's iteration count and seed.
     """
+    _validate_report_outcome(study)
     decision_md, decision_md_label = _resolve_decision_doc(repo_root, study.benchmark)
     # `study.benchmark` ("tau_bench") may differ from the on-disk fixture directory
     # name ("tau-bench"); the override mirrors the one in rigor.cli.
@@ -238,9 +257,10 @@ def render_report(
     mde_per_claim: list[tuple[str, float, float]] = []  # (claim_id, ci_half_width, target_mde)
     for c in result.claims:
         ci_crosses = c.delta_ci_low <= 0.0 <= c.delta_ci_high
-        # The claim's stated direction: treatment > control means delta > 0.
-        # We treat any positive observed delta as "matches" the canonical claim direction.
-        direction_matches = c.delta_point_estimate >= 0
+        direction_matches = direction_matches_claim(
+            study.primary_outcome.direction,
+            c.delta_point_estimate,
+        )
         ctx = ClaimContext(
             rejects_null=c.rejects_null,
             delta_point_estimate=c.delta_point_estimate,
