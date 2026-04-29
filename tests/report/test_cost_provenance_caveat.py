@@ -1,7 +1,4 @@
-"""Acceptance tests for the cost-provenance caveat sub-block.
-
-Spec: openspec/changes/exhibit-b-tau-bench-reanalysis/specs/report-rendering/spec.md
-"""
+"""Acceptance tests for the cost-provenance caveat sub-block."""
 
 from __future__ import annotations
 

@@ -43,7 +43,7 @@ That is too weak for model-selection decisions.
   - `reconciled` when per-task reconstruction matches reported totals
   - `as_reported_only` with a visible report caveat when it does not
 - Deterministic markdown reports with verdict sensitivity tables.
-- OpenSpec specs, archived changes, and CI for tests/lint/spec validation.
+- CI for tests and linting.
 
 ## Demo reports
 
@@ -163,7 +163,6 @@ rigor/
 studies/       declared study specs
 reports/       rendered demo reports and notes
 scouting/      fixture provenance and candidate analysis
-openspec/      project specs and archived changes
 tests/         unit, property, fixture, snapshot, and validation tests
 ```
 
@@ -175,8 +174,7 @@ make lint
 make check
 ```
 
-CI runs pytest, ruff, and `openspec validate --all --strict` on pushes and PRs
-to `main`.
+CI runs pytest and ruff on pushes and PRs to `main`.
 
 ## What is intentionally not here
 

@@ -1,7 +1,4 @@
-"""Property tests for the as_reported_only cost-provenance path.
-
-Spec: openspec/changes/exhibit-b-tau-bench-reanalysis/tasks.md §7.1
-"""
+"""Property tests for the as_reported_only cost-provenance path."""
 
 from __future__ import annotations
 

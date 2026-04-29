@@ -1,7 +1,4 @@
-"""Acceptance tests for the HAL TAU-bench Tool Calling ingest adapter.
-
-Spec: openspec/changes/exhibit-b-tau-bench-reanalysis/specs/data-ingest/spec.md
-"""
+"""Acceptance tests for the HAL TAU-bench Tool Calling ingest adapter."""
 
 from __future__ import annotations
 

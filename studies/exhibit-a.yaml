@@ -1,8 +1,7 @@
 # Exhibit A — GAIA HAL Generalist Agent: Claude 3.7 Sonnet vs o4-mini High
 # Locked claim consumes scouting/exhibit-a-decision.md verbatim.
 # DO NOT edit `treatment`, `control`, `outcome`, `harness`, or `benchmark`
-# without first opening a follow-up OpenSpec change against the scouting
-# decision document.
+# without first updating the scouting decision document and explaining why.
 
 id: exhibit-a
 benchmark: gaia

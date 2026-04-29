@@ -95,8 +95,8 @@ inference_targets:
 # Per `repair-synthetic-fixture-contract`: every realization committed at the
 # canonical paths MUST satisfy these criteria. `generate.py` enforces them at
 # write time; `find_seed.py` scans candidate seeds to pick one that passes.
-# DO NOT loosen these tolerances without an OpenSpec change — they are the
-# fixture's contract with the v0 stats engine's synthetic-validation gate.
+# DO NOT loosen these tolerances without updating the fixture contract — they
+# are the fixture's contract with the v0 stats engine's synthetic-validation gate.
 acceptance_criteria:
   primary_delta_tolerance_pp: 3.0    # |observed - true| primary delta, in pp
   per_agent_rate_tolerance_pp: 7.5   # |observed - expected| per agent, in pp

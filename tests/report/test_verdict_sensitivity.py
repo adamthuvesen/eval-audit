@@ -1,7 +1,4 @@
-"""Acceptance tests for the Verdict sensitivity sub-block.
-
-Spec: openspec/changes/verdict-grade-evals/specs/report-rendering/spec.md
-"""
+"""Acceptance tests for the Verdict sensitivity sub-block."""
 
 from __future__ import annotations
 

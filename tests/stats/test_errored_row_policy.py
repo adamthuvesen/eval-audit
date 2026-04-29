@@ -1,7 +1,4 @@
-"""Acceptance tests for the errored-row denominator policy at the analyze() level.
-
-Spec: openspec/changes/exhibit-b-tau-bench-reanalysis/specs/stats-engine/spec.md
-"""
+"""Acceptance tests for the errored-row denominator policy at the analyze() level."""
 
 from __future__ import annotations
 
