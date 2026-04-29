@@ -40,15 +40,20 @@ def paired_task_bootstrap(
         )
 
     # Aggregate per-task means so each task contributes one value per arm.
+    # Sort by task_id so the index space the rng samples over is stable across runs;
+    # polars group_by returns rows in hash order by default, which makes seeded
+    # bootstraps non-deterministic across processes.
     a_means = (
         arm_a.group_by("task_id")
         .agg(pl.col(outcome).cast(pl.Float64).mean().alias("_a"))
+        .sort("task_id")
     )
     b_means = (
         arm_b.group_by("task_id")
         .agg(pl.col(outcome).cast(pl.Float64).mean().alias("_b"))
+        .sort("task_id")
     )
-    paired = a_means.join(b_means, on="task_id", how="inner")
+    paired = a_means.join(b_means, on="task_id", how="inner").sort("task_id")
     a_vec = paired["_a"].to_numpy()
     b_vec = paired["_b"].to_numpy()
     n_tasks = len(a_vec)

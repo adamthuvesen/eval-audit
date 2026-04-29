@@ -56,7 +56,7 @@ All agents are on the frontier; no dominance to report.
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-02T08:41:34.935897+00:00`
-- **git_commit:** `f961187`
+- **rendered_at:** `2026-05-02T08:47:02.927466+00:00`
+- **git_commit:** `26ab374`
 - **fixture_sha256:** `83d4a0ce9d82d23c7563e66e03f50350d245a8537ddc3b2f6a25a3bae9619720`
 - **bootstrap_seed:** `42`
