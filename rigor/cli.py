@@ -18,6 +18,7 @@ from pathlib import Path
 import typer
 
 from rigor.ingest.hal_gaia import HalGaiaAdapter
+from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
 from rigor.ingest.synthetic import SyntheticAdapter
 from rigor.report.markdown import render_report_to
 from rigor.schema import StudySpec
@@ -67,7 +68,12 @@ def spec_render_cmd(
 _ADAPTERS: dict[str, Callable[[], object]] = {
     "gaia": HalGaiaAdapter,
     "synthetic": SyntheticAdapter,
+    "tau_bench": HalTauBenchAdapter,
 }
+
+# Maps `study.benchmark` to the on-disk scouting fixture directory name.
+# `study.benchmark = "tau_bench"` lives under `scouting/candidates/tau-bench/`.
+_BENCHMARK_DIR_OVERRIDE = {"tau_bench": "tau-bench"}
 
 
 def _resolve_repo_root(explicit: Path | None) -> Path:
@@ -86,7 +92,8 @@ def _load_runs(study: StudySpec, repo_root: Path):
     if study.benchmark == "synthetic":
         source = repo_root / "scouting" / "synthetic"
     else:
-        source = repo_root / "scouting" / "candidates" / study.benchmark
+        dir_name = _BENCHMARK_DIR_OVERRIDE.get(study.benchmark, study.benchmark)
+        source = repo_root / "scouting" / "candidates" / dir_name
     return adapter.load(source)
 
 
@@ -105,7 +112,8 @@ def _fixture_sha256(study: StudySpec, repo_root: Path) -> str:
     if study.benchmark == "synthetic":
         path = repo_root / "scouting" / "synthetic" / "runs.parquet"
     else:
-        path = repo_root / "scouting" / "candidates" / study.benchmark / "sample.parquet"
+        dir_name = _BENCHMARK_DIR_OVERRIDE.get(study.benchmark, study.benchmark)
+        path = repo_root / "scouting" / "candidates" / dir_name / "sample.parquet"
     if not path.exists():
         return "n/a"
     h = hashlib.sha256()
