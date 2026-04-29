@@ -185,3 +185,26 @@ def test_errored_row_policy__claude_success_rate_matches_leaderboard_044() -> No
     assert claude.n_graded == 47
     assert claude.n_errored == 3
     assert abs(claude.success_rate - 0.44) < 1e-9
+
+
+def test_errored_row_policy__paired_bootstrap_task_set_aligned_with_errored() -> None:
+    """WHEN the bootstrap is invoked for the Exhibit B Claude-vs-o4-mini comparison,
+    where Claude has 3 errored rows on tasks o4-mini graded,
+    THEN the bootstrap does NOT raise ValueError('paired bootstrap requires identical
+    task sets'); both arms contribute all 50 task_ids; errored Claude rows aggregate
+    as 0.0 in their per-task arm mean.
+    """
+    from rigor.stats import analyze
+
+    rows = _claude_taubench_rows() + _o4mini_taubench_rows()
+    frame = pl.DataFrame(rows, strict=False)
+    study = _stub_study("claude", "o4mini")
+
+    result = analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
+
+    # If the bootstrap raised, analyze() would have failed before returning.
+    assert len(result.claims) == 1
+    claim = result.claims[0]
+    # Sanity: delta should be o4mini_rate - claude_rate = 0.56 - 0.44 = 0.12
+    # (claim is treatment=claude vs control=o4mini, so delta = claude - o4mini = -0.12).
+    assert abs(claim.delta_point_estimate - (0.44 - 0.56)) < 1e-9
