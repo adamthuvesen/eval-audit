@@ -24,9 +24,13 @@
 
 ## Claims
 
-| claim_id | mode | status | effect | adjusted_result | decision_impact |
-|---|---|---|---|---|---|
-| claude37_vs_o4mini_high_on_gaia | declared_reanalysis | inconclusive | +1.82 pp | 0.7021 | hedge_on_cost |
+| claim_id | mode | status | effect | target_mde | adjusted_result | decision_impact |
+|---|---|---|---|---|---|---|
+| claude37_vs_o4mini_high_on_gaia | declared_reanalysis | inconclusive | +1.82 pp | +3.00 pp | 0.7021 | hedge_on_cost |
+
+**MDE context**
+
+- `claude37_vs_o4mini_high_on_gaia`: bootstrap CI half-width = 9.39 pp vs target_mde = 3.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
 
 ## Cost-quality view
 

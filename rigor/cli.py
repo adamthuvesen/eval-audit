@@ -21,9 +21,48 @@ from rigor.ingest.hal_gaia import HalGaiaAdapter
 from rigor.ingest.synthetic import SyntheticAdapter
 from rigor.report.markdown import render_report_to
 from rigor.schema import StudySpec
+from rigor.spec import render_study_spec
 from rigor.stats import analyze
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
+spec_app = typer.Typer(no_args_is_help=True, help="Validate and render StudySpec files.")
+app.add_typer(spec_app, name="spec")
+
+
+@spec_app.command("validate")
+def spec_validate_cmd(
+    study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+) -> None:
+    """Load STUDY_YAML through StudySpec.from_yaml; exit non-zero on validation failure."""
+    from pydantic import ValidationError
+
+    try:
+        study = StudySpec.from_yaml(study_yaml)
+    except ValidationError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2) from exc
+    typer.echo(f"OK: {study.id}")
+
+
+@spec_app.command("render")
+def spec_render_cmd(
+    study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    out: Path = typer.Option(..., "--out", help="Destination markdown file."),
+    fmt: str = typer.Option("markdown", "--format", help="Output format. Only 'markdown' is supported in v0."),
+) -> None:
+    """Render STUDY_YAML to a deterministic markdown rendition at --out."""
+    if fmt != "markdown":
+        typer.echo(
+            f"--format={fmt!r} is not supported in v0. "
+            "Only 'markdown' is implemented. HTML rendering is a planned follow-up.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    study = StudySpec.from_yaml(study_yaml)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(render_study_spec(study))
+    typer.echo(f"wrote {out}")
 
 _ADAPTERS: dict[str, Callable[[], object]] = {
     "gaia": HalGaiaAdapter,
