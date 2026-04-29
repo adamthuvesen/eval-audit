@@ -338,6 +338,8 @@ The four-to-six-week version can serve one primary audience. The current bet: **
 - 2026-05-02 — terminology tightened: core artifact is a study specification; strict pre-registration is one analysis mode, distinct from declared reanalysis and exploratory work.
 - 2026-05-02 — Exhibit A selected: HAL TAU-bench Airline, focused on cost-aware model selection along the frontier.
 - 2026-05-02 — Scouting completed; Exhibit A revised to **HAL GAIA (HAL Generalist · Claude 3.7 Sonnet vs o4-mini High)** based on cleaner cost reconciliation (MAPE = 0.0). TAU-bench retained as strong secondary; gate matrix in [scouting/exhibit-a-decision.md](scouting/exhibit-a-decision.md).
+- 2026-05-02 — Synthetic fixture contract added (`repair-synthetic-fixture-contract` archived); seed `20260502 → 20260503` to land observed primary delta within 3pp of true delta and unblock the v0 synthetic-validation gate.
+- 2026-05-02 — `v0-exhibit-a-reanalysis` landed: schema, GAIA + synthetic ingest, stats engine (Wilson, paired-task bootstrap, Holm-Bonferroni, Pareto), and markdown report. First Exhibit A reanalysis at [reports/exhibit-a/report.md](reports/exhibit-a/report.md): claim **inconclusive** at adjusted p=0.70, decision_impact `hedge_on_cost` (Claude 56.4% vs o4-mini 54.5%, +1.82 pp; CIs overlap, Claude 2.2× more expensive).
 
 ## Cross-references
 
