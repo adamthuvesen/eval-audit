@@ -44,8 +44,33 @@ def _format_rate(value: float) -> str:
     return f"{value:.4f}"
 
 
-def _extract_residual_risks(decision_md_path: Path) -> str:
-    """Extract the bulleted residual-risks list from scouting/exhibit-a-decision.md."""
+# Aliases for the residual-risks decision-document path. The renderer resolves
+# `scouting/<benchmark>-decision.md` by default; the aliases preserve Exhibit A's
+# historical filename and translate `tau_bench` -> `tau-bench` to match the
+# scouting fixture's hyphenated directory convention.
+_DECISION_DOC_ALIAS = {
+    "gaia": "exhibit-a-decision.md",
+    "tau_bench": "tau-bench-decision.md",
+}
+
+
+def _resolve_decision_doc(repo_root: Path, benchmark: str) -> tuple[Path, str]:
+    """Return (path, relative_label) for the per-benchmark scouting decision doc."""
+    filename = _DECISION_DOC_ALIAS.get(benchmark, f"{benchmark}-decision.md")
+    return repo_root / "scouting" / filename, f"scouting/{filename}"
+
+
+def _extract_residual_risks(decision_md_path: Path, relative_label: str) -> str:
+    """Extract the bulleted residual-risks list from the resolved scouting decision doc.
+
+    Falls back to a single placeholder line when the file does not exist, so the
+    Residual risks section preserves the seven-section shape contract.
+    """
+    if not decision_md_path.exists():
+        return (
+            f"_(no scouting decision document at {relative_label}; "
+            "residual risks not surfaced.)_"
+        )
     text = decision_md_path.read_text()
     start_match = re.search(r"^## Residual risks\s*$", text, flags=re.MULTILINE)
     if not start_match:
@@ -95,7 +120,7 @@ def render_report(
     repo_root: Path,
 ) -> str:
     """Render a deterministic markdown report for one declared-claim reanalysis."""
-    decision_md = repo_root / "scouting" / "exhibit-a-decision.md"
+    decision_md, decision_md_label = _resolve_decision_doc(repo_root, study.benchmark)
     # `study.benchmark` ("tau_bench") may differ from the on-disk fixture directory
     # name ("tau-bench"); the override mirrors the one in rigor.cli.
     _benchmark_dir_override = {"tau_bench": "tau-bench"}
@@ -277,9 +302,11 @@ def render_report(
 
     # 6. Residual risks
     parts.append("## Residual risks\n")
-    parts.append("**Inherited from scouting decision** (verbatim from "
-                 "`scouting/exhibit-a-decision.md`):\n")
-    parts.append(_extract_residual_risks(decision_md))
+    parts.append(
+        "**Inherited from scouting decision** (verbatim from "
+        f"`{decision_md_label}`):\n"
+    )
+    parts.append(_extract_residual_risks(decision_md, decision_md_label))
     parts.append("")
 
     # 7. Reproducibility footer

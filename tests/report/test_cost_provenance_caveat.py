@@ -201,3 +201,60 @@ def test_caveat__divergences_surfaced_verbatim(repo_root: Path) -> None:
         assert agent_id in block
         assert f"${reported:.2f}" in block
         assert f"${recon:.2f}" in block
+
+
+def test_residual_risks__missing_decision_doc_renders_placeholder(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    """WHEN the renderer is run against a study whose `benchmark` resolves to a
+    `scouting/<benchmark>-decision.md` path that does not exist on disk,
+    THEN the Residual risks section is still emitted as the sixth `##` heading,
+    AND the section's body is exactly the single placeholder line with the
+    resolved benchmark slug substituted.
+    """
+    import shutil
+
+    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from rigor.report.markdown import render_report
+    from rigor.schema import StudySpec
+    from rigor.stats import analyze
+
+    # Build a shadow repo with the same scouting fixture but no decision doc.
+    shadow_root = tmp_path / "shadow"
+    (shadow_root / "scouting" / "candidates").mkdir(parents=True)
+    shutil.copytree(
+        repo_root / "scouting" / "candidates" / "gaia",
+        shadow_root / "scouting" / "candidates" / "gaia",
+    )
+    # Intentionally do NOT copy scouting/exhibit-a-decision.md.
+
+    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    runs = HalGaiaAdapter().load(shadow_root / "scouting" / "candidates" / "gaia")
+    result = analyze(study, runs, bootstrap_iterations=200, bootstrap_seed=42)
+    text = render_report(
+        result,
+        study,
+        clock=lambda: FIXED_CLOCK,
+        git_commit="snapshot",
+        fixture_sha256="0" * 64,
+        repo_root=shadow_root,
+    )
+
+    # Section count: exactly seven `##` headings in the listed order.
+    headings = [line for line in text.splitlines() if line.startswith("## ")]
+    section_titles = [h.removeprefix("## ").strip() for h in headings]
+    assert section_titles == [
+        "Study",
+        "Provenance",
+        "Per-agent summary",
+        "Claims",
+        "Cost-quality view",
+        "Residual risks",
+        "Reproducibility footer",
+    ]
+
+    # Placeholder line is present with the resolved (aliased) filename.
+    assert (
+        "_(no scouting decision document at scouting/exhibit-a-decision.md; "
+        "residual risks not surfaced.)_"
+    ) in text
