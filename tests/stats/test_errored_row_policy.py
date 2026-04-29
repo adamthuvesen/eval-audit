@@ -130,6 +130,42 @@ def _o4mini_taubench_rows() -> list[dict]:
     return rows
 
 
+def test_errored_row_policy__gaia_exhibit_a_byte_identical(repo_root) -> None:
+    """WHEN analyze() is run on the Exhibit A GAIA fixture, where every row has
+    outcome_status == 'graded' (n_errored == 0 for both agents),
+    THEN every per-agent summary value (success_rate, n_graded, n_errored,
+    total_cost_usd, cost_per_success_usd) is unchanged from the values committed
+    in tests/report_snapshots/exhibit-a-report.md, because n_total == n_graded
+    when n_errored == 0.
+    """
+    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from rigor.schema import StudySpec
+    from rigor.stats import analyze
+
+    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    runs = HalGaiaAdapter().load(repo_root / "scouting" / "candidates" / "gaia")
+    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+
+    by_id = {s.agent_id: s for s in result.per_agent}
+    claude = by_id["HAL Generalist Agent (claude-3-7-sonnet-20250219)"]
+    o4mini = by_id["HAL Generalist Agent (o4-mini-2025-04-16 high)"]
+
+    # Pinned values from tests/report_snapshots/exhibit-a-report.md.
+    assert claude.n_graded == 165
+    assert claude.n_errored == 0
+    assert abs(claude.success_rate - 0.5636) < 5e-5
+    assert abs(claude.success_rate_ci_low - 0.4874) < 5e-5
+    assert abs(claude.success_rate_ci_high - 0.6370) < 5e-5
+    assert abs(claude.total_cost_usd - 130.68) < 0.01
+    assert abs(claude.cost_per_success_usd - 1.41) < 0.01
+
+    assert o4mini.n_graded == 165
+    assert o4mini.n_errored == 0
+    assert abs(o4mini.success_rate - 0.5455) < 5e-5
+    assert abs(o4mini.total_cost_usd - 59.39) < 0.01
+    assert abs(o4mini.cost_per_success_usd - 0.66) < 0.01
+
+
 def test_errored_row_policy__claude_success_rate_matches_leaderboard_044() -> None:
     """WHEN analyze() is run on the Exhibit B fixture, where Claude has 50 task rows of
     which 3 have outcome_status == 'errored' and 22 have outcome_status == 'graded' AND
