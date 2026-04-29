@@ -41,11 +41,12 @@ That is the agent-eval equivalent of bringing A/B-test discipline to a field tha
 A YAML/Pydantic schema for agent benchmark studies:
 
 ```yaml
-study:
-  id: taubench-airline-frontier-2026-05
-  benchmark: taubench_airline
-  analysis_mode: declared_reanalysis
-  data_observation: summary_seen
+# Excerpt from studies/exhibit-a.yaml (the live, locked v0 study spec).
+id: exhibit-a
+benchmark: gaia
+analysis_mode: declared_reanalysis
+data_observation: summary_seen
+harness: hal_generalist_agent
 
 primary_outcome:
   name: success_rate
@@ -53,9 +54,8 @@ primary_outcome:
   direction: higher_is_better
 
 agents:
-  - id: taubench_toolcalling_o4mini_high
-  - id: hal_generalist_claude37_sonnet
-  - id: taubench_toolcalling_o3_medium
+  - id: "HAL Generalist Agent (claude-3-7-sonnet-20250219)"
+  - id: "HAL Generalist Agent (o4-mini-2025-04-16 high)"
 
 design:
   task_sampling: fixed_public_validation_set
@@ -71,18 +71,19 @@ inference:
 
 cost:
   metrics:
-    - leaderboard_total_usd
-    - trace_total_usd
-    - usd_per_attempt
-    - usd_per_success
-    - wall_clock_seconds
+    - reconstructed_per_task_cost_usd
+    - reported_run_total_cost_usd
+    - cost_per_success_usd
   primary_view: pareto_frontier
 
 claims:
-  - id: o4mini_high_preferred_to_claude37
-    text: "o4-mini High is preferred to Claude 3.7 Sonnet for TAU-bench Airline deployment under equal observed success and lower cost."
-    treatment: taubench_toolcalling_o4mini_high
-    control: hal_generalist_claude37_sonnet
+  - id: claude37_vs_o4mini_high_on_gaia
+    text: >-
+      On GAIA validation under the HAL Generalist agent harness, Claude 3.7
+      Sonnet outperforms o4-mini High; reanalysis evaluates whether the
+      observed gap is statistically distinguishable from noise.
+    treatment: "HAL Generalist Agent (claude-3-7-sonnet-20250219)"
+    control:   "HAL Generalist Agent (o4-mini-2025-04-16 high)"
     outcome: success_rate
 ```
 
@@ -97,25 +98,24 @@ Pre-registration is one use mode, not the name for every analysis. `rigor` shoul
 The CLI should validate the file and render a clean study-spec document:
 
 ```bash
-rigor spec validate study.yaml
-rigor spec render study.yaml --out study-spec.html
+rigor spec validate studies/exhibit-a.yaml
+rigor spec render   studies/exhibit-a.yaml --out study-spec.md --format markdown
 ```
 
 ### 2. Public-data reanalysis
 
-v0 starts with one ingestion target: **HAL TAU-bench Airline**. The first goal is not broad adapter coverage; it is one credible end-to-end example.
+v0 ships one end-to-end ingestion target: **HAL GAIA (HAL Generalist Agent traces)**. The first goal is not broad adapter coverage; it is one credible end-to-end example with a `reconciled` cost-provenance class so the cost story is auditable from per-task tokens up to the leaderboard total.
 
 ```bash
-rigor ingest hal --benchmark taubench_airline --out runs.parquet
-rigor analyze study.yaml runs.parquet --out analysis.json
-rigor report analysis.json --out report.html
+rigor analyze studies/exhibit-a.yaml --out reports/exhibit-a/analysis.json
+rigor report  studies/exhibit-a.yaml --out reports/exhibit-a/report.md
 ```
 
 The Exhibit A claim is decision-oriented:
 
-> "On TAU-bench Airline, TAU-bench Tool Calling with o4-mini High and HAL Generalist with Claude 3.7 Sonnet both show 56% observed accuracy, but o4-mini High costs substantially less. Should a benchmark consumer treat o4-mini High as the preferred deployment choice, or rerun before switching?"
+> "On GAIA validation under the HAL Generalist agent harness, Claude 3.7 Sonnet (56.4%) outperforms o4-mini High (54.5%) by 1.9 percentage points while costing 2.2x more ($130.68 vs $59.39). Is the 1.9 pp accuracy advantage statistically distinguishable from noise on n=165, and is it decision-relevant given the cost gap?"
 
-This is a better first proof than a dramatic leaderboard reversal. It tests whether `rigor` can turn a plausible model-selection decision into an auditable claim with uncertainty, paired task analysis, and cost sensitivity.
+This is a better first proof than a dramatic leaderboard reversal. It tests whether `rigor` can turn a plausible model-selection decision into an auditable claim with uncertainty, paired task analysis, and cost sensitivity. The actual rendered finding is **inconclusive** — the +1.82 pp observed delta sits inside a paired-task bootstrap CI that crosses zero, Holm-Bonferroni adjusted p = 0.7021, and the report's `decision_impact` is `hedge_on_cost`. That is the right answer, surfaced honestly, and is itself the demo.
 
 The reanalysis should answer:
 
@@ -133,22 +133,26 @@ The reanalysis should answer:
 
 The report is the product surface. It should be good enough to attach to a workshop paper, an internal model-selection memo, or a benchmark pull request.
 
-Example claim output:
+Example claim output (the actual Exhibit A render — see [reports/exhibit-a/report.md](reports/exhibit-a/report.md)):
 
 ```text
-Claim: o4-mini High is preferred to Claude 3.7 Sonnet for TAU-bench Airline deployment under equal observed success and lower cost.
+Claim: Claude 3.7 Sonnet outperforms o4-mini High on GAIA under the HAL
+       Generalist agent harness; reanalysis evaluates whether the observed
+       1.9 pp gap is statistically distinguishable from noise on n=165 and
+       decision-relevant given Claude is 2.2x more expensive.
 Status: inconclusive
 
-Observed success delta: 0.0 percentage points
-Observed cost delta: -$30.75
-95% CI for success delta: [-19.2, +19.2]
-Decision impact: rerun_more_n
+Observed success delta: +1.82 percentage points
+Observed cost delta:    +$71.29 (Claude more expensive)
+95% CI for success delta (paired-task bootstrap): [-2.6, +5.4] pp
+Adjusted p (Holm-Bonferroni): 0.7021
+Decision impact: hedge_on_cost
 
 Interpretation:
-The observed success rates are tied and o4-mini High is cheaper, but one
-public run per agent is not enough to treat the deployment preference as a
-confirmatory quality claim. Prefer o4-mini High only if the decision is
-primarily cost-constrained; otherwise rerun before switching.
+The observed gap is small relative to its uncertainty; the data do not
+support switching to Claude on quality alone. Given Claude costs 2.2x
+more, prefer o4-mini High unless quality requirements not captured here
+specifically demand Claude.
 ```
 
 That framing is intentionally non-adversarial. It challenges overclaiming without making the project a gotcha machine.
@@ -217,24 +221,24 @@ Deliberate non-dependencies:
 
 ## Exhibit A scouting result
 
-Current choice: **HAL TAU-bench Airline**.
+Current Exhibit A: **HAL GAIA (HAL Generalist Agent · Claude 3.7 Sonnet vs o4-mini High)**.
 
-Why it wins:
+Why it wins (verdict from [scouting/exhibit-a-decision.md](scouting/exhibit-a-decision.md), which is the locked contract for the toolkit):
 
-- compact benchmark: 50 public-test tasks
-- public leaderboard with verified results, costs, run counts, and encrypted trace downloads
-- public traces decrypt into task-level rewards, successful/failed task lists, per-task latencies, token usage, total cost, and run metadata
-- decision-relevant frontier: o4-mini High matches Claude 3.7 Sonnet at 56% observed accuracy while costing much less
-- methodologically relevant context: HAL removed TAU-bench Few Shot results due to data leakage, so the example naturally fits an evidence-quality story without becoming adversarial
+- **`reconciled` cost provenance, MAPE = 0.0.** HAL's reported run-total cost matches reconstruction from per-model token counts × pinned provider prices for both runs. GAIA is the only candidate where the cost story is fully auditable end-to-end without unexplained gaps.
+- **Within-harness, cross-model decision.** Both agents run under the same HAL Generalist scaffold; differences attribute cleanly to the model choice without confounding harness effects.
+- **n = 165 GAIA validation tasks per arm.** Paired across arms (same task set both ways) so paired-task cluster bootstrap is the natural uncertainty estimator.
+- **Decision-relevant claim.** The leaderboard reports a 1.9 pp accuracy gap with a 2.2× cost gap — a real model-selection question a serious reader would ask, not a dramatic reversal.
+- **Public artifacts with provenance metadata.** The two HAL trace zips are pinned by filename in [scouting/candidates/gaia/provenance.json](scouting/candidates/gaia/provenance.json); the column inventory is locked at [scouting/candidates/gaia/columns.json](scouting/candidates/gaia/columns.json).
 
-Use **GAIA** as Exhibit B after the first importer/report works. GAIA is higher-profile and has level stratification, but it is noisier and less constrained for the first proof.
+Use **TAU-bench Tool Calling** as Exhibit B (secondary candidate). TAU-bench passed all four selection gates but its cost reconciliation is `as_reported_only` (MAPE = 0.33; reconstructed costs diverge from reported in opposite directions across agents — likely prompt-caching discounts and stale price snapshots). It exercises a different cost-provenance branch the toolkit needs to handle for real, and it carries the project's most decision-relevant scouting finding: a **12 pp cross-harness scaffold effect** for Claude 3.7 Sonnet (56% under HAL Generalist vs 44% under Tool Calling), which is the strongest argument the project has for "benchmark rows are not model effects." That writeup is its own follow-up change.
 
-Open checks before schema lock:
+Resolved checks before schema lock (now historical; settled by the scouting phase):
 
-- decrypt and normalize at least three TAU-bench Airline traces: o4-mini High, Claude 3.7 Sonnet, and o3 Medium
-- confirm whether every candidate shares the same 50 tasks, enabling paired task-level comparisons
-- reconcile leaderboard displayed cost with trace-level `total_cost` and configurable token-pricing calculations
-- decide whether v0's first success-rate comparison should use independent intervals, paired tests, or both
+- HAL GAIA traces decrypt and normalize cleanly into per-task rows (165 per agent for the chosen pair).
+- Both agents share the GAIA validation task set, enabling paired task-level comparisons.
+- Reconstructed-per-task cost (from `tokens_in_by_model` × pinned prices) matches HAL's reported `total_cost` within floating-point.
+- v0's first success-rate comparison uses paired-task cluster bootstrap (each iteration resamples task_id with replacement, both arms scored on the resampled task list); McNemar/Wilson are available as supporting views.
 
 ## Reusable scouting protocol
 
@@ -263,6 +267,8 @@ A stats library earns trust through tests, not just API polish. v0 should includ
 - property-based tests for multiple-comparison correction invariants
 - cross-checks against `statsmodels`, `scipy`, or R reference outputs for intervals and p-values
 - snapshot tests for report text so claim wording does not drift into overstatement
+
+CI runs `pytest`, `ruff`, and `openspec validate --all --strict` on every push and PR via [.github/workflows/ci.yml](.github/workflows/ci.yml). To make the workflow a *required* check that blocks merges, enable branch protection on `main` in GitHub Settings → Branches and add the `test` job as a required status check (one-time admin toggle, not in repo).
 
 ## v0 success criteria
 
@@ -303,14 +309,14 @@ The first is politically brittle. The second is useful, durable, and much harder
 
 ### What would disqualify Exhibit A?
 
-TAU-bench Airline is the current bet. It should be replaced only if the next sampling pass shows that:
+GAIA HAL Generalist is the locked Exhibit A. It should be replaced only if a future scouting pass shows that:
 
-- trace schemas differ too much across runs to normalize cleanly
-- agents do not share a comparable fixed task set
-- cost provenance cannot be explained without guesswork
-- the first report would merely restate the leaderboard instead of changing decision confidence
+- HAL's `agent-evals/hal_traces` dataset regenerates and the pinned trace zips (named in [scouting/candidates/gaia/provenance.json](scouting/candidates/gaia/provenance.json)) are no longer retrievable; toolkit ingest fails loud on this drift today
+- the locked column-to-semantic-role mapping in [scouting/exhibit-a-decision.md](scouting/exhibit-a-decision.md) no longer matches the upstream fixture (a different scouting pass would catch this and would itself be the change that swaps Exhibit A)
+- per-task cost reconciliation drops below the 1% threshold the toolkit asserts on every load (e.g., a price-table refresh that breaks the `reconciled` invariant)
+- the GAIA validation task set is sampled differently in some future HAL release such that paired-task analysis no longer applies
 
-The replacement question is not "can we find a dramatic reversal?" It is "can we find a decision-relevant claim whose evidential status becomes clearer under a declared analysis plan?"
+The replacement question is not "can we find a dramatic reversal?" It is "can we find a decision-relevant claim whose evidential status becomes clearer under a declared analysis plan?" The current Exhibit A's rendered status (**inconclusive** at adjusted p = 0.70, with `hedge_on_cost` as the decision_impact) is exactly that: a small observed gap properly wrapped in uncertainty, where the toolkit changes how a serious reader would act on the leaderboard.
 
 ### Who is v0 for?
 

@@ -61,6 +61,7 @@ def render_claim_row(row: dict) -> str:
     """Render a single claim row, validating its decision_impact value.
 
     Raises ReportContractError if the row's decision_impact is not in the controlled vocabulary.
+    The target_mde column is included only when row['target_mde'] is set.
     """
     di = row.get("decision_impact")
     if di not in DECISION_IMPACT_VOCAB:
@@ -71,6 +72,12 @@ def render_claim_row(row: dict) -> str:
     if status not in _STATUS_VOCAB:
         raise ReportContractError(
             f"status={status!r} is not in controlled vocabulary {sorted(_STATUS_VOCAB)}"
+        )
+    if "target_mde" in row:
+        return (
+            f"| {row['claim_id']} | {row['mode']} | {row['status']} | "
+            f"{row['effect']} | {row['target_mde']} | "
+            f"{row['adjusted_result']} | {row['decision_impact']} |"
         )
     return (
         f"| {row['claim_id']} | {row['mode']} | {row['status']} | "
@@ -149,9 +156,17 @@ def render_report(
 
     # 4. Claims
     parts.append("## Claims\n")
-    parts.append("| claim_id | mode | status | effect | adjusted_result | decision_impact |")
-    parts.append("|---|---|---|---|---|---|")
+    target_mde = study.inference.target_mde
+    if target_mde is not None:
+        parts.append(
+            "| claim_id | mode | status | effect | target_mde | adjusted_result | decision_impact |"
+        )
+        parts.append("|---|---|---|---|---|---|---|")
+    else:
+        parts.append("| claim_id | mode | status | effect | adjusted_result | decision_impact |")
+        parts.append("|---|---|---|---|---|---|")
     by_id = {s.agent_id: s for s in result.per_agent}
+    mde_per_claim: list[tuple[str, float, float]] = []  # (claim_id, ci_half_width, target_mde)
     for c in result.claims:
         ci_crosses = c.delta_ci_low <= 0.0 <= c.delta_ci_high
         # The claim's stated direction: treatment > control means delta > 0.
@@ -178,8 +193,37 @@ def render_report(
             "adjusted_result": adj,
             "decision_impact": di,
         }
+        if target_mde is not None:
+            row["target_mde"] = _format_pp(target_mde)
+            ci_half_width = (c.delta_ci_high - c.delta_ci_low) / 2.0
+            mde_per_claim.append((c.claim_id, ci_half_width, target_mde))
         parts.append(render_claim_row(row))
     parts.append("")
+
+    if target_mde is not None and mde_per_claim:
+        parts.append("**MDE context**\n")
+        for claim_id, half_width, mde in mde_per_claim:
+            diff_pp = (half_width - mde) * 100
+            if diff_pp < -0.5:
+                wording = (
+                    "the study has resolution finer than the declared MDE; "
+                    "an effect of this size would be detectable"
+                )
+            elif abs(diff_pp) <= 0.5:
+                wording = (
+                    "the study sits at the declared MDE; "
+                    "an effect of exactly this size sits on the detection boundary"
+                )
+            else:
+                wording = (
+                    "the study has resolution coarser than the declared MDE; "
+                    "an effect at the declared MDE would not be reliably detected without more data"
+                )
+            parts.append(
+                f"- `{claim_id}`: bootstrap CI half-width = {half_width * 100:.2f} pp "
+                f"vs target_mde = {mde * 100:.2f} pp — {wording}."
+            )
+        parts.append("")
 
     # 5. Cost-quality view
     parts.append("## Cost-quality view\n")

@@ -24,9 +24,13 @@
 
 ## Claims
 
-| claim_id | mode | status | effect | adjusted_result | decision_impact |
-|---|---|---|---|---|---|
-| claude37_vs_o4mini_high_on_gaia | declared_reanalysis | inconclusive | +1.82 pp | 0.7021 | hedge_on_cost |
+| claim_id | mode | status | effect | target_mde | adjusted_result | decision_impact |
+|---|---|---|---|---|---|---|
+| claude37_vs_o4mini_high_on_gaia | declared_reanalysis | inconclusive | +1.82 pp | +3.00 pp | 0.7021 | hedge_on_cost |
+
+**MDE context**
+
+- `claude37_vs_o4mini_high_on_gaia`: bootstrap CI half-width = 9.09 pp vs target_mde = 3.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
 
 ## Cost-quality view
 
@@ -52,7 +56,7 @@ All agents are on the frontier; no dominance to report.
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-02T08:19:30.238797+00:00`
-- **git_commit:** `8ae4667`
+- **rendered_at:** `2026-05-02T08:41:34.935897+00:00`
+- **git_commit:** `f961187`
 - **fixture_sha256:** `83d4a0ce9d82d23c7563e66e03f50350d245a8537ddc3b2f6a25a3bae9619720`
 - **bootstrap_seed:** `42`
