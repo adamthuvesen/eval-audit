@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import polars as pl
-import pytest
 
 FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
 
