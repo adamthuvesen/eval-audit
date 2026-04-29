@@ -1,0 +1,248 @@
+"""Deterministic markdown report renderer for declared-claim reanalyses."""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
+
+import polars as pl
+
+from rigor.ingest._prices import PRICE_TABLE_PINNED_AT
+from rigor.report import ReportContractError
+from rigor.report.decisions import (
+    DECISION_IMPACT_VOCAB,
+    ClaimContext,
+    decision_impact,
+)
+from rigor.schema import StudySpec
+from rigor.stats import AnalysisResult, analyze
+
+_STATUS_VOCAB = {"supported", "unsupported", "inconclusive"}
+
+
+def _claim_status(rejects: bool, direction_matches: bool, ci_crosses_zero: bool) -> str:
+    if rejects and direction_matches:
+        return "supported"
+    if rejects and not direction_matches:
+        return "unsupported"
+    if ci_crosses_zero:
+        return "inconclusive"
+    return "inconclusive"
+
+
+def _format_pp(delta: float) -> str:
+    return f"{delta * 100:+.2f} pp"
+
+
+def _format_currency(value: float) -> str:
+    return f"${value:.2f}"
+
+
+def _format_rate(value: float) -> str:
+    return f"{value:.4f}"
+
+
+def _extract_residual_risks(decision_md_path: Path) -> str:
+    """Extract the bulleted residual-risks list from scouting/exhibit-a-decision.md."""
+    text = decision_md_path.read_text()
+    start_match = re.search(r"^## Residual risks\s*$", text, flags=re.MULTILINE)
+    if not start_match:
+        return "(no residual risks found in scouting decision document)"
+    start = start_match.end()
+    end_match = re.search(r"^## ", text[start:], flags=re.MULTILINE)
+    end = start + (end_match.start() if end_match else len(text) - start)
+    block = text[start:end].strip()
+    return block
+
+
+def render_claim_row(row: dict) -> str:
+    """Render a single claim row, validating its decision_impact value.
+
+    Raises ReportContractError if the row's decision_impact is not in the controlled vocabulary.
+    """
+    di = row.get("decision_impact")
+    if di not in DECISION_IMPACT_VOCAB:
+        raise ReportContractError(
+            f"decision_impact={di!r} is not in controlled vocabulary {DECISION_IMPACT_VOCAB}"
+        )
+    status = row.get("status")
+    if status not in _STATUS_VOCAB:
+        raise ReportContractError(
+            f"status={status!r} is not in controlled vocabulary {sorted(_STATUS_VOCAB)}"
+        )
+    return (
+        f"| {row['claim_id']} | {row['mode']} | {row['status']} | "
+        f"{row['effect']} | {row['adjusted_result']} | {row['decision_impact']} |"
+    )
+
+
+def render_report(
+    result: AnalysisResult,
+    study: StudySpec,
+    *,
+    clock: Callable[[], datetime],
+    git_commit: str,
+    fixture_sha256: str,
+    repo_root: Path,
+) -> str:
+    """Render a deterministic markdown report for one declared-claim reanalysis."""
+    decision_md = repo_root / "scouting" / "exhibit-a-decision.md"
+    cost_recon = repo_root / "scouting" / "candidates" / study.benchmark / "cost-reconciliation.json"
+    provenance = repo_root / "scouting" / "candidates" / study.benchmark / "provenance.json"
+
+    rendered_at = clock().isoformat()
+
+    parts: list[str] = []
+
+    # 1. Study
+    parts.append("## Study\n")
+    primary_claim = study.claims[0]
+    parts.append(f"- **id:** `{study.id}`")
+    parts.append(f"- **benchmark:** `{study.benchmark}`")
+    parts.append(f"- **harness:** `{study.harness}`")
+    parts.append(f"- **analysis_mode:** `{study.analysis_mode}`")
+    parts.append(f"- **data_observation:** `{study.data_observation}`")
+    parts.append(f"- **claim:** {primary_claim.text}")
+    parts.append("")
+
+    # 2. Provenance
+    parts.append("## Provenance\n")
+    import json
+
+    cost_provenance_class = "n/a"
+    if cost_recon.exists():
+        cost_provenance_class = json.loads(cost_recon.read_text()).get("outcome", "n/a")
+    source_url = ""
+    retrieved_at = ""
+    if provenance.exists():
+        prov = json.loads(provenance.read_text())
+        source_url = prov.get("source_url", "")
+        retrieved_at = prov.get("retrieved_at", "")
+    parts.append(f"- **source_fixture:** `scouting/candidates/{study.benchmark}/sample.parquet`")
+    parts.append(f"- **source_url:** {source_url}")
+    parts.append(f"- **retrieved_at:** `{retrieved_at}`")
+    parts.append(f"- **price_table_pinned_at:** `{PRICE_TABLE_PINNED_AT}`")
+    parts.append(f"- **cost_provenance:** `{cost_provenance_class}`")
+    parts.append("")
+
+    # 3. Per-agent summary
+    parts.append("## Per-agent summary\n")
+    parts.append(
+        "| agent_id | n_graded | n_errored | success_rate | success_rate_ci_low "
+        "| success_rate_ci_high | total_cost_usd | cost_per_success_usd |"
+    )
+    parts.append("|---|---:|---:|---:|---:|---:|---:|---:|")
+    for s in result.per_agent:
+        cps = (
+            "inf" if s.cost_per_success_usd == float("inf")
+            else _format_currency(s.cost_per_success_usd)
+        )
+        parts.append(
+            f"| {s.agent_id} | {s.n_graded} | {s.n_errored} | "
+            f"{_format_rate(s.success_rate)} | {_format_rate(s.success_rate_ci_low)} | "
+            f"{_format_rate(s.success_rate_ci_high)} | "
+            f"{_format_currency(s.total_cost_usd)} | {cps} |"
+        )
+    parts.append("")
+
+    # 4. Claims
+    parts.append("## Claims\n")
+    parts.append("| claim_id | mode | status | effect | adjusted_result | decision_impact |")
+    parts.append("|---|---|---|---|---|---|")
+    by_id = {s.agent_id: s for s in result.per_agent}
+    for c in result.claims:
+        ci_crosses = c.delta_ci_low <= 0.0 <= c.delta_ci_high
+        # The claim's stated direction: treatment > control means delta > 0.
+        # We treat any positive observed delta as "matches" the canonical claim direction.
+        direction_matches = c.delta_point_estimate >= 0
+        ctx = ClaimContext(
+            rejects_null=c.rejects_null,
+            delta_point_estimate=c.delta_point_estimate,
+            delta_ci_low=c.delta_ci_low,
+            delta_ci_high=c.delta_ci_high,
+            treatment_cost_usd=by_id[c.treatment].total_cost_usd,
+            control_cost_usd=by_id[c.control].total_cost_usd,
+            treatment_is_dominated=c.treatment not in result.pareto_frontier,
+            direction_matches_claim=direction_matches,
+        )
+        di = decision_impact(ctx)
+        status = _claim_status(c.rejects_null, direction_matches, ci_crosses)
+        adj = "n/a" if c.adjusted_p_value is None else f"{c.adjusted_p_value:.4f}"
+        row = {
+            "claim_id": c.claim_id,
+            "mode": study.analysis_mode,
+            "status": status,
+            "effect": _format_pp(c.delta_point_estimate),
+            "adjusted_result": adj,
+            "decision_impact": di,
+        }
+        parts.append(render_claim_row(row))
+    parts.append("")
+
+    # 5. Cost-quality view
+    parts.append("## Cost-quality view\n")
+    pareto_sorted = sorted(result.pareto_frontier)
+    parts.append(f"**Pareto frontier (max success_rate, min total_cost_usd):** {pareto_sorted}")
+    parts.append("")
+    dominated = [s.agent_id for s in result.per_agent if s.agent_id not in result.pareto_frontier]
+    if dominated:
+        parts.append(
+            f"Dominated agents: {sorted(dominated)}. Each is dominated by another agent that "
+            "achieves at least the same success_rate at no greater total_cost_usd."
+        )
+    else:
+        parts.append("All agents are on the frontier; no dominance to report.")
+    parts.append("")
+
+    # 6. Residual risks
+    parts.append("## Residual risks\n")
+    parts.append("**Inherited from scouting decision** (verbatim from "
+                 "`scouting/exhibit-a-decision.md`):\n")
+    parts.append(_extract_residual_risks(decision_md))
+    parts.append("")
+
+    # 7. Reproducibility footer
+    parts.append("## Reproducibility footer\n")
+    parts.append(f"- **rendered_at:** `{rendered_at}`")
+    parts.append(f"- **git_commit:** `{git_commit}`")
+    parts.append(f"- **fixture_sha256:** `{fixture_sha256}`")
+    parts.append(f"- **bootstrap_seed:** `{result.bootstrap_seed}`")
+    parts.append("")
+
+    return "\n".join(parts)
+
+
+def render_report_to(
+    out_path: Path,
+    study: StudySpec,
+    runs: pl.DataFrame,
+    *,
+    clock: Callable[[], datetime],
+    git_commit: str,
+    fixture_sha256: str,
+    repo_root: Path,
+    bootstrap_iterations: int = 10_000,
+    bootstrap_seed: int = 42,
+) -> Path:
+    """Run analyze() then render to disk. CrossHarnessComparisonError propagates
+    BEFORE any file is written.
+    """
+    result = analyze(
+        study,
+        runs,
+        bootstrap_iterations=bootstrap_iterations,
+        bootstrap_seed=bootstrap_seed,
+    )
+    text = render_report(
+        result,
+        study,
+        clock=clock,
+        git_commit=git_commit,
+        fixture_sha256=fixture_sha256,
+        repo_root=repo_root,
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(text)
+    return out_path
