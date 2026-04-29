@@ -49,3 +49,7 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Typer's idiomatic API requires Argument()/Option() calls in defaults.
+"rigor/cli.py" = ["B008"]
