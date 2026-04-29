@@ -1,8 +1,8 @@
 # Exhibit A — Decision
 
-**Change:** [`scout-exhibit-a`](../openspec/changes/scout-exhibit-a/) · **Decided:** 2026-05-02
+**Decided:** 2026-05-02
 
-> Once written, this document is the contract the next change (`v0-exhibit-a-reanalysis`) consumes. Locked fields (chosen Exhibit A, column mapping, cost classification, candidate claim) MUST NOT be edited in place. Changes require a follow-up OpenSpec change.
+> Once written, this document is the contract the reanalysis consumes. Locked fields (chosen Exhibit A, column mapping, cost classification, candidate claim) MUST NOT be edited in place without an explicit follow-up note explaining the trigger.
 
 ---
 
@@ -109,4 +109,4 @@ These belong in a follow-up writeup or paper appendix, not in Exhibit A's primar
 
 ## Immutability
 
-The fields locked above (Exhibit A choice, column mapping, cost classification, candidate claim, residual risks) MUST NOT be edited in place once this document is committed. Changes require a follow-up OpenSpec change that explicitly references this decision and explains the trigger. This is a convention, not a CI check; rely on git history to enforce it.
+The fields locked above (Exhibit A choice, column mapping, cost classification, candidate claim, residual risks) MUST NOT be edited in place once this document is committed. Changes require a follow-up note that explicitly references this decision and explains the trigger. This is a convention, not a CI check; rely on git history to enforce it.

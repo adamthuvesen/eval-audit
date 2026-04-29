@@ -1,8 +1,8 @@
 # scouting/
 
-Scouting workspace for the `scout-exhibit-a` change.
+Scouting workspace for Exhibit A and Exhibit B fixture selection.
 
-This directory exists to satisfy the contract defined in [openspec/changes/scout-exhibit-a/](../openspec/changes/scout-exhibit-a/) — specifically the `scouting-fixtures` capability spec at [specs/scouting-fixtures/spec.md](../openspec/changes/scout-exhibit-a/specs/scouting-fixtures/spec.md). Outputs in this tree are the durable, machine-readable handoff to the next change (`v0-exhibit-a-reanalysis`).
+Outputs in this tree are the durable, machine-readable handoff from scouting to reanalysis: column inventories, sampled fixtures, cost reconciliation, and provenance.
 
 ## Layout
 
@@ -52,8 +52,6 @@ If, during scouting, BrowseComp's public artifact turns out to expose only aggre
 
 ## Read also
 
-- Proposal: [openspec/changes/scout-exhibit-a/proposal.md](../openspec/changes/scout-exhibit-a/proposal.md)
-- Design rationale: [openspec/changes/scout-exhibit-a/design.md](../openspec/changes/scout-exhibit-a/design.md)
-- Tasks: [openspec/changes/scout-exhibit-a/tasks.md](../openspec/changes/scout-exhibit-a/tasks.md)
-- Selection-gate semantics: [openspec/changes/scout-exhibit-a/specs/exhibit-a-scouting/spec.md](../openspec/changes/scout-exhibit-a/specs/exhibit-a-scouting/spec.md)
-- Fixture file shapes: [openspec/changes/scout-exhibit-a/specs/scouting-fixtures/spec.md](../openspec/changes/scout-exhibit-a/specs/scouting-fixtures/spec.md)
+- [scouting/exhibit-a-decision.md](exhibit-a-decision.md)
+- [scouting/tau-bench-decision.md](tau-bench-decision.md)
+- [reports/cross-harness-confound/notes.md](../reports/cross-harness-confound/notes.md)

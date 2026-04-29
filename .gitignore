@@ -35,6 +35,7 @@ htmlcov/
 .claude/settings.local.json
 .claude/projects/
 worktrees/
+openspec/
 
 # Data + experiment outputs
 data/raw/

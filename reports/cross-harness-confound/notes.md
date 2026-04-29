@@ -22,7 +22,7 @@ claude = next(
 print(f"{claude['success_rate']:.4f}")  # -> 0.4400 (22/50, errored counts as failure)
 ```
 
-This is the leaderboard-matching figure: 50 tasks, 22 graded successes, 25 graded failures, 3 upstream errors that the toolkit's [errored-row denominator policy](../../openspec/specs/stats-engine/spec.md) folds in as failures (the same convention the public leaderboard uses).
+This is the leaderboard-matching figure: 50 tasks, 22 graded successes, 25 graded failures, 3 upstream errors that the toolkit folds in as failures (the same convention the public leaderboard uses).
 
 **HAL Generalist: 56%.** Cited from [`scouting/candidates/tau-bench/provenance.json`](../../scouting/candidates/tau-bench/provenance.json), `leaderboard_cross_check[1].note`:
 

@@ -1,6 +1,5 @@
 """Property test: baseline-row verdict equals the Claims-table verdict.
 
-Spec: openspec/changes/verdict-grade-evals/specs/report-rendering/spec.md
 Pins the "baseline matches Claims" invariant against future drift in the
 sensitivity renderer or the decision_impact rule table.
 """

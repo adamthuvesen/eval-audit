@@ -3,8 +3,8 @@
 Snapshotted at the scouting decision date (2026-05-02) per the locked
 classification in scouting/exhibit-a-decision.md. Re-fetching live prices is
 forbidden — that would silently break the `reconciled` invariant whenever a
-provider changes pricing. Refreshing prices requires a new OpenSpec change
-that updates this constant and the residual-risks copy together.
+provider changes pricing. Refreshing prices requires updating this constant
+and the residual-risks copy together.
 """
 
 from __future__ import annotations

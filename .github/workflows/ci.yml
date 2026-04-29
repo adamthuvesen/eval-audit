@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test:
-    name: test (pytest, ruff, openspec)
+    name: test (pytest, ruff)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -44,9 +44,3 @@ jobs:
 
       - name: Run ruff
         run: uv run ruff check rigor tests scouting
-
-      - name: Install OpenSpec CLI
-        run: npm install -g @fission-ai/openspec@1.2.0
-
-      - name: Validate OpenSpec specs and changes
-        run: openspec validate --all --strict

@@ -12,7 +12,6 @@ format:
 check:
 	uv run pytest
 	uv run ruff check .
-	openspec validate --all --strict
 
 analyze:
 	uv run rigor analyze studies/exhibit-a.yaml
