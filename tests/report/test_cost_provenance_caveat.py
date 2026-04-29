@@ -108,3 +108,97 @@ def test_caveat__as_reported_only_renders_sub_block(repo_root: Path) -> None:
     caveats_idx = block.index("**Caveats:**")
     callout_idx = block.index("> ⚠️ Cost provenance: as_reported_only")
     assert callout_idx < divergences_idx < caveats_idx
+
+
+def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path) -> None:
+    """WHEN the renderer is called against the GAIA fixture (outcome == 'reconciled'),
+    THEN the rendered report's '## Provenance' section does NOT contain a
+    '### Cost provenance caveat' sub-block, and Exhibit A's existing snapshot is
+    unchanged byte-for-byte.
+    """
+    import os
+
+    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from rigor.report.markdown import render_report
+    from rigor.schema import StudySpec
+    from rigor.stats import analyze
+
+    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    runs = HalGaiaAdapter().load(repo_root / "scouting" / "candidates" / "gaia")
+    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+    rendered = render_report(
+        result,
+        study,
+        clock=lambda: FIXED_CLOCK,
+        git_commit="snapshot",
+        fixture_sha256="0" * 64,
+        repo_root=repo_root,
+    )
+
+    assert "### Cost provenance caveat" not in rendered
+    assert "as_reported_only" not in rendered
+    assert "> ⚠️" not in rendered
+
+    # Snapshot byte-equality (the cross-check asked for in the spec).
+    snapshot_path = (
+        repo_root / "tests" / "report_snapshots" / "exhibit-a-report.md"
+    )
+    if os.getenv("UPDATE_SNAPSHOTS") != "1":
+        expected = snapshot_path.read_text()
+        assert rendered == expected
+
+
+def test_caveat__cost_per_success_fallback_for_as_reported_only(repo_root: Path) -> None:
+    """WHEN the per-agent summary is rendered for a TAU-bench agent under
+    as_reported_only, THEN the agent's cost_per_success_usd value equals
+    reported_run_total_cost_usd / successes (rounded to currency precision),
+    AND a single cost_per_success_usd column header is used (no _reported suffix).
+    """
+    text = _render_taubench_report(repo_root)
+    # Single column header with no _reported suffix.
+    assert "| cost_per_success_usd |" in text
+    assert "cost_per_success_usd_reported" not in text
+
+    # For Claude: reported_run_total = 15.4455; 22 graded successes; 15.4455/22 = $0.70.
+    # Find the per-agent summary table row (table rows start with "| ").
+    table_start = text.index("## Per-agent summary")
+    table_end = text.index("## Claims")
+    table_block = text[table_start:table_end]
+    claude_line_start = table_block.index("| Taubench ToolCalling (claude-3.7-sonnet)")
+    claude_line_end = table_block.index("\n", claude_line_start)
+    claude_line = table_block[claude_line_start:claude_line_end]
+    assert "$0.70" in claude_line
+
+
+def test_caveat__divergences_surfaced_verbatim(repo_root: Path) -> None:
+    """WHEN the caveat sub-block renders divergences for the TAU-bench fixture,
+    THEN the bulleted list contains exactly three entries (matching the three
+    divergences in scouting/candidates/tau-bench/cost-reconciliation.json), and
+    each entry's agent_id, reported cost, and reconstructed cost match the
+    fixture values.
+    """
+    import json
+
+    text = _render_taubench_report(repo_root)
+    cost_recon = json.loads(
+        (repo_root / "scouting" / "candidates" / "tau-bench" / "cost-reconciliation.json")
+        .read_text()
+    )
+    expected_divergences = cost_recon["divergences"]
+
+    assert len(expected_divergences) == 3
+
+    block_start = text.index("**Divergences (per run):**")
+    block_end = text.index("**Caveats:**")
+    block = text[block_start:block_end]
+
+    bullet_count = block.count("\n- ")
+    assert bullet_count == 3
+
+    for d in expected_divergences:
+        agent_id = d["agent_id"]
+        reported = float(d["reported_cost_usd"])
+        recon = float(d["reconstructed_cost_usd"])
+        assert agent_id in block
+        assert f"${reported:.2f}" in block
+        assert f"${recon:.2f}" in block
