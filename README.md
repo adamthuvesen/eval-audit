@@ -34,6 +34,8 @@ The opportunity is not to dunk on benchmark authors. The opportunity is to give 
 
 That is the agent-eval equivalent of bringing A/B-test discipline to a field that is still mostly publishing leaderboards.
 
+For a worked example of how this matters in practice, see [reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md): the same model on the same benchmark scores 12 percentage points apart under two different scaffolds the public TAU-bench leaderboard mixes into a single ranking.
+
 ## What v0 is
 
 ### 1. Study specifications and analysis plans
