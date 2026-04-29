@@ -23,8 +23,10 @@ def test_study_spec__loading_the_exhibit_a_study_spec_succeeds(repo_root: Path) 
     assert spec.analysis_mode == "declared_reanalysis"
     assert spec.inference.correction_method == "holm_bonferroni"
     assert spec.inference.alpha == 0.05
-    assert spec.claims[0].treatment == "gaia_hg_claude37"
-    assert spec.claims[0].control == "gaia_hg_o4mini_high"
+    # Long-form agent IDs verbatim from the locked GAIA column mapping
+    # (scouting/exhibit-a-decision.md). RunRecord.agent_id is a pass-through.
+    assert spec.claims[0].treatment == "HAL Generalist Agent (claude-3-7-sonnet-20250219)"
+    assert spec.claims[0].control == "HAL Generalist Agent (o4-mini-2025-04-16 high)"
     assert spec.claims[0].outcome == "success_rate"
 
 
