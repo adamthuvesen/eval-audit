@@ -208,3 +208,74 @@ def test_errored_row_policy__paired_bootstrap_task_set_aligned_with_errored() ->
     # Sanity: delta should be o4mini_rate - claude_rate = 0.56 - 0.44 = 0.12
     # (claim is treatment=claude vs control=o4mini, so delta = claude - o4mini = -0.12).
     assert abs(claim.delta_point_estimate - (0.44 - 0.56)) < 1e-9
+
+
+def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
+    """WHEN the per-agent summary is computed for an agent with n_errored > 0,
+    THEN cost_per_success_usd = total_cost_usd / successes where successes is the
+    count of graded successes (an errored row cannot be a success), regardless of
+    whether cost_provenance is reconciled or as_reported_only.
+    """
+    from rigor.stats import analyze
+
+    # Reconciled path: 10 rows, 2 errored, 5 graded-successes, 3 graded-fail.
+    # Each row's reconstructed_per_task_cost_usd = 0.10 (errored rows are None).
+    # Expected total_cost_usd = 8 * 0.10 = 0.80; cost_per_success = 0.80 / 5 = 0.16.
+    rows: list[dict] = []
+    for i in range(5):
+        rows.append(_row(
+            agent_id="reconciled_agent",
+            task_id=f"t{i:02d}",
+            outcome_status="graded",
+            success=True,
+            harness="hal_generalist_agent",
+            cost_provenance="reconciled",
+            reconstructed_cost=0.10,
+            reported_run_total=1.00,
+        ))
+    for i in range(5, 8):
+        rows.append(_row(
+            agent_id="reconciled_agent",
+            task_id=f"t{i:02d}",
+            outcome_status="graded",
+            success=False,
+            harness="hal_generalist_agent",
+            cost_provenance="reconciled",
+            reconstructed_cost=0.10,
+            reported_run_total=1.00,
+        ))
+    for i in range(8, 10):
+        rows.append(_row(
+            agent_id="reconciled_agent",
+            task_id=f"t{i:02d}",
+            outcome_status="errored",
+            success=None,
+            harness="hal_generalist_agent",
+            cost_provenance="reconciled",
+            reconstructed_cost=None,
+            reported_run_total=1.00,
+        ))
+    # Pair with a control agent so analyze() has a comparison to chew on.
+    for i in range(10):
+        rows.append(_row(
+            agent_id="control_agent",
+            task_id=f"t{i:02d}",
+            outcome_status="graded",
+            success=(i < 4),
+            harness="hal_generalist_agent",
+            cost_provenance="reconciled",
+            reconstructed_cost=0.05,
+            reported_run_total=0.50,
+        ))
+
+    frame = pl.DataFrame(rows, strict=False)
+    study = _stub_study("reconciled_agent", "control_agent", harness="hal_generalist_agent")
+    result = analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
+
+    by_id = {s.agent_id: s for s in result.per_agent}
+    agent = by_id["reconciled_agent"]
+    assert agent.n_graded == 8
+    assert agent.n_errored == 2
+    # successes = 5 graded-true rows (errored rows can never count as success).
+    assert abs(agent.total_cost_usd - 0.80) < 1e-9
+    assert abs(agent.cost_per_success_usd - (0.80 / 5)) < 1e-9
