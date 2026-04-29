@@ -37,10 +37,13 @@ def _render_exhibit_a(repo_root: Path) -> str:
     return render_report(
         result,
         study,
+        runs,
         clock=lambda: FIXED_CLOCK,
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
+        bootstrap_iterations=2_000,
+        bootstrap_seed=42,
     )
 
 
@@ -57,10 +60,13 @@ def _render_exhibit_b(repo_root: Path) -> str:
     return render_report(
         result,
         study,
+        runs,
         clock=lambda: FIXED_CLOCK,
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
+        bootstrap_iterations=2_000,
+        bootstrap_seed=42,
     )
 
 

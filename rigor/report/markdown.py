@@ -113,13 +113,22 @@ def render_claim_row(row: dict) -> str:
 def render_report(
     result: AnalysisResult,
     study: StudySpec,
+    runs: pl.DataFrame,
     *,
     clock: Callable[[], datetime],
     git_commit: str,
     fixture_sha256: str,
     repo_root: Path,
+    bootstrap_iterations: int = 10_000,
+    bootstrap_seed: int = 42,
 ) -> str:
-    """Render a deterministic markdown report for one declared-claim reanalysis."""
+    """Render a deterministic markdown report for one declared-claim reanalysis.
+
+    `runs` is required so the verdict-sensitivity sub-block can recompute the
+    errored-row-excluded perturbation against the original frame. Bootstrap
+    parameters are passed through so the perturbed bootstrap matches the
+    baseline's iteration count and seed.
+    """
     decision_md, decision_md_label = _resolve_decision_doc(repo_root, study.benchmark)
     # `study.benchmark` ("tau_bench") may differ from the on-disk fixture directory
     # name ("tau-bench"); the override mirrors the one in rigor.cli.
@@ -285,6 +294,30 @@ def render_report(
             )
         parts.append("")
 
+    # Verdict sensitivity sub-block (one per claim).
+    from rigor.report.sensitivity import compute_sensitivity_rows
+
+    for c in result.claims:
+        rows = compute_sensitivity_rows(
+            c,
+            list(result.claims),
+            runs,
+            study,
+            result,
+            bootstrap_iterations=bootstrap_iterations,
+            bootstrap_seed=bootstrap_seed,
+        )
+        baseline_verdict = rows[0].verdict
+        parts.append(f"**Verdict sensitivity** — `{c.claim_id}`\n")
+        parts.append("| dimension | value | verdict |")
+        parts.append("|---|---|---|")
+        for r in rows:
+            verdict_cell = r.verdict
+            if r.dimension != "baseline" and r.verdict != baseline_verdict:
+                verdict_cell = f"{r.verdict} ← flips"
+            parts.append(f"| {r.dimension} | {r.value} | {verdict_cell} |")
+        parts.append("")
+
     # 5. Cost-quality view
     parts.append("## Cost-quality view\n")
     pareto_sorted = sorted(result.pareto_frontier)
@@ -344,10 +377,13 @@ def render_report_to(
     text = render_report(
         result,
         study,
+        runs,
         clock=clock,
         git_commit=git_commit,
         fixture_sha256=fixture_sha256,
         repo_root=repo_root,
+        bootstrap_iterations=bootstrap_iterations,
+        bootstrap_seed=bootstrap_seed,
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text)

@@ -127,10 +127,13 @@ def test_as_reported_only__renderer_emits_caveat_block_and_omits_price_pin_metad
     text = render_report(
         result,
         study,
+        runs_two,
         clock=lambda: _FIXED_CLOCK,
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=_REPO_ROOT,
+        bootstrap_iterations=200,
+        bootstrap_seed=42,
     )
     assert "### Cost provenance caveat" in text
     assert "> ⚠️ Cost provenance: as_reported_only" in text

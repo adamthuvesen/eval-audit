@@ -75,6 +75,31 @@ def test_decision_impact__rejects_table_branches() -> None:
     ) == "hedge_on_cost"
 
 
+def test_decision_impact__cost_gap_threshold_kwarg_perturbs_verdict() -> None:
+    """WHEN a claim has a 7% cost gap and a CI crossing zero,
+    THEN the verdict resolves to rerun_more_n under the default 0.10 threshold
+    AND to hedge_on_cost under a perturbed 0.05 threshold.
+    """
+    from rigor.report.decisions import decision_impact
+
+    ctx = _stub_claim_result(
+        rejects=False,
+        delta_lo=-0.02,
+        delta_hi=0.02,
+        treatment_cost=107.0,
+        control_cost=100.0,
+    )
+
+    # Default threshold (0.10): 7% gap is not meaningful -> rerun_more_n.
+    assert decision_impact(ctx) == "rerun_more_n"
+
+    # Perturbed threshold (0.05): 7% gap is now meaningful -> hedge_on_cost.
+    assert decision_impact(ctx, cost_gap_threshold=0.05) == "hedge_on_cost"
+
+    # Perturbed threshold (0.20): 7% gap still not meaningful -> rerun_more_n.
+    assert decision_impact(ctx, cost_gap_threshold=0.20) == "rerun_more_n"
+
+
 def test_decision_impact__unknown_values_are_forbidden() -> None:
     """WHEN the renderer is asked to emit a claim row whose computed decision_impact
     is not in the controlled vocabulary, THEN ReportContractError is raised.

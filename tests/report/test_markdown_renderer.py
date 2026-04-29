@@ -22,16 +22,19 @@ def exhibit_a_inputs(repo_root: Path):
     return study, runs, result
 
 
-def _render(study, result, repo_root: Path) -> str:
+def _render(study, runs, result, repo_root: Path) -> str:
     from rigor.report.markdown import render_report
 
     return render_report(
         result,
         study,
+        runs,
         clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
         git_commit="deadbeef",
         fixture_sha256="0" * 64,
         repo_root=repo_root,
+        bootstrap_iterations=2_000,
+        bootstrap_seed=42,
     )
 
 
@@ -39,9 +42,9 @@ def test_report__all_seven_sections_are_present(exhibit_a_inputs, repo_root: Pat
     """WHEN the renderer is run against the Exhibit A study and GAIA fixture,
     THEN the resulting markdown contains all seven ## sections in the listed order.
     """
-    study, _runs, result = exhibit_a_inputs
+    study, runs, result = exhibit_a_inputs
 
-    text = _render(study, result, repo_root)
+    text = _render(study, runs, result, repo_root)
 
     expected_sections = [
         "## Study",
@@ -65,8 +68,8 @@ def test_report__inherited_residual_risks_are_not_edited(exhibit_a_inputs, repo_
     THEN the text under 'Inherited from scouting decision' matches the residual-risks
     bullets in scouting/exhibit-a-decision.md byte-for-byte after whitespace normalization.
     """
-    study, _runs, result = exhibit_a_inputs
-    text = _render(study, result, repo_root)
+    study, runs, result = exhibit_a_inputs
+    text = _render(study, runs, result, repo_root)
 
     # Extract the inherited block from the rendered report.
     marker = "Inherited from scouting decision"
@@ -98,9 +101,9 @@ def test_report__rerunning_renders_byte_identical_output(exhibit_a_inputs, repo_
     """
     import hashlib
 
-    study, _runs, result = exhibit_a_inputs
-    a = _render(study, result, repo_root)
-    b = _render(study, result, repo_root)
+    study, runs, result = exhibit_a_inputs
+    a = _render(study, runs, result, repo_root)
+    b = _render(study, runs, result, repo_root)
 
     assert hashlib.sha256(a.encode()).hexdigest() == hashlib.sha256(b.encode()).hexdigest()
 
@@ -112,9 +115,9 @@ def test_report__snapshot_diff_caught_in_tests(exhibit_a_inputs, repo_root: Path
     Verified by snapshotting the rendered report, mutating a copy, and asserting
     the comparison detects the mutation.
     """
-    study, _runs, result = exhibit_a_inputs
+    study, runs, result = exhibit_a_inputs
 
-    rendered = _render(study, result, repo_root)
+    rendered = _render(study, runs, result, repo_root)
     snapshot_path = tmp_path / "exhibit-a-report.md"
     snapshot_path.write_text(rendered)
 

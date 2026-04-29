@@ -53,6 +53,42 @@ HAL's reported run-total cost is used directly because per-task cost reconstruct
 - `o4mini_vs_o3`: bootstrap CI half-width = 16.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
 - `claude_vs_o3`: bootstrap CI half-width = 16.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
 
+**Verdict sensitivity** — `o4mini_vs_claude`
+
+| dimension | value | verdict |
+|---|---|---|
+| baseline | locked | hedge_on_cost |
+| alpha | 0.01 | hedge_on_cost |
+| alpha | 0.10 | hedge_on_cost |
+| errored_policy | excluded | hedge_on_cost |
+| correction_method | none | hedge_on_cost |
+| cost_gap_threshold | 0.05 | hedge_on_cost |
+| cost_gap_threshold | 0.20 | hedge_on_cost |
+
+**Verdict sensitivity** — `o4mini_vs_o3`
+
+| dimension | value | verdict |
+|---|---|---|
+| baseline | locked | hedge_on_cost |
+| alpha | 0.01 | hedge_on_cost |
+| alpha | 0.10 | hedge_on_cost |
+| errored_policy | excluded | hedge_on_cost |
+| correction_method | none | hedge_on_cost |
+| cost_gap_threshold | 0.05 | hedge_on_cost |
+| cost_gap_threshold | 0.20 | hedge_on_cost |
+
+**Verdict sensitivity** — `claude_vs_o3`
+
+| dimension | value | verdict |
+|---|---|---|
+| baseline | locked | drop_from_shortlist |
+| alpha | 0.01 | drop_from_shortlist |
+| alpha | 0.10 | drop_from_shortlist |
+| errored_policy | excluded | drop_from_shortlist |
+| correction_method | none | drop_from_shortlist |
+| cost_gap_threshold | 0.05 | drop_from_shortlist |
+| cost_gap_threshold | 0.20 | drop_from_shortlist |
+
 ## Cost-quality view
 
 **Pareto frontier (max success_rate, min total_cost_usd):** ['Taubench ToolCalling (o4-mini-2025-04-16 high)']

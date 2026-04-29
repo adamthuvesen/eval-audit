@@ -29,10 +29,16 @@ class ClaimContext:
     direction_matches_claim: bool
 
 
-def decision_impact(ctx: ClaimContext) -> str:
+def decision_impact(
+    ctx: ClaimContext,
+    *,
+    cost_gap_threshold: float = COST_GAP_THRESHOLD,
+) -> str:
     """Map an analysis result to a controlled decision_impact label.
 
-    Rule order is significant: first match wins.
+    Rule order is significant: first match wins. The `cost_gap_threshold`
+    kwarg is exposed so the verdict-sensitivity table can perturb it; the
+    default reproduces the v0 behavior.
     """
     if ctx.treatment_is_dominated:
         return "drop_from_shortlist"
@@ -44,6 +50,6 @@ def decision_impact(ctx: ClaimContext) -> str:
     if ci_crosses_zero:
         cheaper = min(ctx.treatment_cost_usd, ctx.control_cost_usd)
         gap = abs(ctx.treatment_cost_usd - ctx.control_cost_usd)
-        meaningful_gap = cheaper > 0 and (gap / cheaper) >= COST_GAP_THRESHOLD
+        meaningful_gap = cheaper > 0 and (gap / cheaper) >= cost_gap_threshold
         return "hedge_on_cost" if meaningful_gap else "rerun_more_n"
     return "inconclusive_no_action"

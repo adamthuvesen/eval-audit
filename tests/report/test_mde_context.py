@@ -19,10 +19,13 @@ def _render_for_study(study_yaml: Path, repo_root: Path) -> str:
     return render_report(
         result,
         study,
+        runs,
         clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=repo_root,
+        bootstrap_iterations=2_000,
+        bootstrap_seed=42,
     )
 
 
