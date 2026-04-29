@@ -96,8 +96,12 @@ def render_report(
 ) -> str:
     """Render a deterministic markdown report for one declared-claim reanalysis."""
     decision_md = repo_root / "scouting" / "exhibit-a-decision.md"
-    cost_recon = repo_root / "scouting" / "candidates" / study.benchmark / "cost-reconciliation.json"
-    provenance = repo_root / "scouting" / "candidates" / study.benchmark / "provenance.json"
+    # `study.benchmark` ("tau_bench") may differ from the on-disk fixture directory
+    # name ("tau-bench"); the override mirrors the one in rigor.cli.
+    _benchmark_dir_override = {"tau_bench": "tau-bench"}
+    benchmark_dir = _benchmark_dir_override.get(study.benchmark, study.benchmark)
+    cost_recon = repo_root / "scouting" / "candidates" / benchmark_dir / "cost-reconciliation.json"
+    provenance = repo_root / "scouting" / "candidates" / benchmark_dir / "provenance.json"
 
     rendered_at = clock().isoformat()
 
@@ -129,7 +133,7 @@ def render_report(
         prov = json.loads(provenance.read_text())
         source_url = prov.get("source_url", "")
         retrieved_at = prov.get("retrieved_at", "")
-    parts.append(f"- **source_fixture:** `scouting/candidates/{study.benchmark}/sample.parquet`")
+    parts.append(f"- **source_fixture:** `scouting/candidates/{benchmark_dir}/sample.parquet`")
     parts.append(f"- **source_url:** {source_url}")
     parts.append(f"- **retrieved_at:** `{retrieved_at}`")
     parts.append(f"- **price_table_pinned_at:** `{PRICE_TABLE_PINNED_AT}`")
