@@ -43,14 +43,16 @@ def paired_task_bootstrap(
     # Sort by task_id so the index space the rng samples over is stable across runs;
     # polars group_by returns rows in hash order by default, which makes seeded
     # bootstraps non-deterministic across processes.
+    # Errored rows (success == None) are coerced to 0.0 here so they contribute as
+    # failures to the per-task arm mean, matching the errored-row denominator policy.
     a_means = (
         arm_a.group_by("task_id")
-        .agg(pl.col(outcome).cast(pl.Float64).mean().alias("_a"))
+        .agg(pl.col(outcome).cast(pl.Float64).fill_null(0.0).mean().alias("_a"))
         .sort("task_id")
     )
     b_means = (
         arm_b.group_by("task_id")
-        .agg(pl.col(outcome).cast(pl.Float64).mean().alias("_b"))
+        .agg(pl.col(outcome).cast(pl.Float64).fill_null(0.0).mean().alias("_b"))
         .sort("task_id")
     )
     paired = a_means.join(b_means, on="task_id", how="inner").sort("task_id")
