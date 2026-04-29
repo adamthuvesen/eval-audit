@@ -32,6 +32,18 @@
 
 - `claude37_vs_o4mini_high_on_gaia`: bootstrap CI half-width = 9.09 pp vs target_mde = 3.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
 
+**Verdict sensitivity** — `claude37_vs_o4mini_high_on_gaia`
+
+| dimension | value | verdict |
+|---|---|---|
+| baseline | locked | hedge_on_cost |
+| alpha | 0.01 | hedge_on_cost |
+| alpha | 0.10 | hedge_on_cost |
+| errored_policy | excluded | hedge_on_cost |
+| correction_method | none | hedge_on_cost |
+| cost_gap_threshold | 0.05 | hedge_on_cost |
+| cost_gap_threshold | 0.20 | hedge_on_cost |
+
 ## Cost-quality view
 
 **Pareto frontier (max success_rate, min total_cost_usd):** ['HAL Generalist Agent (claude-3-7-sonnet-20250219)', 'HAL Generalist Agent (o4-mini-2025-04-16 high)']
@@ -56,7 +68,7 @@ All agents are on the frontier; no dominance to report.
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-02T08:47:02.927466+00:00`
-- **git_commit:** `26ab374`
+- **rendered_at:** `2026-05-02T13:19:35.226530+00:00`
+- **git_commit:** `3f5d0ac`
 - **fixture_sha256:** `83d4a0ce9d82d23c7563e66e03f50350d245a8537ddc3b2f6a25a3bae9619720`
 - **bootstrap_seed:** `42`

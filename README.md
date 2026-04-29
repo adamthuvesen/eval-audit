@@ -1,21 +1,30 @@
 # rigor
 
-> Study-specification, reanalysis, and reporting toolkit for agent benchmarks. Treat agent evals like experiments, not score tables.
+> **Verdict-grade evals.** Every benchmark claim resolves to an action verb — `switch`, `hold`, `drop_from_shortlist`, `rerun_more_n`, `hedge_on_cost`, `inconclusive_no_action` — with a sensitivity table attached. "What should we do?" is a more useful eval output than "what's the rank order?"
 
-**Status:** v0 shipped · Exhibits A & B + cross-harness writeup · 2026-05-02
+**Status:** v1 in progress · verdict-grade evals · 2026-05-02
 
 ---
 
-## The pitch
+## What rigor renders
 
-`rigor` helps researchers and practitioners make agent benchmark claims auditable. It provides:
+Every rendered report carries a per-claim verdict and a sensitivity table that shows whether the verdict survives reasonable perturbations of the analysis declaration. A verdict that holds across every perturbation is the strong claim; a verdict that flips under one is a methodological footnote that the report surfaces honestly.
 
-- a study-specification schema for declaring evaluation plans and benchmark claims
-- a reanalysis pipeline for public or private run-level benchmark data
-- statistical reporting that separates robust findings from leaderboard noise
-- cost-quality analysis that makes tradeoffs explicit instead of hiding them in a single rank
+```
+| dimension          | value     | verdict           |
+|--------------------|-----------|-------------------|
+| baseline           | locked    | hedge_on_cost     |
+| alpha              | 0.01      | hedge_on_cost     |
+| alpha              | 0.10      | hedge_on_cost     |
+| errored_policy     | excluded  | hedge_on_cost     |
+| correction_method  | none      | hedge_on_cost     |
+| cost_gap_threshold | 0.05      | hedge_on_cost     |
+| cost_gap_threshold | 0.20      | hedge_on_cost     |
+```
 
-The v0 is deliberately narrow: **study specifications + HAL/public-data reanalysis + polished report**. It is not a new benchmark runner, not a leaderboard, and not a pile of adapters.
+(Excerpt from [reports/exhibit-a/report.md](reports/exhibit-a/report.md). Verdicts that flip under a perturbation are annotated `← flips`.)
+
+The supporting machinery — declared analysis plans, paired-task cluster bootstrap, Holm-Bonferroni, Pareto frontier on cost-quality, errored-row policy, locked column mappings — is what makes the verdicts trustworthy. The verdict is the headline.
 
 ## Why this exists
 
@@ -36,7 +45,7 @@ That is the agent-eval equivalent of bringing A/B-test discipline to a field tha
 
 For a worked example of how this matters in practice, see [reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md): the same model on the same benchmark scores 12 percentage points apart under two different scaffolds the public TAU-bench leaderboard mixes into a single ranking.
 
-## What v0 is
+## How rigor implements it
 
 ### 1. Study specifications and analysis plans
 
@@ -229,7 +238,15 @@ Deliberate non-dependencies:
 - no model-based trace classifier
 - no custom agent runner
 
-## Exhibit A scouting result
+## Demos of the methodology
+
+Three demonstrations of what verdict-grade evals produce on real public agent-eval data:
+
+- **Exhibit A — GAIA HAL Generalist** ([reports/exhibit-a/report.md](reports/exhibit-a/report.md)). Claude 3.7 Sonnet vs o4-mini High on 165 GAIA validation tasks. Headline leaderboard gap is 1.9 pp; rigor's verdict is `hedge_on_cost` and the sensitivity table shows it holds across every perturbation. This is the `reconciled` cost-provenance demo.
+- **Exhibit B — TAU-bench Airline Tool Calling** ([reports/exhibit-b/report.md](reports/exhibit-b/report.md)). Three-agent within-harness comparison (o4-mini High, Claude 3.7 Sonnet, o3 Medium) on 50 airline tasks. All three pairwise verdicts hold under the sensitivity table. This is the `as_reported_only` cost-provenance demo, with the toolkit's cost-caveat sub-block surfacing the per-task reconstruction failure honestly.
+- **Cross-harness confound writeup** ([reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md)). Claude 3.7 Sonnet sits at 56% under HAL Generalist and 44% under Tool Calling on the same TAU-bench Airline task set — a 12 pp scaffold gap on the same model and the same benchmark that the public leaderboard mixes into a single ranking. The writeup uses Exhibit B's reanalysis as data and cites the leaderboard's HAL Generalist number from scouting provenance.
+
+### Exhibit A scouting result
 
 Current Exhibit A: **HAL GAIA (HAL Generalist Agent · Claude 3.7 Sonnet vs o4-mini High)**.
 
@@ -357,6 +374,7 @@ The four-to-six-week version can serve one primary audience. The current bet: **
 - 2026-05-02 — Synthetic fixture contract added (`repair-synthetic-fixture-contract` archived); seed `20260502 → 20260503` to land observed primary delta within 3pp of true delta and unblock the v0 synthetic-validation gate.
 - 2026-05-02 — `v0-exhibit-a-reanalysis` landed: schema, GAIA + synthetic ingest, stats engine (Wilson, paired-task bootstrap, Holm-Bonferroni, Pareto), and markdown report. First Exhibit A reanalysis at [reports/exhibit-a/report.md](reports/exhibit-a/report.md): claim **inconclusive** at adjusted p=0.70, decision_impact `hedge_on_cost` (Claude 56.4% vs o4-mini 54.5%, +1.82 pp; CIs overlap, Claude 2.2× more expensive).
 - 2026-05-02 — `exhibit-b-tau-bench-reanalysis` landed: HAL TAU-bench Tool Calling adapter, errored-row denominator policy at `analyze()` level, cost-provenance caveat sub-block in the report renderer. Exhibit B reanalysis at [reports/exhibit-b/report.md](reports/exhibit-b/report.md) hits leaderboard-matching success rates (o4-mini 56%, Claude 44%, o3 54%); cross-harness writeup at [reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md) makes the 12 pp Claude scaffold gap explicit. v0 success bar (two reanalyses across both exercised cost-provenance classes) closed.
+- 2026-05-02 — `verdict-grade-evals` landed (v1.1 kickoff): repositioned the project around the action-verb verdict concept and added a per-claim Verdict sensitivity sub-block to every rendered report. Each claim now carries a small table showing whether the verdict survives perturbations of alpha, errored-row policy, correction method, and cost-gap threshold; rows that flip relative to baseline are annotated `← flips`. Exhibit A and Exhibit B both gained the new sub-block; all four claims across both exhibits proved robust under every perturbation.
 
 ## Cross-references
 

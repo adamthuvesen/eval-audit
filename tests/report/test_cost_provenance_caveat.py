@@ -73,10 +73,13 @@ def _render_taubench_report(repo_root: Path) -> str:
     return render_report(
         result,
         study,
+        runs,
         clock=lambda: FIXED_CLOCK,
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=repo_root,
+        bootstrap_iterations=500,
+        bootstrap_seed=42,
     )
 
 
@@ -128,10 +131,13 @@ def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path) -> None:
     rendered = render_report(
         result,
         study,
+        runs,
         clock=lambda: FIXED_CLOCK,
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=repo_root,
+        bootstrap_iterations=2_000,
+        bootstrap_seed=42,
     )
 
     assert "### Cost provenance caveat" not in rendered
@@ -234,10 +240,13 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
     text = render_report(
         result,
         study,
+        runs,
         clock=lambda: FIXED_CLOCK,
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=shadow_root,
+        bootstrap_iterations=200,
+        bootstrap_seed=42,
     )
 
     # Section count: exactly seven `##` headings in the listed order.
