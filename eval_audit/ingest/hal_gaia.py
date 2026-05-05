@@ -16,7 +16,12 @@ from pathlib import Path
 import polars as pl
 
 from eval_audit.ingest._prices import PRICE_TABLE, PRICE_TABLE_PINNED_AT
-from eval_audit.ingest.base import IngestContractError, validate_run_records
+from eval_audit.ingest.base import (
+    IngestContractError,
+    check_locked_column_mapping,
+    decode_token_counts,
+    validate_run_records,
+)
 
 # Locked column mapping from scouting/exhibit-a-decision.md.
 # raw_name -> semantic_role for the GAIA per_task table.
@@ -41,45 +46,6 @@ _LOCKED_COLUMN_MAPPING: list[tuple[str, str]] = [
 
 _HARNESS = "hal_generalist_agent"
 _COST_RECONCILIATION_OUTCOMES = {"reconciled", "partial", "as_reported_only", "not_applicable"}
-
-
-def _check_locked_mapping(columns_path: Path, fixture_columns: list[str]) -> None:
-    """Verify columns.json declares every locked (raw_name, semantic_role) pair AND
-    that the parquet fixture exposes every raw_name. Raise on either drift.
-    """
-    if not columns_path.exists():
-        raise IngestContractError(
-            f"locked column mapping check requires {columns_path}; file is missing"
-        )
-    declared = json.loads(columns_path.read_text())
-    declared_pairs = {
-        (col["raw_name"], col["semantic_role"])
-        for table in declared.get("tables", [])
-        for col in table.get("columns", [])
-    }
-    fixture_set = set(fixture_columns)
-
-    failures: list[str] = []
-    for raw_name, semantic_role in _LOCKED_COLUMN_MAPPING:
-        if (raw_name, semantic_role) not in declared_pairs:
-            failures.append(
-                f"locked mapping ({raw_name!r} -> {semantic_role!r}) "
-                f"not present in {columns_path.name}"
-            )
-        if raw_name not in fixture_set:
-            failures.append(
-                f"locked raw column {raw_name!r} expected in fixture but found columns: "
-                f"{sorted(fixture_set)}"
-            )
-    if failures:
-        raise IngestContractError("; ".join(failures))
-
-
-def _decode_token_dict(value: str | None) -> dict[str, int]:
-    if value in (None, ""):
-        return {}
-    decoded = json.loads(value)
-    return {str(k): int(v) for k, v in decoded.items()}
 
 
 def _reconstruct_cost(tin: dict[str, int], tout: dict[str, int]) -> float:
@@ -112,7 +78,11 @@ class HalGaiaAdapter:
         provenance_path = source_path / "provenance.json"
 
         raw = pl.read_parquet(sample_path)
-        _check_locked_mapping(columns_path, raw.columns)
+        check_locked_column_mapping(
+            columns_path=columns_path,
+            fixture_columns=raw.columns,
+            locked_mapping=_LOCKED_COLUMN_MAPPING,
+        )
 
         cost_recon = json.loads(cost_recon_path.read_text())
         outcome = cost_recon.get("outcome")
@@ -131,8 +101,8 @@ class HalGaiaAdapter:
         # Build canonical rows row-wise (small fixture: 330 rows).
         records: list[dict] = []
         for r in raw.iter_rows(named=True):
-            tin = _decode_token_dict(r["tokens_in_by_model"])
-            tout = _decode_token_dict(r["tokens_out_by_model"])
+            tin = decode_token_counts(r["tokens_in_by_model"])
+            tout = decode_token_counts(r["tokens_out_by_model"])
             recon_cost = _reconstruct_cost(tin, tout)
 
             records.append({

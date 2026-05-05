@@ -7,6 +7,8 @@ from typing import NamedTuple
 import numpy as np
 import polars as pl
 
+from eval_audit.stats.outcomes import numeric_outcome_expr
+
 
 class BootstrapResult(NamedTuple):
     delta_point_estimate: float
@@ -14,19 +16,6 @@ class BootstrapResult(NamedTuple):
     delta_ci_high: float
     num_iterations: int
     seed: int
-
-
-def _numeric_outcome_expr(outcome: str, *, use_outcome_status: bool) -> pl.Expr:
-    if outcome == "success" and use_outcome_status:
-        return (
-            pl.when(
-                (pl.col("outcome_status") == "graded")
-                & pl.col("success").fill_null(False).cast(pl.Boolean)
-            )
-            .then(1.0)
-            .otherwise(0.0)
-        )
-    return pl.col(outcome).cast(pl.Float64).fill_null(0.0)
 
 
 def paired_task_bootstrap(
@@ -51,7 +40,9 @@ def paired_task_bootstrap(
         if "task_id" not in arm.columns:
             raise ValueError(f"{label} is missing required column 'task_id'")
         if arm.height == 0:
-            raise ValueError(f"paired task bootstrap requires at least one paired task ({label} is empty)")
+            raise ValueError(
+                f"paired task bootstrap requires at least one paired task ({label} is empty)"
+            )
     for label, arm in (("arm_a", arm_a), ("arm_b", arm_b)):
         if outcome not in arm.columns:
             raise ValueError(f"{label} is missing outcome column {outcome!r}")
@@ -77,7 +68,9 @@ def paired_task_bootstrap(
             and "outcome_status" in arm_a.columns
             and "outcome_status" in arm_b.columns
         )
-        outcome_expr = _numeric_outcome_expr(outcome, use_outcome_status=use_outcome_status)
+        outcome_expr = numeric_outcome_expr(
+            outcome, use_outcome_status=use_outcome_status
+        )
         a_means = (
             arm_a.group_by("task_id")
             .agg(outcome_expr.mean().alias("_a"))
