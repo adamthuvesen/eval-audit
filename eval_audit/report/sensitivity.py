@@ -47,40 +47,70 @@ class SensitivityRow:
 
 def _build_context(
     claim: ClaimResult,
+    result: AnalysisResult,
+    study: StudySpec,
     *,
     rejects_null: bool,
     delta_ci_low: float,
     delta_ci_high: float,
-    treatment_is_dominated: bool,
-    direction_matches_claim: bool,
+    delta_point_estimate: float | None = None,
+    treatment_is_dominated: bool | None = None,
+    direction_matches: bool | None = None,
 ) -> ClaimContext:
+    point_estimate = (
+        claim.delta_point_estimate
+        if delta_point_estimate is None
+        else delta_point_estimate
+    )
+    if treatment_is_dominated is None:
+        # Under cost suppression the frontier is empty by design; treating absence
+        # from the empty frontier as dominance would falsely fire drop_from_shortlist.
+        treatment_is_dominated = (
+            False
+            if result.pareto_status == "suppressed_cost_not_available"
+            else claim.treatment not in result.pareto_frontier
+        )
+    if direction_matches is None:
+        direction_matches = direction_matches_claim(
+            study.primary_outcome.direction,
+            point_estimate,
+        )
     return ClaimContext(
         rejects_null=rejects_null,
-        delta_point_estimate=claim.delta_point_estimate,
+        delta_point_estimate=point_estimate,
         delta_ci_low=delta_ci_low,
         delta_ci_high=delta_ci_high,
         treatment_cost_usd=claim.treatment_total_cost_usd,
         control_cost_usd=claim.control_total_cost_usd,
         treatment_is_dominated=treatment_is_dominated,
-        direction_matches_claim=direction_matches_claim,
+        direction_matches_claim=direction_matches,
     )
 
 
-def _claim_baseline_attrs(
-    claim: ClaimResult, result: AnalysisResult, study: StudySpec
-) -> tuple[bool, bool]:
-    """Return (treatment_is_dominated, direction_matches_claim) for the claim."""
-    # Under cost suppression the frontier is empty by design; treating absence
-    # from the empty frontier as dominance would falsely fire drop_from_shortlist.
-    if result.pareto_status == "suppressed_cost_not_available":
-        treatment_is_dominated = False
-    else:
-        treatment_is_dominated = claim.treatment not in result.pareto_frontier
-    direction_matches = direction_matches_claim(
-        study.primary_outcome.direction,
-        claim.delta_point_estimate,
+def claim_context_for_result(
+    claim: ClaimResult,
+    result: AnalysisResult,
+    study: StudySpec,
+    *,
+    rejects_null: bool | None = None,
+    delta_ci_low: float | None = None,
+    delta_ci_high: float | None = None,
+    delta_point_estimate: float | None = None,
+    treatment_is_dominated: bool | None = None,
+    direction_matches: bool | None = None,
+) -> ClaimContext:
+    """Build the decision context shared by reports and sensitivity checks."""
+    return _build_context(
+        claim,
+        result,
+        study,
+        rejects_null=claim.rejects_null if rejects_null is None else rejects_null,
+        delta_ci_low=claim.delta_ci_low if delta_ci_low is None else delta_ci_low,
+        delta_ci_high=claim.delta_ci_high if delta_ci_high is None else delta_ci_high,
+        delta_point_estimate=delta_point_estimate,
+        treatment_is_dominated=treatment_is_dominated,
+        direction_matches=direction_matches,
     )
-    return treatment_is_dominated, direction_matches
 
 
 def verdict_with_alpha(
@@ -90,15 +120,12 @@ def verdict_with_alpha(
 
     Uses the existing raw p-value; no bootstrap re-run.
     """
-    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result, study)
     rejects = claim.adjusted_p_value <= alpha
-    ctx = _build_context(
+    ctx = claim_context_for_result(
         claim,
+        result,
+        study,
         rejects_null=rejects,
-        delta_ci_low=claim.delta_ci_low,
-        delta_ci_high=claim.delta_ci_high,
-        treatment_is_dominated=treatment_dominated,
-        direction_matches_claim=direction_matches,
     )
     return decision_impact(ctx)
 
@@ -111,15 +138,12 @@ def verdict_with_no_correction(
     alpha: float,
 ) -> str:
     """Re-derive the verdict with correction_method = none (use raw p)."""
-    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result, study)
     rejects = claim.raw_p_value <= alpha
-    ctx = _build_context(
+    ctx = claim_context_for_result(
         claim,
+        result,
+        study,
         rejects_null=rejects,
-        delta_ci_low=claim.delta_ci_low,
-        delta_ci_high=claim.delta_ci_high,
-        treatment_is_dominated=treatment_dominated,
-        direction_matches_claim=direction_matches,
     )
     return decision_impact(ctx)
 
@@ -132,14 +156,10 @@ def verdict_with_cost_gap_threshold(
     cost_gap_threshold: float,
 ) -> str:
     """Re-derive the verdict with a perturbed cost_gap_threshold."""
-    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result, study)
-    ctx = _build_context(
+    ctx = claim_context_for_result(
         claim,
-        rejects_null=claim.rejects_null,
-        delta_ci_low=claim.delta_ci_low,
-        delta_ci_high=claim.delta_ci_high,
-        treatment_is_dominated=treatment_dominated,
-        direction_matches_claim=direction_matches,
+        result,
+        study,
     )
     return decision_impact(ctx, cost_gap_threshold=cost_gap_threshold)
 
@@ -157,11 +177,7 @@ def verdict_with_errored_excluded(
 
     No-op short-circuit: if neither arm in the claim has any errored rows,
     excluding errored rows is by definition a no-op, and the perturbation
-    returns the baseline verdict. The pre-fix code skipped this check and
-    instead recomputed the bootstrap CI and used CI overlap as the rejection
-    signal, which can disagree with the baseline's adjusted-p test near the
-    boundary (e.g. p = 0.0504 with a one-sided CI). That disagreement showed
-    up as a spurious verdict flip on Exhibit C, where ``n_errored == 0``.
+    returns the baseline verdict.
 
     With at least one errored row on either arm, the perturbation:
 
@@ -286,13 +302,16 @@ def verdict_with_errored_excluded(
         study.primary_outcome.direction,
         boot.delta_point_estimate,
     )
-    ctx = _build_context(
+    ctx = claim_context_for_result(
         claim,
+        result,
+        study,
         rejects_null=rejects,
         delta_ci_low=boot.delta_ci_low,
         delta_ci_high=boot.delta_ci_high,
+        delta_point_estimate=boot.delta_point_estimate,
         treatment_is_dominated=treatment_is_dominated,
-        direction_matches_claim=direction_matches,
+        direction_matches=direction_matches,
     )
     return decision_impact(ctx)
 
@@ -367,13 +386,9 @@ def _baseline_verdict(claim: ClaimResult, result: AnalysisResult, study: StudySp
     This MUST match the verdict the renderer's claim row reports — the spec
     pins this invariant.
     """
-    treatment_dominated, direction_matches = _claim_baseline_attrs(claim, result, study)
-    ctx = _build_context(
+    ctx = claim_context_for_result(
         claim,
-        rejects_null=claim.rejects_null,
-        delta_ci_low=claim.delta_ci_low,
-        delta_ci_high=claim.delta_ci_high,
-        treatment_is_dominated=treatment_dominated,
-        direction_matches_claim=direction_matches,
+        result,
+        study,
     )
     return decision_impact(ctx)

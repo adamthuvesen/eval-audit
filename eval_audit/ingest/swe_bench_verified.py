@@ -25,6 +25,7 @@ from pathlib import Path
 import polars as pl
 
 from eval_audit.ingest.base import IngestContractError, validate_run_records
+from eval_audit.schema.enums import CostProvenance
 
 SWE_BENCH_VERIFIED_TASK_COUNT = 500
 SWE_BENCH_VERIFIED_HARNESS = "swe-bench-verified/openhands-public-submission-v1"
@@ -77,7 +78,7 @@ class SweBenchVerifiedAdapter:
                 f"harness={SWE_BENCH_VERIFIED_HARNESS!r}; got {harnesses}"
             )
         if "cost_provenance" in frame.columns and not (
-            frame["cost_provenance"] == "cost_not_available"
+            frame["cost_provenance"] == CostProvenance.COST_NOT_AVAILABLE.value
         ).all():
             classes = sorted(frame["cost_provenance"].unique().to_list())
             raise IngestContractError(
@@ -94,6 +95,47 @@ class SweBenchVerifiedAdapter:
                 "swe_bench_verified adapter expects every row to have null "
                 "reported_run_total_cost_usd; cost is not available upstream"
             )
+        # Universe contract: each agent must cover exactly the SWE-bench Verified
+        # 500-task universe with no duplicates, and every agent must share that
+        # same task set. A truncated, duplicate, or mismatched fixture would
+        # silently produce a non-500-task audit; fail loudly here.
+        agent_task_sets: dict[str, set[str]] = {}
+        for agent_id, group in frame.group_by("agent_id"):
+            agent_id_str = str(agent_id[0]) if isinstance(agent_id, tuple) else str(agent_id)
+            task_ids = group["task_id"].to_list()
+            unique_tasks = set(task_ids)
+            if len(task_ids) != len(unique_tasks):
+                duplicates = sorted(
+                    {t for t in task_ids if task_ids.count(t) > 1}
+                )[:3]
+                raise IngestContractError(
+                    f"swe_bench_verified adapter found duplicate task_ids for "
+                    f"agent_id={agent_id_str!r} (first 3: {duplicates}); each "
+                    "agent must contribute exactly one row per task"
+                )
+            if len(unique_tasks) != SWE_BENCH_VERIFIED_TASK_COUNT:
+                raise IngestContractError(
+                    f"swe_bench_verified adapter expects each agent to cover "
+                    f"{SWE_BENCH_VERIFIED_TASK_COUNT} unique task_ids; "
+                    f"agent_id={agent_id_str!r} covers {len(unique_tasks)}"
+                )
+            agent_task_sets[agent_id_str] = unique_tasks
+        reference_universe: set[str] | None = None
+        reference_agent: str | None = None
+        for agent_id_str, task_set in agent_task_sets.items():
+            if reference_universe is None:
+                reference_universe = task_set
+                reference_agent = agent_id_str
+                continue
+            if task_set != reference_universe:
+                missing = sorted(reference_universe - task_set)[:3]
+                extra = sorted(task_set - reference_universe)[:3]
+                raise IngestContractError(
+                    f"swe_bench_verified adapter expects every agent to share "
+                    f"the same 500-task universe; agent_id={agent_id_str!r} "
+                    f"differs from agent_id={reference_agent!r} "
+                    f"(first 3 missing: {missing}; first 3 extra: {extra})"
+                )
 
 
 def build_canonical_frame(
@@ -140,12 +182,34 @@ def build_canonical_frame(
         model_id: str = submission["model_id"]
         submission_dir: str = submission["submission_dir"]
 
-        unknown = resolved - set(task_universe)
-        if unknown:
-            raise IngestContractError(
-                f"submission {agent_id!r} resolves unknown instance_ids "
-                f"(first 3: {sorted(unknown)[:3]})"
-            )
+        universe_set = set(task_universe)
+        for set_name, status_set in (
+            ("resolved", resolved),
+            ("no_generation", no_generation),
+            ("no_logs", no_logs),
+        ):
+            unknown = status_set - universe_set
+            if unknown:
+                raise IngestContractError(
+                    f"submission {agent_id!r} {set_name} contains unknown "
+                    f"instance_ids (first 3: {sorted(unknown)[:3]})"
+                )
+
+        # Status sets must be pairwise disjoint. Without this guard, the
+        # if/elif chain below silently picks resolved over no_generation /
+        # no_logs and turns an upstream contradiction into a success row.
+        for set_a_name, set_a, set_b_name, set_b in (
+            ("resolved", resolved, "no_generation", no_generation),
+            ("resolved", resolved, "no_logs", no_logs),
+            ("no_generation", no_generation, "no_logs", no_logs),
+        ):
+            overlap = set_a & set_b
+            if overlap:
+                raise IngestContractError(
+                    f"submission {agent_id!r} has overlapping status sets "
+                    f"{set_a_name} and {set_b_name} "
+                    f"(first 3 overlapping instance_ids: {sorted(overlap)[:3]})"
+                )
 
         for instance_id in task_universe:
             if instance_id in resolved:
@@ -180,7 +244,7 @@ def build_canonical_frame(
                     "timestamp": None,
                     "reconstructed_per_task_cost_usd": None,
                     "reported_run_total_cost_usd": None,
-                    "cost_provenance": "cost_not_available",
+                    "cost_provenance": CostProvenance.COST_NOT_AVAILABLE.value,
                     "rerun_metadata": {
                         "submission_dir": submission_dir,
                         "upstream_status": upstream_status,

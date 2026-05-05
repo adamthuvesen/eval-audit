@@ -9,6 +9,7 @@ import polars as pl
 import yaml
 
 from eval_audit.ingest.base import IngestContractError, validate_run_records
+from eval_audit.schema.enums import CostProvenance
 
 
 class SyntheticAdapter:
@@ -60,7 +61,7 @@ class SyntheticAdapter:
             pl.lit(None, dtype=pl.Datetime).alias("timestamp"),
             pl.col("cost_usd").alias("reconstructed_per_task_cost_usd"),
             pl.col("_run_total").alias("reported_run_total_cost_usd"),
-            pl.lit("reconciled").alias("cost_provenance"),
+            pl.lit(CostProvenance.RECONCILED.value).alias("cost_provenance"),
             pl.lit({"source_fixture": "scouting/synthetic/runs.parquet",
                     "source_retrieved_at": retrieved_at},
                    dtype=pl.Object).alias("rerun_metadata"),

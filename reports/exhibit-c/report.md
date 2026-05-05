@@ -28,7 +28,7 @@
 - **rerun_policy:** `capture_provider_nondeterminism`
 - **run_dates:** `2026-05-03` to `2026-05-03` (UTC)
 - **price_table_pinned_at:** `2026-05-03`
-- **cost_provenance:** `reconciled` (120/120 rows)
+- **cost_provenance:** `partial` (120/120 rows)
 
 ## Per-agent summary
 
@@ -67,7 +67,7 @@
 | Errored-row policy | survives | verdict unchanged when errored rows excluded |
 | Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
 | Target MDE | does not survive | CI half-width 10.83 pp > MDE 10.00 pp; under-resolved |
-| Cost provenance | survives | reconciled |
+| Cost provenance | caveat | partial |
 
 ## Cost-quality view
 
@@ -93,7 +93,7 @@ All agents are on the frontier; no dominance to report.
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-03T15:44:53.081341+00:00`
-- **git_commit:** `7cfd9b0`
-- **fixture_sha256:** `10e19cfc03e4119f00555eaa7ee81517c5319152d6a91784b3ea2f4ebce99712`
+- **rendered_at:** `2026-05-03T18:44:41.402783+00:00`
+- **git_commit:** `d2c0e42`
+- **fixture_sha256:** `cfa15ac5b234ee42edec8b23b908a1408b16e72cbb64a32526cc855c3b290eb7`
 - **bootstrap_seed:** `42`

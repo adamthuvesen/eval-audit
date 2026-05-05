@@ -108,6 +108,13 @@ _ADAPTERS: dict[str, Callable[[], object]] = {
 _EXAMPLES_BACKED_BENCHMARKS: frozenset[str] = frozenset({"swe-bench-verified"})
 
 
+@dataclasses.dataclass(frozen=True)
+class _FixtureSource:
+    adapter_factory: Callable[[], object]
+    source_dir: Path
+    parquet_path: Path
+
+
 def _resolve_repo_root(explicit: Path | None) -> Path:
     if explicit is not None:
         return explicit
@@ -115,21 +122,33 @@ def _resolve_repo_root(explicit: Path | None) -> Path:
     return here.parent.parent
 
 
-def _load_runs(study: StudySpec, repo_root: Path):
+def _fixture_source(study: StudySpec, repo_root: Path) -> _FixtureSource:
     if study.benchmark not in _ADAPTERS:
         raise typer.BadParameter(
             f"no ingest adapter for benchmark={study.benchmark!r}; known: {sorted(_ADAPTERS)}"
         )
-    adapter = _ADAPTERS[study.benchmark]()
     if study.benchmark == "synthetic":
         source = repo_root / "scouting" / "synthetic"
+        parquet_name = "runs.parquet"
     elif study.benchmark in _EXAMPLES_BACKED_BENCHMARKS:
         source = repo_root / "examples" / study.id
+        parquet_name = "runs.parquet"
     else:
         source = (
             repo_root / "scouting" / "candidates" / benchmark_dir_name(study.benchmark)
         )
-    return adapter.load(source)
+        parquet_name = "sample.parquet"
+    return _FixtureSource(
+        adapter_factory=_ADAPTERS[study.benchmark],
+        source_dir=source,
+        parquet_path=source / parquet_name,
+    )
+
+
+def _load_runs(study: StudySpec, repo_root: Path):
+    source = _fixture_source(study, repo_root)
+    adapter = source.adapter_factory()
+    return adapter.load(source.source_dir)
 
 
 def _resolve_runs_frame(study: StudySpec, repo_root: Path, runs_override: Path | None):
@@ -161,18 +180,8 @@ def _fixture_sha256(
 ) -> str:
     if runs_override is not None:
         path = runs_override
-    elif study.benchmark == "synthetic":
-        path = repo_root / "scouting" / "synthetic" / "runs.parquet"
-    elif study.benchmark in _EXAMPLES_BACKED_BENCHMARKS:
-        path = repo_root / "examples" / study.id / "runs.parquet"
     else:
-        path = (
-            repo_root
-            / "scouting"
-            / "candidates"
-            / benchmark_dir_name(study.benchmark)
-            / "sample.parquet"
-        )
+        path = _fixture_source(study, repo_root).parquet_path
     if not path.exists():
         return "n/a"
     h = hashlib.sha256()

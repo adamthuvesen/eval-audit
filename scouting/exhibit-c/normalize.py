@@ -5,6 +5,18 @@ Reads ``scouting/exhibit-c/graded/<agent_short>/<task_id>/<run_id>.json``
 ``price-table.yaml``, and writes ``examples/exhibit-c/runs.parquet`` with the
 canonical column set used by the BYO loader.
 
+Cost provenance: every row carries ``cost_provenance="partial"``. The
+Anthropic Messages API does not expose an independent provider-side run
+total, so reconciliation is impossible by construction:
+``reconstructed_per_task_cost_usd`` is the per-call cost reconstructed from
+API-reported tokens × the pinned price table, and
+``reported_run_total_cost_usd`` is the per-(agent, run) sum of those same
+per-call costs (not a provider total). ``partial`` is the honest label —
+we have one side of the reconciliation, not both. The
+``reconciliation_tolerance_usd`` field in ``price-table.yaml`` is unused
+in v0; retained for forward compatibility with a future provider that
+exposes a billing total.
+
 Usage:
 
     uv run python scouting/exhibit-c/normalize.py
@@ -87,7 +99,10 @@ def main() -> None:
         per_call_cost = _per_call_cost_usd(
             tokens_in=usage_in_total, tokens_out=usage_out_total, rates=rates
         )
-        cost_provenance = "reconciled" if outcome_status == "graded" else "as_reported_only"
+        # See module docstring: provenance is "partial" because the Anthropic
+        # Messages API does not expose an independent provider-side run total.
+        # Errored rows still null reconstructed_cost per the errored-row policy.
+        cost_provenance = "partial"
         reconstructed_cost = per_call_cost if outcome_status == "graded" else None
 
         timestamp = None

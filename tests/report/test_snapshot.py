@@ -195,6 +195,25 @@ def test_report_snapshot__exhibit_c_matches_committed_snapshot(repo_root: Path) 
     _check_snapshot(SNAPSHOT_PATH_C, rendered, "Exhibit C")
 
 
+def test_exhibit_c_runs_parquet__cost_provenance_is_partial(repo_root: Path) -> None:
+    """The committed Exhibit C parquet must use cost_provenance='partial'.
+
+    The Anthropic Messages API does not expose an independent provider-side
+    run total, so reconciliation is impossible by construction. 'partial'
+    is the honest provenance label — see scouting/exhibit-c/normalize.py
+    module docstring.
+    """
+    import polars as pl
+
+    runs = pl.read_parquet(
+        repo_root / "examples" / "exhibit-c" / "runs.parquet"
+    )
+    provenance_values = sorted(runs["cost_provenance"].unique().to_list())
+    assert provenance_values == ["partial"], (
+        f"Exhibit C parquet must use cost_provenance='partial' (got {provenance_values})"
+    )
+
+
 def test_report_snapshot__decision_gallery_matches_committed_snapshot(
     repo_root: Path,
 ) -> None:

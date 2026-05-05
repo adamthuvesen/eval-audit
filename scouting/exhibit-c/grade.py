@@ -8,6 +8,18 @@ and `test`, and runs the result under a fresh `python` subprocess with a
 Writes ``scouting/exhibit-c/graded/<agent_short>/<task_id>/<run_id>.json``
 with grading details. Idempotent: existing graded files are not overwritten.
 
+Trust boundary (v0):
+  The grader executes untrusted model-generated code. The sandbox is:
+    - sanitized environment (only PATH passed; ANTHROPIC_API_KEY, HOME, and
+      other secrets are scrubbed)
+    - Python isolated mode (-I): ignores PYTHONPATH, PYTHONHOME, and user
+      site-packages, so the candidate cannot import repo-local code
+    - 10s timeout
+    - temporary cwd
+  Stronger isolation (container, network deny, rlimit-based memory cap) is
+  out of scope for v0. Do not run this grader on shared infrastructure or
+  with secrets present in the environment of the parent process.
+
 Usage:
 
     uv run python scouting/exhibit-c/grade.py
@@ -16,6 +28,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -143,18 +156,36 @@ def _build_program(prompt: str, completion: str, test: str, entry_point: str) ->
     return cands[0]
 
 
+def _sandboxed_env() -> dict[str, str]:
+    """Return the sanitized env passed to the grader subprocess.
+
+    Only ``PATH`` is forwarded from the parent. ``ANTHROPIC_API_KEY``, ``HOME``,
+    repo-relative ``PYTHONPATH``, and other secrets are intentionally absent
+    so a malicious or accidental completion cannot read them. ``PATH`` is
+    needed to resolve the Python interpreter itself on some platforms.
+    """
+    return {"PATH": os.environ.get("PATH", "")}
+
+
 def _grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dict:
-    """Run prompt + completion + test in a subprocess. Return grade dict."""
+    """Run prompt + completion + test in a subprocess. Return grade dict.
+
+    Sandbox (see module docstring): sanitized env, Python isolated mode (-I),
+    10s timeout, temporary cwd. The candidate program runs against an
+    interpreter that has no access to PYTHONPATH, user site-packages, or the
+    parent's environment variables.
+    """
     program = _build_program(prompt, completion, test, entry_point)
     with tempfile.TemporaryDirectory(prefix="exhibit-c-grade-") as tmp:
         path = Path(tmp) / "candidate.py"
         path.write_text(program)
         try:
             proc = subprocess.run(
-                [sys.executable, str(path)],
+                [sys.executable, "-I", str(path)],
                 capture_output=True,
                 timeout=GRADE_TIMEOUT_S,
                 cwd=tmp,
+                env=_sandboxed_env(),
             )
             return {
                 "success": proc.returncode == 0,

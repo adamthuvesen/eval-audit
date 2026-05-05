@@ -152,3 +152,55 @@ def test_hal_gaia__loaded_fixture_passes_adapter_validation(gaia_dir: Path) -> N
     frame = adapter.load(gaia_dir)
 
     adapter.validate(frame)
+
+
+def test_hal_gaia__errored_row_nulls_success_partial_and_reconstructed_cost(
+    gaia_dir: Path, tmp_path: Path
+) -> None:
+    """WHEN a GAIA fixture row carries outcome_status='errored',
+    THEN the canonical record nulls success / partial_credit /
+    reconstructed_per_task_cost_usd while reconciliation still passes (the
+    full token-derived cost is still used to compare against HAL's reported
+    run total).
+    """
+    import shutil
+
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+
+    shadow = tmp_path / "gaia"
+    shutil.copytree(gaia_dir, shadow)
+
+    sample = pl.read_parquet(shadow / "sample.parquet")
+    # Pick the first row, flip outcome_status to errored, and clear success_bool /
+    # score_raw to mirror what an upstream errored row would carry.
+    sample = (
+        sample.with_row_index()
+        .with_columns(
+            pl.when(pl.col("index") == 0)
+            .then(pl.lit("errored"))
+            .otherwise(pl.col("outcome_status"))
+            .alias("outcome_status"),
+            pl.when(pl.col("index") == 0)
+            .then(pl.lit(None, dtype=sample["success_bool"].dtype))
+            .otherwise(pl.col("success_bool"))
+            .alias("success_bool"),
+            pl.when(pl.col("index") == 0)
+            .then(pl.lit(None, dtype=sample["score_raw"].dtype))
+            .otherwise(pl.col("score_raw"))
+            .alias("score_raw"),
+        )
+        .drop("index")
+    )
+    sample.write_parquet(shadow / "sample.parquet")
+
+    adapter = HalGaiaAdapter()
+    frame = adapter.load(shadow)
+
+    errored = frame.filter(pl.col("outcome_status") == "errored")
+    assert errored.height == 1
+    row = errored.row(0, named=True)
+    assert row["success"] is None
+    assert row["partial_credit"] is None
+    assert row["reconstructed_per_task_cost_usd"] is None
+    # Reconciliation still passes because the full token-derived cost is
+    # included in the per-(agent, run) sum.

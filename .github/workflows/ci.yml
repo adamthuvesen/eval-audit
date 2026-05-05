@@ -4,6 +4,12 @@ on:
   push:
   pull_request:
 
+# Default to read-only for the workflow token. Jobs that need write
+# permissions must opt in explicitly. This blocks an upstream-action
+# compromise from mutating the repo or its issues/PRs.
+permissions:
+  contents: read
+
 # Cancel in-progress runs when a new commit lands on the same ref.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,18 +21,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    # NOTE on action pinning: the steps below pin to major version tags. For
-    # supply-chain hygiene we should pin each `uses:` to a commit SHA. The
-    # safest path is to enable Dependabot for `github-actions` once this
-    # workflow lands, then accept its first SHA-pinning PR. Doing so manually
-    # without verifying SHAs against upstream releases risks a broken workflow.
-
     steps:
+      # Actions are pinned to immutable commit SHAs (not major-version tags)
+      # so an upstream tag move or maintainer-account compromise cannot
+      # silently change what runs in CI. Dependabot (.github/dependabot.yml)
+      # opens weekly bump PRs against these pins; review and merge those PRs
+      # rather than editing the SHAs by hand.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6.8.0
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
