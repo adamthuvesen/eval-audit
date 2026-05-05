@@ -1,6 +1,6 @@
 ## Audit Summary
 
-- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Verdict:** `hedge_on_cost` — The bootstrap CI for the delta crosses zero (no quality decision is available), but the cost gap is material (≥10% of the cheaper arm's cost). The decision pivots on cost preference rather than measured quality. Action: pick the cheaper arm unless the (statistically indistinguishable) quality difference matters to your use case.
 - **Claim status:** inconclusive
 - **Why:** delta +1.82 pp with bootstrap CI [-7.88 pp, +10.91 pp] over 165 paired tasks; treatment is 2.20x the control's cost
 - **What would change it:** ~1453 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)

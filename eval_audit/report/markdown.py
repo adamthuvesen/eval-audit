@@ -24,13 +24,47 @@ from eval_audit.stats import AnalysisResult, analyze
 
 _STATUS_VOCAB = {"supported", "unsupported", "inconclusive"}
 
-_VERDICT_GLOSS: dict[str, str] = {
-    "switch": "claim is supported and the effect favours the treatment",
-    "hold": "rejection is in the wrong direction; treatment fails the claim",
-    "drop_from_shortlist": "treatment is Pareto-dominated on cost-quality",
-    "rerun_more_n": "CI crosses zero with no material cost gap; needs more data",
-    "hedge_on_cost": "CI crosses zero and the cost gap is material",
-    "inconclusive_no_action": "result does not meet any decision threshold",
+# Each rationale follows the same template: which rule fired, what the rule
+# means for the audit, and the action the verdict implies for a model selector.
+# Per-claim numbers (delta, CI bounds, cost ratio) live in the **Why** bullet,
+# not here.
+_VERDICT_RATIONALE: dict[str, str] = {
+    "switch": (
+        "Treatment beat control significantly (the adjusted p-value rejects the null at "
+        "the declared α) and in the direction the claim predicts. The data supports the "
+        "claim. Action: switch the default selection to the treatment, subject to cost "
+        "acceptance."
+    ),
+    "hold": (
+        "Treatment differs from control significantly, but in the OPPOSITE direction of "
+        "the claim. The data falsifies the claim's stated direction rather than confirming "
+        "it. Action: hold the current selection; this evidence does not warrant a switch."
+    ),
+    "drop_from_shortlist": (
+        "Treatment is Pareto-dominated on the cost-quality frontier — another agent "
+        "achieves equal-or-better quality at equal-or-lower cost. No quality argument can "
+        "rescue a dominated point. Action: drop the treatment from the shortlist before "
+        "deciding among the rest."
+    ),
+    "rerun_more_n": (
+        "The bootstrap CI for the delta crosses zero (no decisive direction), and the cost "
+        "gap is below the material threshold of 10% of the cheaper arm. Neither side has a "
+        "clean argument from this evidence. Action: collect more paired tasks before "
+        "deciding; the current N is under-resolved for the question asked."
+    ),
+    "hedge_on_cost": (
+        "The bootstrap CI for the delta crosses zero (no quality decision is available), "
+        "but the cost gap is material (≥10% of the cheaper arm's cost). The decision "
+        "pivots on cost preference rather than measured quality. Action: pick the cheaper "
+        "arm unless the (statistically indistinguishable) quality difference matters to "
+        "your use case."
+    ),
+    "inconclusive_no_action": (
+        "No decision rule fires cleanly: the data is neither significantly directional, "
+        "Pareto-dominated, nor cost-driven by the threshold. The audit produces no "
+        "actionable verdict from this evidence. Action: keep the current selection until "
+        "additional evidence (more N, broader benchmarks, or cost data) shifts the picture."
+    ),
 }
 
 
@@ -135,12 +169,12 @@ def _render_audit_summary_stanza(
     pushback: str,
 ) -> list[str]:
     """Emit the five bullet lines for one claim's audit-summary stanza."""
-    if decision_token not in _VERDICT_GLOSS:
+    if decision_token not in _VERDICT_RATIONALE:
         raise ReportContractError(
-            f"decision_impact={decision_token!r} has no verdict gloss; "
-            f"expected one of {sorted(_VERDICT_GLOSS)}"
+            f"decision_impact={decision_token!r} has no verdict rationale; "
+            f"expected one of {sorted(_VERDICT_RATIONALE)}"
         )
-    gloss = _VERDICT_GLOSS[decision_token]
+    rationale = _VERDICT_RATIONALE[decision_token]
 
     delta_pp = claim.delta_point_estimate * 100
     ci_low_pp = claim.delta_ci_low * 100
@@ -152,7 +186,7 @@ def _render_audit_summary_stanza(
         cost_str = "control cost is zero so cost ratio is undefined"
 
     return [
-        f"- **Verdict:** `{decision_token}` — {gloss}",
+        f"- **Verdict:** `{decision_token}` — {rationale}",
         f"- **Claim status:** {status}",
         (
             f"- **Why:** delta {delta_pp:+.2f} pp with bootstrap CI "

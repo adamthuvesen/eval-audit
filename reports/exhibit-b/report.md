@@ -2,7 +2,7 @@
 
 ### Claim `o4mini_vs_claude`
 
-- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Verdict:** `hedge_on_cost` — The bootstrap CI for the delta crosses zero (no quality decision is available), but the cost gap is material (≥10% of the cheaper arm's cost). The decision pivots on cost preference rather than measured quality. Action: pick the cheaper arm unless the (statistically indistinguishable) quality difference matters to your use case.
 - **Claim status:** inconclusive
 - **Why:** delta +12.00 pp with bootstrap CI [-6.00 pp, +28.00 pp] over 50 paired tasks; treatment is 0.54x the control's cost
 - **What would change it:** ~528 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
@@ -10,7 +10,7 @@
 
 ### Claim `o4mini_vs_o3`
 
-- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Verdict:** `hedge_on_cost` — The bootstrap CI for the delta crosses zero (no quality decision is available), but the cost gap is material (≥10% of the cheaper arm's cost). The decision pivots on cost preference rather than measured quality. Action: pick the cheaper arm unless the (statistically indistinguishable) quality difference matters to your use case.
 - **Claim status:** inconclusive
 - **Why:** delta +2.00 pp with bootstrap CI [-12.05 pp, +18.00 pp] over 50 paired tasks; treatment is 0.26x the control's cost
 - **What would change it:** ~402 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
@@ -18,7 +18,7 @@
 
 ### Claim `claude_vs_o3`
 
-- **Verdict:** `drop_from_shortlist` — treatment is Pareto-dominated on cost-quality
+- **Verdict:** `drop_from_shortlist` — Treatment is Pareto-dominated on the cost-quality frontier — another agent achieves equal-or-better quality at equal-or-lower cost. No quality argument can rescue a dominated point. Action: drop the treatment from the shortlist before deciding among the rest.
 - **Claim status:** inconclusive
 - **Why:** delta -10.00 pp with bootstrap CI [-26.00 pp, +6.00 pp] over 50 paired tasks; treatment is 0.48x the control's cost
 - **What would change it:** ~463 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
@@ -173,7 +173,7 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-03T08:40:17.267723+00:00`
-- **git_commit:** `c4646b7`
+- **rendered_at:** `2026-05-03T10:29:40.783731+00:00`
+- **git_commit:** `fb4668d`
 - **fixture_sha256:** `3d8a0434b5ce3eb32735a767758a9c0281148a25e2956dad7d8c886416ffa7b3`
 - **bootstrap_seed:** `42`

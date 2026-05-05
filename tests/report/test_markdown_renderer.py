@@ -286,14 +286,42 @@ def _extract_audit_summary(text: str) -> str:
     return rest[: next_section + 1]
 
 
-def test_verdict_gloss__covers_every_decision_token() -> None:
-    """`_VERDICT_GLOSS` MUST cover exactly the six tokens in DECISION_IMPACT_VOCAB."""
+def test_verdict_rationale__covers_every_decision_token() -> None:
+    """`_VERDICT_RATIONALE` MUST cover exactly the six tokens in DECISION_IMPACT_VOCAB."""
     from eval_audit.report.decisions import DECISION_IMPACT_VOCAB
-    from eval_audit.report.markdown import _VERDICT_GLOSS
+    from eval_audit.report.markdown import _VERDICT_RATIONALE
 
-    assert set(_VERDICT_GLOSS.keys()) == set(DECISION_IMPACT_VOCAB)
-    for gloss in _VERDICT_GLOSS.values():
-        assert gloss and isinstance(gloss, str), "every gloss must be a non-empty string"
+    declared = set(DECISION_IMPACT_VOCAB)
+    documented = set(_VERDICT_RATIONALE.keys())
+
+    missing = declared - documented
+    extra = documented - declared
+
+    assert not missing, (
+        f"_VERDICT_RATIONALE is missing rationale text for tokens: {sorted(missing)}. "
+        f"Every value in DECISION_IMPACT_VOCAB must have a corresponding rationale."
+    )
+    assert not extra, (
+        f"_VERDICT_RATIONALE has stale tokens not in DECISION_IMPACT_VOCAB: {sorted(extra)}."
+    )
+
+
+def test_verdict_rationale__values_are_substantive_strings() -> None:
+    """Each rationale must be a non-empty string of at least 50 characters.
+
+    Light guard against a future regression to one-liner glosses without
+    breaking when wording is tightened.
+    """
+    from eval_audit.report.markdown import _VERDICT_RATIONALE
+
+    for token, rationale in _VERDICT_RATIONALE.items():
+        assert isinstance(rationale, str) and rationale, (
+            f"_VERDICT_RATIONALE[{token!r}] must be a non-empty string"
+        )
+        assert len(rationale) >= 50, (
+            f"_VERDICT_RATIONALE[{token!r}] is only {len(rationale)} chars; "
+            f"rationale should cover the rule, its meaning, and an action implication"
+        )
 
 
 def test_render_audit_summary_stanza__unknown_decision_token_raises() -> None:
@@ -534,34 +562,51 @@ def test_audit_summary__claim_status_matches_claims_table_value(
     assert summary_status in {"supported", "unsupported", "inconclusive"}
 
 
-def test_audit_summary__verdict_line_carries_token_and_gloss(
+def test_audit_summary__verdict_line_carries_token_and_rationale(
     exhibit_a_inputs, repo_root: Path
 ) -> None:
-    """Exhibit A's hedge_on_cost verdict surfaces with the exact gloss string."""
+    """Exhibit A's hedge_on_cost verdict bullet must include the token and a
+    rule-explanation rationale: it names the rule that fired (CI crossing zero,
+    material cost gap) and an action implication for the model selector."""
     study, runs, result = exhibit_a_inputs
     text = _render(study, runs, result, repo_root)
     summary = _extract_audit_summary(text)
 
-    expected = (
-        "- **Verdict:** `hedge_on_cost` — "
-        "CI crosses zero and the cost gap is material"
+    assert "- **Verdict:** `hedge_on_cost` — " in summary
+    # Pull the verdict bullet line out so we can assert against it specifically.
+    verdict_line = next(
+        line for line in summary.splitlines()
+        if line.startswith("- **Verdict:** `hedge_on_cost`")
     )
-    assert expected in summary
+    # The rule that fired:
+    assert "CI" in verdict_line and "zero" in verdict_line
+    # The threshold being checked:
+    assert "cost gap" in verdict_line.lower() or "cheaper arm" in verdict_line.lower()
+    # The action implication for the selector:
+    assert "pick" in verdict_line.lower() or "cheaper" in verdict_line.lower()
 
 
-def test_audit_summary__verdict_glosses_are_exhaustive_and_pinned() -> None:
-    """The gloss for each token matches the spec's pinned wording exactly."""
-    from eval_audit.report.markdown import _VERDICT_GLOSS
+def test_audit_summary__verdict_rationale_no_per_claim_numbers() -> None:
+    """Rationale text is rule-explanation, not number-citation. Per-claim
+    numbers (delta, CI bounds, paired N, cost ratio) live in the **Why**
+    bullet — keep the rationale free of digit patterns that suggest those
+    values, so the split between Verdict and Why stays clean.
+    """
+    import re
 
-    expected = {
-        "switch": "claim is supported and the effect favours the treatment",
-        "hold": "rejection is in the wrong direction; treatment fails the claim",
-        "drop_from_shortlist": "treatment is Pareto-dominated on cost-quality",
-        "rerun_more_n": "CI crosses zero with no material cost gap; needs more data",
-        "hedge_on_cost": "CI crosses zero and the cost gap is material",
-        "inconclusive_no_action": "result does not meet any decision threshold",
-    }
-    assert expected == _VERDICT_GLOSS
+    from eval_audit.report.markdown import _VERDICT_RATIONALE
+
+    # Allow the literal "10%" / "≥10%" cost-threshold mention (it's a rule
+    # parameter, not a per-claim number) and the literal "α" symbol; reject
+    # other digit patterns that would imply specific claim values.
+    digit_pattern = re.compile(r"\b\d+(?:\.\d+)?\s*pp\b|\bn\s*=\s*\d+\b|\$\d")
+    for token, rationale in _VERDICT_RATIONALE.items():
+        match = digit_pattern.search(rationale)
+        assert match is None, (
+            f"_VERDICT_RATIONALE[{token!r}] cites per-claim numbers ({match.group(0)!r}); "
+            f"rule-explanation rationale should not include pp/n=/dollar values — those "
+            f"belong in the **Why** bullet."
+        )
 
 
 # ---------------------------------------------------------------------------

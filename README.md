@@ -23,7 +23,7 @@ Every report opens with a verdict, then proves it.
 
 ### Audit summary
 
-- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Verdict:** `hedge_on_cost` — The bootstrap CI for the delta crosses zero (no quality decision is available), but the cost gap is material (≥10% of the cheaper arm's cost). The decision pivots on cost preference rather than measured quality. Action: pick the cheaper arm unless the (statistically indistinguishable) quality difference matters to your use case.
 - **Claim status:** inconclusive
 - **Why:** delta +1.82 pp with bootstrap CI [-7.27 pp, +10.91 pp] over 165 paired tasks; treatment is 2.20x the control's cost
 - **What would change it:** ~1351 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
@@ -105,6 +105,14 @@ documents the strongest scouting finding: Claude 3.7 Sonnet scores 56% under
 HAL Generalist and 44% under Tool Calling on TAU-bench Airline. The same model
 on the same benchmark shifts by 12 pp across scaffolds, which is exactly why
 benchmark rows should not be read as pure model effects.
+
+## Example reports
+
+The three committed reports exercise different decision verbs and provenance paths.
+
+- [reports/exhibit-a/report.md](reports/exhibit-a/report.md) — verdict `hedge_on_cost`. Single-claim within-harness reanalysis (HAL Generalist on GAIA) with `reconciled` cost provenance.
+- [reports/exhibit-b/report.md](reports/exhibit-b/report.md) — three pairwise claims producing two `hedge_on_cost` verdicts and one `drop_from_shortlist`. Exercises the `as_reported_only` cost-provenance path.
+- [reports/byo-minimal/report.md](reports/byo-minimal/report.md) — synthetic worked example producing a `switch` verdict. Demonstrates the bring-your-own-data path end-to-end.
 
 ## Bring your own data
 
