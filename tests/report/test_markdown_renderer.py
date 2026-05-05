@@ -374,6 +374,22 @@ def test_what_would_change_it__renderer_n_matches_resolution_function() -> None:
     assert f"~{direct.additional_tasks} " in line
 
 
+def test_paired_task_count__includes_errored_rows_as_paired_tasks() -> None:
+    """Errored rows still define paired tasks; they are counted as failures later."""
+    from eval_audit.report.markdown import _paired_task_count
+
+    runs = pl.DataFrame(
+        [
+            {"agent_id": "treatment", "task_id": "t1", "outcome_status": "graded"},
+            {"agent_id": "treatment", "task_id": "t2", "outcome_status": "graded"},
+            {"agent_id": "control", "task_id": "t1", "outcome_status": "errored"},
+            {"agent_id": "control", "task_id": "t2", "outcome_status": "graded"},
+        ]
+    )
+
+    assert _paired_task_count(runs, "treatment", "control") == 2
+
+
 def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
     """Errored rows -> cost provenance -> residual risks, comma-separated."""
     from dataclasses import dataclass
@@ -475,6 +491,18 @@ def test_audit_summary__exhibit_b_emits_one_sub_stanza_per_claim(
         assert summary.count(prefix) == len(claim_ids), (
             f"expected {len(claim_ids)} occurrences of {prefix!r} in summary"
         )
+
+
+def test_audit_summary__exhibit_b_uses_paired_task_count_not_graded_row_count(
+    exhibit_b_inputs, repo_root: Path
+) -> None:
+    """Errored rows count as paired failures, so Exhibit B should report n=50."""
+    study, runs, result = exhibit_b_inputs
+    text = _render(study, runs, result, repo_root)
+    summary = _extract_audit_summary(text)
+
+    assert "over 47 paired tasks" not in summary
+    assert summary.count("over 50 paired tasks") == len(result.claims)
 
 
 def test_audit_summary__claim_status_matches_claims_table_value(
