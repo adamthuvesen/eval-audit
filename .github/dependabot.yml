@@ -1,0 +1,8 @@
+version: 2
+
+updates:
+  # Pin GitHub Actions to immutable SHAs via Dependabot PRs (see CI workflow NOTE).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
