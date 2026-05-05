@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -24,6 +25,48 @@ class IngestAdapter(Protocol):
     def load(self, source_path: Path) -> pl.DataFrame: ...
 
     def validate(self, frame: pl.DataFrame) -> None: ...
+
+
+def check_locked_column_mapping(
+    *,
+    columns_path: Path,
+    fixture_columns: list[str],
+    locked_mapping: list[tuple[str, str]],
+) -> None:
+    """Verify the locked semantic-role mapping against columns.json and parquet columns."""
+    if not columns_path.exists():
+        raise IngestContractError(
+            f"locked column mapping check requires {columns_path}; file is missing"
+        )
+    declared = json.loads(columns_path.read_text())
+    declared_pairs = {
+        (col["raw_name"], col["semantic_role"])
+        for table in declared.get("tables", [])
+        for col in table.get("columns", [])
+    }
+    fixture_set = set(fixture_columns)
+
+    failures: list[str] = []
+    for raw_name, semantic_role in locked_mapping:
+        if (raw_name, semantic_role) not in declared_pairs:
+            failures.append(
+                f"locked mapping ({raw_name!r} -> {semantic_role!r}) "
+                f"not present in {columns_path.name}"
+            )
+        if raw_name not in fixture_set:
+            failures.append(
+                f"locked raw column {raw_name!r} expected in fixture but found columns: "
+                f"{sorted(fixture_set)}"
+            )
+    if failures:
+        raise IngestContractError("; ".join(failures))
+
+
+def decode_token_counts(value: str | None) -> dict[str, int]:
+    if value in (None, ""):
+        return {}
+    decoded = json.loads(value)
+    return {str(k): int(v) for k, v in decoded.items()}
 
 
 def assert_canonical_schema(frame: pl.DataFrame) -> None:

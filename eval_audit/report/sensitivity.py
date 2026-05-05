@@ -26,6 +26,7 @@ from eval_audit.schema import StudySpec
 from eval_audit.stats import AnalysisResult, ClaimResult
 from eval_audit.stats.bootstrap import paired_task_bootstrap
 from eval_audit.stats.intervals import wilson_interval
+from eval_audit.stats.outcomes import success_rate_numeric_expr
 from eval_audit.stats.pareto import pareto_frontier
 
 
@@ -34,17 +35,6 @@ class SensitivityRow:
     dimension: str
     value: str
     verdict: str
-
-
-# Locked perturbation order. Used by the renderer; do not reorder.
-PERTURBATION_ORDER: tuple[tuple[str, str], ...] = (
-    ("alpha", "0.01"),
-    ("alpha", "0.10"),
-    ("errored_policy", "excluded"),
-    ("correction_method", "none"),
-    ("cost_gap_threshold", "0.05"),
-    ("cost_gap_threshold", "0.20"),
-)
 
 
 def _build_context(
@@ -102,7 +92,6 @@ def verdict_with_alpha(
 
 def verdict_with_no_correction(
     claim: ClaimResult,
-    all_claims: list[ClaimResult],
     result: AnalysisResult,
     study: StudySpec,
     *,
@@ -119,9 +108,6 @@ def verdict_with_no_correction(
         treatment_is_dominated=treatment_dominated,
         direction_matches_claim=direction_matches,
     )
-    # `all_claims` is accepted for symmetry with the corrected path but unused
-    # under `correction_method = none`; each claim resolves on its own raw p.
-    del all_claims
     return decision_impact(ctx)
 
 
@@ -183,8 +169,8 @@ def verdict_with_errored_excluded(
             )
         )
 
-    # Recompute paired-task bootstrap on the graded-only frame. Tasks present
-    # in only one arm get dropped via the inner join inside the helper.
+    # Recompute paired-task bootstrap on the graded-only frame after explicitly
+    # aligning task sets; the bootstrap helper refuses mismatched task ids.
     common_tasks = set(treatment_rows["task_id"].to_list()) & set(
         control_rows["task_id"].to_list()
     )
@@ -226,7 +212,11 @@ def verdict_with_errored_excluded(
         rows = graded.filter(pl.col("agent_id") == agent_id)
         if rows.height == 0:
             continue
-        successes = int(rows["success"].cast(pl.Int64).sum())
+        successes = int(
+            rows.select(success_rate_numeric_expr().sum().alias("_successes"))[
+                "_successes"
+            ][0]
+        )
         n = rows.height
         rate, _, _ = wilson_interval(successes, n, alpha) if n else (0.0, 0.0, 1.0)
         if rows["reconstructed_per_task_cost_usd"].null_count() == rows.height:
@@ -264,7 +254,6 @@ def verdict_with_errored_excluded(
 
 def compute_sensitivity_rows(
     claim: ClaimResult,
-    all_claims: list[ClaimResult],
     runs: pl.DataFrame,
     study: StudySpec,
     result: AnalysisResult,
@@ -306,7 +295,7 @@ def compute_sensitivity_rows(
             "correction_method",
             "none",
             verdict_with_no_correction(
-                claim, all_claims, result, study, alpha=study.inference.alpha
+                claim, result, study, alpha=study.inference.alpha
             ),
         )
     )
@@ -343,4 +332,3 @@ def _baseline_verdict(claim: ClaimResult, result: AnalysisResult, study: StudySp
         direction_matches_claim=direction_matches,
     )
     return decision_impact(ctx)
-

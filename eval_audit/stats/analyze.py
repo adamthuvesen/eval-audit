@@ -11,6 +11,7 @@ from eval_audit.schema import StudySpec
 from eval_audit.stats.bootstrap import BootstrapResult, paired_task_bootstrap
 from eval_audit.stats.correction import benjamini_hochberg, holm_bonferroni
 from eval_audit.stats.intervals import wilson_interval
+from eval_audit.stats.outcomes import success_rate_numeric_expr
 from eval_audit.stats.pareto import pareto_frontier
 
 
@@ -74,7 +75,7 @@ def _paired_task_p_value(
     when present), then run a paired t-test on the per-task differences. This respects
     within-task clustering, which a naive 2-proportion z-test would ignore.
     """
-    success_expr = _success_rate_numeric_expr()
+    success_expr = success_rate_numeric_expr()
     a_means = treatment_rows.group_by("task_id").agg(success_expr.mean().alias("_a"))
     b_means = control_rows.group_by("task_id").agg(success_expr.mean().alias("_b"))
     paired = a_means.join(b_means, on="task_id", how="inner")
@@ -110,18 +111,6 @@ def _validate_supported_outcome(study: StudySpec) -> str:
     return "success"
 
 
-def _success_rate_numeric_expr() -> pl.Expr:
-    """Numeric success-rate outcome with errored rows forced to failure."""
-    return (
-        pl.when(
-            (pl.col("outcome_status") == "graded")
-            & pl.col("success").fill_null(False).cast(pl.Boolean)
-        )
-        .then(1.0)
-        .otherwise(0.0)
-    )
-
-
 def _check_harness_consistency(
     study: StudySpec,
     runs: pl.DataFrame,
@@ -134,24 +123,20 @@ def _check_harness_consistency(
                 raise CrossHarnessComparisonError(
                     f"agent_id={agent_id!r} has no rows in loaded runs"
                 )
-            harnesses = rows["harness"].unique().to_list()
+            harnesses = sorted(rows["harness"].unique().to_list())
             if len(harnesses) > 1:
                 raise CrossHarnessComparisonError(
-                    f"agent_id={agent_id!r} has rows under multiple harnesses {sorted(harnesses)}"
+                    f"agent_id={agent_id!r} has rows under multiple harnesses {harnesses}"
                 )
             harness_by_agent[agent_id] = harnesses[0]
 
-        treatment_harness_set = set(
-            runs.filter(pl.col("agent_id") == claim.treatment)["harness"].to_list()
-        )
-        control_harness_set = set(
-            runs.filter(pl.col("agent_id") == claim.control)["harness"].to_list()
-        )
-        if treatment_harness_set != control_harness_set:
+        treatment_harness = harness_by_agent[claim.treatment]
+        control_harness = harness_by_agent[claim.control]
+        if treatment_harness != control_harness:
             raise CrossHarnessComparisonError(
                 "cross-harness comparison rejected: "
-                f"treatment={claim.treatment!r} runs under harness={sorted(treatment_harness_set)}, "
-                f"control={claim.control!r} runs under harness={sorted(control_harness_set)}"
+                f"treatment={claim.treatment!r} runs under harness={[treatment_harness]}, "
+                f"control={claim.control!r} runs under harness={[control_harness]}"
             )
         for agent_id, observed_harness in harness_by_agent.items():
             if observed_harness != study.harness:
@@ -172,7 +157,11 @@ def _agent_summary(
     n_errored = errored.height
     n_total = n_graded + n_errored
     successes = (
-        int(graded.select(_success_rate_numeric_expr().sum().alias("_successes"))["_successes"][0])
+        int(
+            graded.select(success_rate_numeric_expr().sum().alias("_successes"))[
+                "_successes"
+            ][0]
+        )
         if n_graded
         else 0
     )

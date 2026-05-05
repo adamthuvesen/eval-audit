@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from datetime import datetime
@@ -9,6 +10,7 @@ from pathlib import Path
 
 import polars as pl
 
+from eval_audit.fixtures import benchmark_dir_name
 from eval_audit.ingest._prices import PRICE_TABLE_PINNED_AT
 from eval_audit.report import ReportContractError
 from eval_audit.report.decisions import (
@@ -149,12 +151,17 @@ def render_report(
     """
     _validate_report_outcome(study)
     decision_md, decision_md_label = _resolve_decision_doc(repo_root, study.benchmark)
-    # `study.benchmark` ("tau_bench") may differ from the on-disk fixture directory
-    # name ("tau-bench"); the override mirrors the one in eval_audit.cli.
-    _benchmark_dir_override = {"tau_bench": "tau-bench"}
-    benchmark_dir = _benchmark_dir_override.get(study.benchmark, study.benchmark)
-    cost_recon = repo_root / "scouting" / "candidates" / benchmark_dir / "cost-reconciliation.json"
-    provenance = repo_root / "scouting" / "candidates" / benchmark_dir / "provenance.json"
+    benchmark_dir = benchmark_dir_name(study.benchmark)
+    cost_recon = (
+        repo_root
+        / "scouting"
+        / "candidates"
+        / benchmark_dir
+        / "cost-reconciliation.json"
+    )
+    provenance = (
+        repo_root / "scouting" / "candidates" / benchmark_dir / "provenance.json"
+    )
 
     rendered_at = clock().isoformat()
 
@@ -173,8 +180,6 @@ def render_report(
 
     # 2. Provenance
     parts.append("## Provenance\n")
-    import json
-
     cost_provenance_class = "n/a"
     cost_recon_data: dict = {}
     if cost_recon.exists():
@@ -320,7 +325,6 @@ def render_report(
     for c in result.claims:
         rows = compute_sensitivity_rows(
             c,
-            list(result.claims),
             runs,
             study,
             result,
