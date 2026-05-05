@@ -5,7 +5,7 @@
 - **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
 - **Claim status:** inconclusive
 - **Why:** delta +12.00 pp with bootstrap CI [-6.00 pp, +28.00 pp] over 47 paired tasks; treatment is 0.54x the control's cost
-- **What would change it:** more paired tasks would tighten the CI below the declared MDE
+- **What would change it:** ~497 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
 - **Reviewer pushback:** errored rows present (3 across 1 agent), cost provenance is as_reported_only, 6 residual risks inherited from scouting
 
 ### Claim `o4mini_vs_o3`
@@ -13,7 +13,7 @@
 - **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
 - **Claim status:** inconclusive
 - **Why:** delta +2.00 pp with bootstrap CI [-12.05 pp, +18.00 pp] over 50 paired tasks; treatment is 0.26x the control's cost
-- **What would change it:** more paired tasks would tighten the CI below the declared MDE
+- **What would change it:** ~402 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
 - **Reviewer pushback:** errored rows present (3 across 1 agent), cost provenance is as_reported_only, 6 residual risks inherited from scouting
 
 ### Claim `claude_vs_o3`
@@ -21,7 +21,7 @@
 - **Verdict:** `drop_from_shortlist` — treatment is Pareto-dominated on cost-quality
 - **Claim status:** inconclusive
 - **Why:** delta -10.00 pp with bootstrap CI [-26.00 pp, +6.00 pp] over 47 paired tasks; treatment is 0.48x the control's cost
-- **What would change it:** more paired tasks would tighten the CI below the declared MDE
+- **What would change it:** ~435 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
 - **Reviewer pushback:** errored rows present (3 across 1 agent), cost provenance is as_reported_only, 6 residual risks inherited from scouting
 
 ## Study
@@ -141,7 +141,7 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-03T07:51:24.699323+00:00`
-- **git_commit:** `748f3f1`
+- **rendered_at:** `2026-05-03T08:03:46.141222+00:00`
+- **git_commit:** `c0b91ed`
 - **fixture_sha256:** `3d8a0434b5ce3eb32735a767758a9c0281148a25e2956dad7d8c886416ffa7b3`
 - **bootstrap_seed:** `42`

@@ -319,31 +319,58 @@ def test_render_audit_summary_stanza__unknown_decision_token_raises() -> None:
     assert "not_a_real_token" in str(exc_info.value)
 
 
-def test_what_would_change_it__ci_wider_than_mde_picks_more_paired_tasks() -> None:
+def test_what_would_change_it__ci_wider_than_mde_renders_quantitative_n() -> None:
+    """Wider-than-MDE branch surfaces a concrete N with the variance-fixed marker."""
     from eval_audit.report.markdown import _what_would_change_it
+    from eval_audit.stats.resolution import estimate_required_paired_tasks
 
-    assert (
-        _what_would_change_it(target_mde=0.03, ci_half_width=0.09)
-        == "more paired tasks would tighten the CI below the declared MDE"
+    line = _what_would_change_it(target_mde=0.03, ci_half_width=0.09, n_paired=100)
+    expected_n = estimate_required_paired_tasks(100, 0.09, 0.03).additional_tasks
+
+    assert line == (
+        f"~{expected_n} more paired tasks would tighten the CI to "
+        f"≤ MDE (estimated, variance-fixed scaling)"
     )
+    assert "(estimated, variance-fixed scaling)" in line
+    assert line.startswith("~")
 
 
-def test_what_would_change_it__ci_narrower_than_mde_picks_already_resolves() -> None:
+def test_what_would_change_it__ci_inside_mde_surfaces_half_width_and_mde_numbers() -> None:
+    """Inside-MDE branch names both numbers as percentage-points to two decimals."""
     from eval_audit.report.markdown import _what_would_change_it
 
-    assert _what_would_change_it(target_mde=0.05, ci_half_width=0.02) == (
-        "the study already resolves below the declared MDE; "
+    line = _what_would_change_it(target_mde=0.03, ci_half_width=0.015, n_paired=100)
+
+    assert line == (
+        "the study already resolves below the declared MDE "
+        "(CI half-width 1.50 pp ≤ MDE 3.00 pp); "
         "no additional N would change the verdict"
     )
 
 
 def test_what_would_change_it__null_target_mde_picks_encouragement() -> None:
+    """Null-target-mde branch is unchanged from Change 1's wording."""
     from eval_audit.report.markdown import _what_would_change_it
 
-    assert _what_would_change_it(target_mde=None, ci_half_width=0.10) == (
+    assert _what_would_change_it(target_mde=None, ci_half_width=0.10, n_paired=100) == (
         "declaring an inference.target_mde would let this report estimate "
         "required sample size"
     )
+
+
+def test_what_would_change_it__renderer_n_matches_resolution_function() -> None:
+    """The N surfaced in the rendered line equals the function's direct return."""
+    from eval_audit.report.markdown import _what_would_change_it
+    from eval_audit.stats.resolution import estimate_required_paired_tasks
+
+    n_paired = 165
+    ci_half_width = 0.09395
+    target_mde = 0.03
+
+    line = _what_would_change_it(target_mde, ci_half_width, n_paired)
+    direct = estimate_required_paired_tasks(n_paired, ci_half_width, target_mde)
+
+    assert f"~{direct.additional_tasks} " in line
 
 
 def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
