@@ -62,8 +62,9 @@ def test_mde__target_mde_null_omits_column_and_paragraph(repo_root: Path, tmp_pa
     text = _render_for_study(no_mde_yaml, repo_root)
 
     claims_idx = text.index("## Claims")
-    cost_idx = text.index("## Cost-quality view")
-    claims_block = text[claims_idx:cost_idx]
+    # The Claims section now ends at Robustness Review (post-Change-3).
+    next_section_idx = text.index("## Robustness Review")
+    claims_block = text[claims_idx:next_section_idx]
 
     assert "target_mde" not in claims_block
     assert "MDE context" not in claims_block

@@ -52,6 +52,16 @@
 | cost_gap_threshold | 0.05 | hedge_on_cost |
 | cost_gap_threshold | 0.20 | hedge_on_cost |
 
+## Robustness Review
+
+| Dimension | Result | Notes |
+|---|---|---|
+| Multiple-comparison correction | survives | verdict unchanged at α∈{0.01, 0.10} and with correction=none |
+| Errored-row policy | survives | verdict unchanged when errored rows excluded |
+| Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
+| Target MDE | does not survive | CI half-width 9.39 pp > MDE 3.00 pp; under-resolved |
+| Cost provenance | survives | reconciled |
+
 ## Cost-quality view
 
 **Pareto frontier (max success_rate, min total_cost_usd):** ['HAL Generalist Agent (claude-3-7-sonnet-20250219)', 'HAL Generalist Agent (o4-mini-2025-04-16 high)']

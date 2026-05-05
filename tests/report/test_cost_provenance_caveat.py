@@ -246,7 +246,7 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
         bootstrap_seed=42,
     )
 
-    # Section count: exactly eight `##` headings in the listed order.
+    # Section count: exactly nine `##` headings in the listed order.
     headings = [line for line in text.splitlines() if line.startswith("## ")]
     section_titles = [h.removeprefix("## ").strip() for h in headings]
     assert section_titles == [
@@ -255,6 +255,7 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
         "Provenance",
         "Per-agent summary",
         "Claims",
+        "Robustness Review",
         "Cost-quality view",
         "Residual risks",
         "Reproducibility footer",
