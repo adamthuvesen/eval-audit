@@ -271,7 +271,7 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
             success=None,
             harness="hal_generalist_agent",
             cost_provenance="reconciled",
-            reconstructed_cost=0.10,
+            reconstructed_cost=None,
             reported_run_total=1.00,
         ))
     # Pair with a control agent so analyze() has a comparison to chew on.
@@ -296,8 +296,10 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     assert agent.n_graded == 8
     assert agent.n_errored == 2
     # successes = 5 graded-true rows (errored rows can never count as success).
-    assert abs(agent.total_cost_usd - 1.00) < 1e-9
-    assert abs(agent.cost_per_success_usd - (1.00 / 5)) < 1e-9
+    # total_cost = 8 * 0.10 graded-only = 0.80 (errored rows have null
+    # reconstructed cost per analyze.py:201 / errored-row policy).
+    assert abs(agent.total_cost_usd - 0.80) < 1e-9
+    assert abs(agent.cost_per_success_usd - (0.80 / 5)) < 1e-9
 
 
 def test_errored_row_policy__mixed_reconstructed_cost_fails_analysis() -> None:

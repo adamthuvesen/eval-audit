@@ -121,12 +121,12 @@ def _validate_supported_outcome(study: StudySpec) -> str:
 
 def _check_harness_consistency(
     study: StudySpec,
-    runs: pl.DataFrame,
+    rows_by_agent: dict[str, pl.DataFrame],
 ) -> None:
     for claim in study.claims:
         harness_by_agent: dict[str, str] = {}
         for agent_id in (claim.treatment, claim.control):
-            rows = runs.filter(pl.col("agent_id") == agent_id)
+            rows = rows_by_agent[agent_id]
             if rows.height == 0:
                 raise CrossHarnessComparisonError(
                     f"agent_id={agent_id!r} has no rows in loaded runs"
@@ -152,6 +152,13 @@ def _check_harness_consistency(
                     f"agent_id={agent_id!r} runs under harness={observed_harness!r}, "
                     f"but study.harness={study.harness!r}"
                 )
+
+
+def _rows_by_agent(runs: pl.DataFrame, agent_ids: set[str]) -> dict[str, pl.DataFrame]:
+    return {
+        agent_id: runs.filter(pl.col("agent_id") == agent_id)
+        for agent_id in sorted(agent_ids)
+    }
 
 
 def _agent_summary(
@@ -198,19 +205,21 @@ def _agent_summary(
             f"'cost_not_available' (cost_provenance={sorted(provenance_values)}); "
             "cost suppression must be whole-agent"
         )
-    # Per design.md: errored rows have None reconstructed cost; sum() ignores None,
-    # so the reconstructed total covers graded rows only — which is the correct
-    # numerator. For as_reported_only studies, reconstructed sums to 0 across the
-    # frame; the renderer falls back to reported_run_total_cost_usd in that path.
-    reconstructed_null_count = rows["reconstructed_per_task_cost_usd"].null_count()
-    if 0 < reconstructed_null_count < rows.height:
+    # Per the errored-row policy: errored rows have None reconstructed cost
+    # by construction, so the incomplete-cost check applies only to graded
+    # rows. The reconstructed sum then covers graded rows only — which is the
+    # correct cost-per-success numerator. For as_reported_only studies,
+    # reconstructed sums to 0 across the frame; the renderer falls back to
+    # reported_run_total_cost_usd in that path.
+    graded_reconstructed_null_count = graded["reconstructed_per_task_cost_usd"].null_count()
+    if 0 < graded_reconstructed_null_count < graded.height:
         provenance = sorted(provenance_values)
         raise CostProvenanceError(
             f"agent_id={agent_id!r} has incomplete reconstructed cost data "
-            f"({reconstructed_null_count}/{rows.height} null reconstructed_per_task_cost_usd; "
-            f"cost_provenance={provenance})"
+            f"({graded_reconstructed_null_count}/{graded.height} graded rows have "
+            f"null reconstructed_per_task_cost_usd; cost_provenance={provenance})"
         )
-    if reconstructed_null_count == rows.height:
+    if graded.height == 0 or graded_reconstructed_null_count == graded.height:
         # No reconstructed cost available (as_reported_only path): fall back to
         # the per-(agent, run) reported run total so cost_per_success has a value.
         if rows["reported_run_total_cost_usd"].null_count() > 0:
@@ -224,7 +233,7 @@ def _agent_summary(
         )
         total_cost = float(per_run["_r"].sum())
     else:
-        total_cost = float(rows["reconstructed_per_task_cost_usd"].sum())
+        total_cost = float(graded["reconstructed_per_task_cost_usd"].sum())
     cost_per_success = total_cost / successes if successes else float("inf")
     return AgentSummary(
         agent_id=agent_id,
@@ -247,16 +256,32 @@ def analyze(
 ) -> AnalysisResult:
     """Run the declared-claim analysis end-to-end."""
     outcome_col = _validate_supported_outcome(study)
-    # Eager pre-check: refuse cross-harness comparisons before any compute.
-    _check_harness_consistency(study, runs)
-
     alpha = study.inference.alpha
 
     agent_ids = [a.id for a in study.agents]
+    claim_agent_ids = {
+        agent_id
+        for claim in study.claims
+        for agent_id in (claim.treatment, claim.control)
+    }
+    rows_by_agent = _rows_by_agent(runs, set(agent_ids) | claim_agent_ids)
+
+    # Eager pre-check: refuse cross-harness comparisons before any compute.
+    _check_harness_consistency(study, rows_by_agent)
+
     per_agent: list[AgentSummary] = []
     by_id: dict[str, AgentSummary] = {}
     for agent_id in agent_ids:
-        rows = runs.filter(pl.col("agent_id") == agent_id)
+        rows = rows_by_agent[agent_id]
+        # _check_harness_consistency only validates agents named in claims.
+        # A declared agent that has no rows (and is not in any claim) would
+        # otherwise produce a fabricated zero-row AgentSummary that enters the
+        # report and Pareto inputs. Fail loudly here so silent gaps in the
+        # frame are surfaced at the analysis boundary.
+        if rows.height == 0:
+            raise CrossHarnessComparisonError(
+                f"agent_id={agent_id!r} declared in study.agents has no rows in loaded runs"
+            )
         summary = _agent_summary(agent_id, rows, alpha)
         per_agent.append(summary)
         by_id[agent_id] = summary
@@ -285,8 +310,8 @@ def analyze(
         # Include errored rows: per the errored-row denominator policy, the bootstrap
         # treats errored rows as success=0 in the per-task aggregation so paired task
         # sets stay aligned even when one arm errored on tasks the other graded.
-        treatment_rows = runs.filter(pl.col("agent_id") == claim.treatment)
-        control_rows = runs.filter(pl.col("agent_id") == claim.control)
+        treatment_rows = rows_by_agent[claim.treatment]
+        control_rows = rows_by_agent[claim.control]
         boot = paired_task_bootstrap(
             treatment_rows,
             control_rows,

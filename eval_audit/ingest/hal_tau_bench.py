@@ -10,17 +10,19 @@ None for every row; downstream consumers must use `reported_run_total_cost_usd`
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import polars as pl
 
-from eval_audit.ingest.base import (
-    IngestContractError,
-    check_locked_column_mapping,
-    decode_token_counts,
-    validate_run_records,
+from eval_audit.ingest.base import IngestContractError
+from eval_audit.ingest.hal_common import (
+    decode_hal_token_counts,
+    hal_common_record_fields,
+    hal_success_fields,
+    load_hal_fixture,
+    validate_hal_harness,
 )
+from eval_audit.schema.enums import CostProvenance
 
 # Locked column mapping for scouting/candidates/tau-bench/sample.parquet.
 # raw_name -> semantic_role for the tau-bench per_task table. The
@@ -46,7 +48,7 @@ _LOCKED_COLUMN_MAPPING: list[tuple[str, str]] = [
 ]
 
 _HARNESS = "tau_bench_tool_calling"
-_REQUIRED_OUTCOME = "as_reported_only"
+_REQUIRED_OUTCOME = CostProvenance.AS_REPORTED_ONLY.value
 _EXPECTED_AGENTS = {
     "Taubench ToolCalling (claude-3.7-sonnet)",
     "Taubench ToolCalling (o3-2025-04-16)",
@@ -60,20 +62,10 @@ class HalTauBenchAdapter:
     name = "hal-tau-bench"
 
     def load(self, source_path: Path) -> pl.DataFrame:
-        source_path = Path(source_path)
-        sample_path = source_path / "sample.parquet"
-        columns_path = source_path / "columns.json"
-        cost_recon_path = source_path / "cost-reconciliation.json"
-        provenance_path = source_path / "provenance.json"
-
-        raw = pl.read_parquet(sample_path)
-        check_locked_column_mapping(
-            columns_path=columns_path,
-            fixture_columns=raw.columns,
+        raw, cost_recon, provenance = load_hal_fixture(
+            source_path,
             locked_mapping=_LOCKED_COLUMN_MAPPING,
         )
-
-        cost_recon = json.loads(cost_recon_path.read_text())
         outcome = cost_recon.get("outcome")
         if outcome != _REQUIRED_OUTCOME:
             raise IngestContractError(
@@ -89,52 +81,35 @@ class HalTauBenchAdapter:
                 f"expected one of {sorted(_EXPECTED_AGENTS)}"
             )
 
-        provenance = (
-            json.loads(provenance_path.read_text()) if provenance_path.exists() else {}
-        )
         retrieved_at = str(provenance.get("retrieved_at", ""))
         rel_fixture = "scouting/candidates/tau-bench/sample.parquet"
 
         records: list[dict] = []
         for r in raw.iter_rows(named=True):
-            tin = decode_token_counts(r["tokens_in_by_model"])
-            tout = decode_token_counts(r["tokens_out_by_model"])
-            is_errored = r["outcome_status"] == "errored"
-            success_raw = r["success_bool"]
-            success = (
-                None
-                if is_errored or success_raw is None
-                else bool(success_raw)
+            tin, tout = decode_hal_token_counts(r)
+            success, partial_credit = hal_success_fields(
+                r,
+                partial_credit_column="reward",
             )
-            partial_credit = None if is_errored else r["reward"]
 
-            records.append({
-                "agent_id":           r["agent_id"],
-                "model_id":           r["model_id"],
-                "harness":            _HARNESS,
-                "run_id":             r["run_id"],
-                "task_id":            r["task_id"],
-                "task_category":      None,
-                "seed":               None,
-                "success":            success,
-                "partial_credit":     partial_credit,
-                "outcome_status":     r["outcome_status"],
-                "tokens_in":          int(r["tokens_in_total"]),
-                "tokens_out":         int(r["tokens_out_total"]),
-                "tokens_in_by_model":  tin,
-                "tokens_out_by_model": tout,
-                "latency_s":          float(r["latency_total_s"]) if r["latency_total_s"] is not None else None,
-                "timestamp":          r["first_call_ts"],
-                "reconstructed_per_task_cost_usd": None,
-                "reported_run_total_cost_usd":     float(r["run_total_cost_usd"]),
-                "cost_provenance":    outcome,
-                "rerun_metadata": {
-                    "git_commit":          str(r.get("git_commit", "")),
-                    "source_fixture":      rel_fixture,
-                    "source_retrieved_at": retrieved_at,
-                    "agent_short":         str(r.get("agent_short", "")),
-                },
-            })
+            records.append(
+                hal_common_record_fields(
+                    r,
+                    harness=_HARNESS,
+                    success=success,
+                    partial_credit=partial_credit,
+                    tokens_in_by_model=tin,
+                    tokens_out_by_model=tout,
+                    reconstructed_cost=None,
+                    cost_provenance=outcome,
+                    rerun_metadata={
+                        "git_commit": str(r.get("git_commit", "")),
+                        "source_fixture": rel_fixture,
+                        "source_retrieved_at": retrieved_at,
+                        "agent_short": str(r.get("agent_short", "")),
+                    },
+                )
+            )
 
         frame = pl.DataFrame(records, strict=False)
         # Sort defensively: downstream group_by + bootstrap rely on stable ordering.
@@ -143,8 +118,4 @@ class HalTauBenchAdapter:
         return frame
 
     def validate(self, frame: pl.DataFrame) -> None:
-        validate_run_records(frame)
-        if "harness" in frame.columns and not (frame["harness"] == _HARNESS).all():
-            raise IngestContractError(
-                f"hal-tau-bench adapter expects every row to have harness={_HARNESS!r}"
-            )
+        validate_hal_harness(frame, harness=_HARNESS, adapter_name="hal-tau-bench")

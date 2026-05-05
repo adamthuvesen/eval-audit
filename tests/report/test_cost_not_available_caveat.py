@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import polars as pl
+import pytest
 
 FIXED_CLOCK = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -198,17 +199,24 @@ def _render_suppressed_report(tmp_path: Path) -> str:
     )
 
 
-def test_render__cost_not_available_caveat_block_present(tmp_path: Path) -> None:
+@pytest.fixture(scope="module")
+def suppressed_report(tmp_path_factory: pytest.TempPathFactory) -> str:
+    return _render_suppressed_report(tmp_path_factory.mktemp("suppressed-report"))
+
+
+def test_render__cost_not_available_caveat_block_present(suppressed_report: str) -> None:
     """The rendered report contains the cost_not_available caveat block."""
-    text = _render_suppressed_report(tmp_path)
+    text = suppressed_report
     assert "### Cost provenance caveat" in text
     assert "Cost provenance: cost_not_available" in text
     assert "expose no stable token, usage, or cost fields" in text
 
 
-def test_render__cost_not_available_per_agent_table_omits_cost_columns(tmp_path: Path) -> None:
+def test_render__cost_not_available_per_agent_table_omits_cost_columns(
+    suppressed_report: str,
+) -> None:
     """Per-agent summary table has no total_cost_usd or cost_per_success_usd columns."""
-    text = _render_suppressed_report(tmp_path)
+    text = suppressed_report
     assert "## Per-agent summary" in text
     # Cost columns absent in the per-agent table
     assert "| total_cost_usd |" not in text
@@ -216,9 +224,11 @@ def test_render__cost_not_available_per_agent_table_omits_cost_columns(tmp_path:
     assert "Cost columns suppressed" in text
 
 
-def test_render__cost_not_available_pareto_section_suppressed(tmp_path: Path) -> None:
+def test_render__cost_not_available_pareto_section_suppressed(
+    suppressed_report: str,
+) -> None:
     """Cost-quality view section points at the caveat block instead of a Pareto table."""
-    text = _render_suppressed_report(tmp_path)
+    text = suppressed_report
     assert "## Cost-quality view" in text
     assert "Cost-quality view suppressed" in text
     # The Pareto frontier table heading must be absent (descriptive prose
@@ -227,23 +237,29 @@ def test_render__cost_not_available_pareto_section_suppressed(tmp_path: Path) ->
     assert "Dominated agents:" not in text
 
 
-def test_render__cost_not_available_robustness_review_row_present(tmp_path: Path) -> None:
+def test_render__cost_not_available_robustness_review_row_present(
+    suppressed_report: str,
+) -> None:
     """Robustness Review names cost_not_available as a first-class row."""
-    text = _render_suppressed_report(tmp_path)
+    text = suppressed_report
     # The robustness table row reads `does not survive` with cost_not_available notes.
     assert "Cost provenance" in text
     assert "cost_not_available" in text
     assert "Pareto and cost-per-success suppressed" in text
 
 
-def test_render__cost_not_available_audit_summary_no_cost_ratio(tmp_path: Path) -> None:
+def test_render__cost_not_available_audit_summary_no_cost_ratio(
+    suppressed_report: str,
+) -> None:
     """Audit summary stanza does NOT print 'treatment is X.XXx the control's cost'."""
-    text = _render_suppressed_report(tmp_path)
+    text = suppressed_report
     assert "the control's cost" not in text
     assert "no cost ratio is reported" in text
 
 
-def test_render__cost_not_available_decision_not_hedge_on_cost(tmp_path: Path) -> None:
+def test_render__cost_not_available_decision_not_hedge_on_cost(
+    suppressed_report: str,
+) -> None:
     """No claim row in the Claims table carries decision_impact=hedge_on_cost.
 
     The literal string `hedge_on_cost` may still appear in the caveat block
@@ -251,13 +267,15 @@ def test_render__cost_not_available_decision_not_hedge_on_cost(tmp_path: Path) -
     what must NOT appear is a Claims-table row whose final column is
     hedge_on_cost.
     """
-    text = _render_suppressed_report(tmp_path)
+    text = suppressed_report
     # Claims table rows end with `| <decision_impact> |`. Look for that exact
     # shape with hedge_on_cost.
     assert "| hedge_on_cost |" not in text
 
 
-def test_render__cost_not_available_reviewer_pushback_flags_provenance(tmp_path: Path) -> None:
+def test_render__cost_not_available_reviewer_pushback_flags_provenance(
+    suppressed_report: str,
+) -> None:
     """Reviewer pushback line names cost_not_available."""
-    text = _render_suppressed_report(tmp_path)
+    text = suppressed_report
     assert "cost provenance is cost_not_available" in text

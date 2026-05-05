@@ -72,3 +72,18 @@ different day, `examples/exhibit-c/runs.parquet` may shift slightly and the
 snapshot test will diff. That is the expected behavior of a controlled
 *original* run — the report's Reproducibility section documents that the
 parquet is the canonical artifact, not the raw API responses.
+
+## Grader trust boundary
+
+The grader executes untrusted model-generated code. The v0 sandbox is:
+
+- **Sanitized environment** — only `PATH` is forwarded; `ANTHROPIC_API_KEY`,
+  `HOME`, and other parent-process variables are scrubbed.
+- **Python isolated mode** (`-I`) — ignores `PYTHONPATH`, `PYTHONHOME`, and
+  user site-packages, so the candidate cannot import repo-local code.
+- **10-second timeout** per candidate.
+- **Temporary working directory**.
+
+Stronger isolation (container, network deny, rlimit-based memory cap) is
+out of scope for v0. Do not run this grader on shared infrastructure or
+with secrets present in the parent process's environment.

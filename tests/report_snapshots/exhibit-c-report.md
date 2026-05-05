@@ -28,7 +28,7 @@
 - **rerun_policy:** `capture_provider_nondeterminism`
 - **run_dates:** `2026-05-03` to `2026-05-03` (UTC)
 - **price_table_pinned_at:** `2026-05-03`
-- **cost_provenance:** `reconciled` (120/120 rows)
+- **cost_provenance:** `partial` (120/120 rows)
 
 ## Per-agent summary
 
@@ -67,7 +67,7 @@
 | Errored-row policy | survives | verdict unchanged when errored rows excluded |
 | Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
 | Target MDE | does not survive | CI half-width 10.83 pp > MDE 10.00 pp; under-resolved |
-| Cost provenance | survives | reconciled |
+| Cost provenance | caveat | partial |
 
 ## Cost-quality view
 

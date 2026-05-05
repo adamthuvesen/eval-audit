@@ -8,8 +8,8 @@
       "success_rate": 0.8833333333333333,
       "success_rate_ci_low": 0.7782121197582914,
       "success_rate_ci_high": 0.9423227935994396,
-      "total_cost_usd": 0.0522984,
-      "cost_per_success_usd": 0.0009867622641509435
+      "total_cost_usd": 0.052298399999999995,
+      "cost_per_success_usd": 0.0009867622641509433
     },
     {
       "agent_id": "exhibit-c-sonnet-4-6",
@@ -18,8 +18,8 @@
       "success_rate": 1.0,
       "success_rate_ci_low": 0.93982814785791,
       "success_rate_ci_high": 1.0,
-      "total_cost_usd": 0.104484,
-      "cost_per_success_usd": 0.0017414
+      "total_cost_usd": 0.10448399999999995,
+      "cost_per_success_usd": 0.0017413999999999993
     }
   ],
   "claims": [
@@ -34,8 +34,8 @@
       "raw_p_value": 0.05040694161721571,
       "adjusted_p_value": 0.05040694161721571,
       "rejects_null": false,
-      "treatment_total_cost_usd": 0.104484,
-      "control_total_cost_usd": 0.0522984,
+      "treatment_total_cost_usd": 0.10448399999999995,
+      "control_total_cost_usd": 0.052298399999999995,
       "bootstrap": [
         0.1166666666666667,
         0.01666666666666672,

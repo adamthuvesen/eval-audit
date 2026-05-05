@@ -320,3 +320,208 @@ def test_adapter_validate__rejects_wrong_harness(tmp_path: Path) -> None:
         SweBenchVerifiedAdapter().validate(bad)
 
     assert "harness" in str(excinfo.value).lower()
+
+
+def test_build_canonical_frame__rejects_unknown_no_generation_id() -> None:
+    """An instance_id in no_generation that is not in the task universe raises."""
+    from eval_audit.ingest.base import IngestContractError
+
+    universe = _synthetic_universe()
+    submissions = {
+        "agent": {
+            "model_id": "m",
+            "submission_dir": "agent",
+            "resolved": set(),
+            "no_generation": {"phantom_instance"},
+            "no_logs": set(),
+        }
+    }
+
+    with pytest.raises(IngestContractError) as excinfo:
+        build_canonical_frame(task_universe=universe, submissions=submissions)
+
+    msg = str(excinfo.value).lower()
+    assert "no_generation" in msg
+    assert "phantom_instance" in msg
+
+
+def test_build_canonical_frame__rejects_unknown_no_logs_id() -> None:
+    """An instance_id in no_logs that is not in the task universe raises."""
+    from eval_audit.ingest.base import IngestContractError
+
+    universe = _synthetic_universe()
+    submissions = {
+        "agent": {
+            "model_id": "m",
+            "submission_dir": "agent",
+            "resolved": set(),
+            "no_generation": set(),
+            "no_logs": {"phantom_instance"},
+        }
+    }
+
+    with pytest.raises(IngestContractError) as excinfo:
+        build_canonical_frame(task_universe=universe, submissions=submissions)
+
+    msg = str(excinfo.value).lower()
+    assert "no_logs" in msg
+    assert "phantom_instance" in msg
+
+
+def test_build_canonical_frame__rejects_resolved_no_generation_overlap() -> None:
+    """An instance_id appearing in both resolved and no_generation raises."""
+    from eval_audit.ingest.base import IngestContractError
+
+    universe = _synthetic_universe()
+    overlapping = universe[0]
+    submissions = {
+        "agent": {
+            "model_id": "m",
+            "submission_dir": "agent",
+            "resolved": {overlapping},
+            "no_generation": {overlapping},
+            "no_logs": set(),
+        }
+    }
+
+    with pytest.raises(IngestContractError) as excinfo:
+        build_canonical_frame(task_universe=universe, submissions=submissions)
+
+    msg = str(excinfo.value).lower()
+    assert "overlap" in msg
+    assert "resolved" in msg
+    assert "no_generation" in msg
+
+
+def test_build_canonical_frame__rejects_resolved_no_logs_overlap() -> None:
+    """An instance_id appearing in both resolved and no_logs raises."""
+    from eval_audit.ingest.base import IngestContractError
+
+    universe = _synthetic_universe()
+    overlapping = universe[1]
+    submissions = {
+        "agent": {
+            "model_id": "m",
+            "submission_dir": "agent",
+            "resolved": {overlapping},
+            "no_generation": set(),
+            "no_logs": {overlapping},
+        }
+    }
+
+    with pytest.raises(IngestContractError) as excinfo:
+        build_canonical_frame(task_universe=universe, submissions=submissions)
+
+    msg = str(excinfo.value).lower()
+    assert "overlap" in msg
+    assert "resolved" in msg
+    assert "no_logs" in msg
+
+
+def test_build_canonical_frame__rejects_no_generation_no_logs_overlap() -> None:
+    """An instance_id appearing in both no_generation and no_logs raises."""
+    from eval_audit.ingest.base import IngestContractError
+
+    universe = _synthetic_universe()
+    overlapping = universe[2]
+    submissions = {
+        "agent": {
+            "model_id": "m",
+            "submission_dir": "agent",
+            "resolved": set(),
+            "no_generation": {overlapping},
+            "no_logs": {overlapping},
+        }
+    }
+
+    with pytest.raises(IngestContractError) as excinfo:
+        build_canonical_frame(task_universe=universe, submissions=submissions)
+
+    msg = str(excinfo.value).lower()
+    assert "overlap" in msg
+    assert "no_generation" in msg
+    assert "no_logs" in msg
+
+
+def test_adapter_validate__rejects_truncated_universe() -> None:
+    """Adapter validate() rejects frames where an agent has fewer than 500 unique tasks."""
+    from eval_audit.ingest.base import IngestContractError
+
+    universe = _synthetic_universe()
+    submissions = {
+        "20251127_openhands_claude-opus-4-5": _treatment_submission(universe),
+        "20250807_openhands_gpt5": _control_submission(universe),
+    }
+    frame = build_canonical_frame(task_universe=universe, submissions=submissions)
+    # Drop one row from the treatment agent to truncate its universe to 499.
+    truncated = frame.filter(
+        ~(
+            (pl.col("agent_id") == "20251127_openhands_claude-opus-4-5")
+            & (pl.col("task_id") == universe[0])
+        )
+    )
+
+    with pytest.raises(IngestContractError) as excinfo:
+        SweBenchVerifiedAdapter().validate(truncated)
+
+    msg = str(excinfo.value).lower()
+    assert "499" in msg or "500" in msg
+
+
+def test_adapter_validate__rejects_duplicate_task_id() -> None:
+    """Adapter validate() rejects frames where an agent has a duplicated task_id."""
+    from eval_audit.ingest.base import IngestContractError
+
+    universe = _synthetic_universe()
+    submissions = {
+        "20251127_openhands_claude-opus-4-5": _treatment_submission(universe),
+        "20250807_openhands_gpt5": _control_submission(universe),
+    }
+    frame = build_canonical_frame(task_universe=universe, submissions=submissions)
+    # Pick one row from the treatment agent and clone it with a duplicate task_id.
+    treatment_first = frame.filter(
+        (pl.col("agent_id") == "20251127_openhands_claude-opus-4-5")
+        & (pl.col("task_id") == universe[0])
+    )
+    duplicated = pl.concat([frame, treatment_first], how="vertical")
+
+    with pytest.raises(IngestContractError) as excinfo:
+        SweBenchVerifiedAdapter().validate(duplicated)
+
+    msg = str(excinfo.value).lower()
+    assert "duplicate" in msg
+
+
+def test_adapter_validate__rejects_mismatched_agent_universes() -> None:
+    """Adapter validate() rejects frames where two agents have 500 tasks but different sets."""
+    from eval_audit.ingest.base import IngestContractError
+
+    universe = _synthetic_universe()
+    universe_b = universe[:-1] + [f"repo__pr-{SWE_BENCH_VERIFIED_TASK_COUNT:04d}"]
+    submissions_a = {
+        "agent_a": {
+            "model_id": "m",
+            "submission_dir": "agent_a",
+            "resolved": set(),
+            "no_generation": set(),
+            "no_logs": set(),
+        }
+    }
+    submissions_b = {
+        "agent_b": {
+            "model_id": "m",
+            "submission_dir": "agent_b",
+            "resolved": set(),
+            "no_generation": set(),
+            "no_logs": set(),
+        }
+    }
+    frame_a = build_canonical_frame(task_universe=universe, submissions=submissions_a)
+    frame_b = build_canonical_frame(task_universe=universe_b, submissions=submissions_b)
+    mismatched = pl.concat([frame_a, frame_b], how="vertical")
+
+    with pytest.raises(IngestContractError) as excinfo:
+        SweBenchVerifiedAdapter().validate(mismatched)
+
+    msg = str(excinfo.value).lower()
+    assert "universe" in msg or "differs" in msg

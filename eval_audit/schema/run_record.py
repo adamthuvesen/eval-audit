@@ -69,6 +69,14 @@ class RunRecord(BaseModel):
 
     @model_validator(mode="after")
     def _reconciled_provenance_requires_reconstructed_cost(self) -> RunRecord:
+        # Errored rows are exempt: the errored-row cost policy nulls
+        # reconstructed_per_task_cost_usd (the per-task cost is undefined when
+        # the task did not produce a graded outcome). The `reconciled`
+        # provenance still applies whole-agent — graded rows must have a
+        # non-null reconstructed cost — but per-row exemption keeps the
+        # canonical frame consistent with the policy.
+        if self.outcome_status == OutcomeStatus.ERRORED:
+            return self
         if (
             self.cost_provenance == CostProvenance.RECONCILED
             and self.reconstructed_per_task_cost_usd is None
