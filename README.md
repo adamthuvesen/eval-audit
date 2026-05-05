@@ -106,6 +106,27 @@ HAL Generalist and 44% under Tool Calling on TAU-bench Airline. The same model
 on the same benchmark shifts by 12 pp across scaffolds, which is exactly why
 benchmark rows should not be read as pure model effects.
 
+## Bring your own data
+
+`eval-audit` works on any task-level eval data shaped to the canonical
+`RunRecord` contract. The fastest way in:
+
+```bash
+eval-audit init my-study               # scaffold ./my-study/{study.yaml,runs.parquet,make_runs.py,README.md}
+# edit my-study/make_runs.py with your data, then:
+python my-study/make_runs.py           # regenerate runs.parquet from inline data
+eval-audit validate my-study/runs.parquet my-study/study.yaml
+eval-audit analyze  my-study/study.yaml --runs my-study/runs.parquet
+```
+
+The scaffold round-trips out-of-the-box — `validate` and `analyze` succeed on
+the toy data immediately after `init`, so you have a working example to
+edit. See
+[`examples/byo-minimal/README.md`](examples/byo-minimal/README.md) for the
+worked walkthrough and
+[`agents/docs/INPUT_CONTRACT.md`](agents/docs/INPUT_CONTRACT.md) for the
+formal field-by-field reference.
+
 ## Quickstart
 
 Install dependencies:

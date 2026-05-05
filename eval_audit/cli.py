@@ -18,7 +18,9 @@ from pathlib import Path
 
 import typer
 
+from eval_audit.cli_templates import SLUG_RE, ScaffoldError, scaffold_byo_study
 from eval_audit.fixtures import benchmark_dir_name
+from eval_audit.ingest import IngestContractError
 from eval_audit.ingest.generic import load_run_records
 from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
@@ -269,6 +271,74 @@ def report_cmd(
         bootstrap_seed=bootstrap_seed,
     )
     typer.echo(f"wrote {target}")
+
+
+@app.command(name="init")
+def init_cmd(
+    name: str = typer.Argument(..., help="Kebab-case slug for the new BYO study."),
+    cwd: Path = typer.Option(
+        None,
+        "--cwd",
+        help="Working directory (defaults to the user's CWD; primarily for tests).",
+    ),
+) -> None:
+    """Scaffold a new BYO study directory at ./<name>/."""
+    if not SLUG_RE.match(name):
+        typer.echo(
+            f"invalid slug {name!r}: name must match ^[a-z0-9][a-z0-9-]*$ "
+            "(e.g. 'my-study'). Lowercase letters, digits, and hyphens only; "
+            "must start with a letter or digit.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    base = cwd if cwd is not None else Path.cwd()
+    target = base / name
+    if target.exists() and any(target.iterdir()):
+        typer.echo(
+            f"target directory is not empty: {target}. "
+            "Refusing to clobber existing files. "
+            "Remove the directory yourself if you want to start over.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        scaffold_byo_study(target, study_id=name)
+    except ScaffoldError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"created {target.resolve()}")
+
+
+@app.command(name="validate")
+def validate_cmd(
+    runs: Path = typer.Argument(..., help="Path to a canonical RunRecord-shaped parquet."),
+    study: Path = typer.Argument(..., help="Path to a StudySpec YAML file."),
+) -> None:
+    """Pre-flight check: validate a runs parquet and a study YAML in isolation."""
+    from pydantic import ValidationError
+
+    if not runs.exists():
+        typer.echo(f"runs path does not exist: {runs}", err=True)
+        raise typer.Exit(code=1)
+    try:
+        frame = load_run_records(runs)
+    except IngestContractError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    if not study.exists():
+        typer.echo(f"study path does not exist: {study}", err=True)
+        raise typer.Exit(code=1)
+    try:
+        study_spec = StudySpec.from_yaml(study)
+    except ValidationError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
+    typer.echo(f"OK: {frame.height} rows, study {study_spec.id!r}")
 
 
 if __name__ == "__main__":
