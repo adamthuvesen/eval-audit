@@ -106,12 +106,52 @@ HAL Generalist and 44% under Tool Calling on TAU-bench Airline. The same model
 on the same benchmark shifts by 12 pp across scaffolds, which is exactly why
 benchmark rows should not be read as pure model effects.
 
+## Controlled original-evidence audit
+
+Exhibits A and B above are reanalyses of *public* HAL run records — useful for
+showing what an audit looks like, but limited by what someone else already
+shipped. The next category is different: a small, predeclared, *original* run
+that we own end-to-end.
+
+### Exhibit C: HumanEval (Claude Haiku 4.5 vs Claude Sonnet 4.6)
+
+[reports/exhibit-c/report.md](reports/exhibit-c/report.md) is a
+**controlled original-evidence** audit, not a reanalysis. The run design was
+locked in [scouting/exhibit-c-decision.md](scouting/exhibit-c-decision.md)
+and [scouting/exhibit-c/run-plan.md](scouting/exhibit-c/run-plan.md) before
+any model call was made: 30 HumanEval tasks (sampled with seed=42),
+`eval-audit/exhibit-c-direct-v1` thin direct-completion harness with no
+tools, two reruns per (agent, task) at temperature=0, errored-row policy
+inherited from v0.
+
+Headline: Sonnet 60/60 (100%) vs Haiku 53/60 (88.3%) → +11.67 pp with
+bootstrap CI [+1.67 pp, +23.33 pp]. Adjusted p = 0.0504 (just barely above
+α=0.05) and the verdict is:
+
+```text
+inconclusive_no_action
+```
+
+The decision impact is honest about the resolution: a 30-task run can place
+the effect's CI but not separate it from noise at the declared MDE. The
+report's Verdict Sensitivity section shows the verdict flips to `switch` at
+α=0.10, which is the kind of caveat an audit should make visible rather than
+bury.
+
+This is the only exhibit in the repo built from runs we authored ourselves,
+and it is deliberately small. `eval-audit` is still not a benchmark runner;
+Exhibit C is a single declared claim under one locked harness, committed
+end-to-end so the methodology loop can be inspected from raw API responses
+through to the rendered verdict.
+
 ## Example reports
 
-The three committed reports exercise different decision verbs and provenance paths.
+The four committed reports exercise different decision verbs, evidence
+modes, and provenance paths.
 
 - [reports/exhibit-a/report.md](reports/exhibit-a/report.md) — verdict `hedge_on_cost`. Single-claim within-harness reanalysis (HAL Generalist on GAIA) with `reconciled` cost provenance.
 - [reports/exhibit-b/report.md](reports/exhibit-b/report.md) — three pairwise claims producing two `hedge_on_cost` verdicts and one `drop_from_shortlist`. Exercises the `as_reported_only` cost-provenance path.
+- [reports/exhibit-c/report.md](reports/exhibit-c/report.md) — verdict `inconclusive_no_action`. Controlled original-evidence audit on HumanEval (Haiku 4.5 vs Sonnet 4.6) with `reconciled` cost provenance and a predeclared run plan.
 - [reports/byo-minimal/report.md](reports/byo-minimal/report.md) — synthetic worked example producing a `switch` verdict. Demonstrates the bring-your-own-data path end-to-end.
 
 ## Decision pattern gallery
@@ -179,6 +219,20 @@ Render reports:
 uv run eval-audit report studies/exhibit-a.yaml
 uv run eval-audit report studies/exhibit-b.yaml
 ```
+
+Reproduce Exhibit C (controlled original-evidence audit) from the committed
+canonical fixture — no API keys needed, the runs.parquet is committed:
+
+```bash
+uv run eval-audit spec validate studies/exhibit-c.yaml
+uv run eval-audit validate examples/exhibit-c/runs.parquet studies/exhibit-c.yaml
+uv run eval-audit analyze studies/exhibit-c.yaml --runs examples/exhibit-c/runs.parquet --bootstrap-iterations 8000 --bootstrap-seed 42
+uv run eval-audit report  studies/exhibit-c.yaml --runs examples/exhibit-c/runs.parquet --bootstrap-iterations 8000 --bootstrap-seed 42
+```
+
+To regenerate Exhibit C from scratch (calls the Anthropic API; needs
+`ANTHROPIC_API_KEY` in `.env.local`; estimated cost <\$1), see
+[scouting/exhibit-c/README.md](scouting/exhibit-c/README.md).
 
 Run the full local check:
 

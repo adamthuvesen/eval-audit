@@ -19,6 +19,7 @@ import pytest
 SNAPSHOTS_DIR = Path(__file__).parent.parent / "report_snapshots"
 SNAPSHOT_PATH_A = SNAPSHOTS_DIR / "exhibit-a-report.md"
 SNAPSHOT_PATH_B = SNAPSHOTS_DIR / "exhibit-b-report.md"
+SNAPSHOT_PATH_C = SNAPSHOTS_DIR / "exhibit-c-report.md"
 SNAPSHOT_PATH_GALLERY = SNAPSHOTS_DIR / "decision-gallery-report.md"
 FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
 FIXED_GIT_COMMIT = "snapshot"
@@ -92,6 +93,35 @@ def _check_snapshot(snapshot_path: Path, rendered: str, label: str) -> None:
     )
 
 
+def _render_exhibit_c(repo_root: Path) -> str:
+    """Render Exhibit C — controlled original-evidence audit on HumanEval.
+
+    Uses the generic BYO loader against the committed canonical parquet at
+    ``examples/exhibit-c/runs.parquet``. Exhibit C is original evidence
+    (analysis_mode=preregistered), so the parquet is the source of truth —
+    not regenerated from a ``make_runs.py`` script at session start.
+    """
+    from eval_audit.ingest.generic import load_run_records
+    from eval_audit.report.markdown import render_report
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
+
+    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-c.yaml")
+    runs = load_run_records(repo_root / "examples" / "exhibit-c" / "runs.parquet")
+    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+    return render_report(
+        result,
+        study,
+        runs,
+        clock=lambda: FIXED_CLOCK,
+        git_commit=FIXED_GIT_COMMIT,
+        fixture_sha256=FIXED_FIXTURE_SHA,
+        repo_root=repo_root,
+        bootstrap_iterations=2_000,
+        bootstrap_seed=42,
+    )
+
+
 def _render_decision_gallery(repo_root: Path) -> str:
     from eval_audit.ingest.generic import load_run_records
     from eval_audit.report.markdown import render_report
@@ -124,6 +154,11 @@ def test_report_snapshot__exhibit_a_matches_committed_snapshot(repo_root: Path) 
 def test_report_snapshot__exhibit_b_matches_committed_snapshot(repo_root: Path) -> None:
     rendered = _render_exhibit_b(repo_root)
     _check_snapshot(SNAPSHOT_PATH_B, rendered, "Exhibit B")
+
+
+def test_report_snapshot__exhibit_c_matches_committed_snapshot(repo_root: Path) -> None:
+    rendered = _render_exhibit_c(repo_root)
+    _check_snapshot(SNAPSHOT_PATH_C, rendered, "Exhibit C")
 
 
 def test_report_snapshot__decision_gallery_matches_committed_snapshot(

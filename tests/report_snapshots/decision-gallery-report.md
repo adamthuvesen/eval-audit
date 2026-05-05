@@ -18,7 +18,7 @@
 
 ### Claim `inconclusive_no_action_pattern`
 
-- **Verdict:** `inconclusive_no_action` — No decision rule fires cleanly: the data is neither significantly directional, Pareto-dominated, nor cost-driven by the threshold. The audit produces no actionable verdict from this evidence. Action: keep the current selection until additional evidence (more N, broader benchmarks, or cost data) shifts the picture.
+- **Verdict:** `inconclusive_no_action` — The bootstrap CI for the delta is one-sided (does not cross zero), but the correction-adjusted p-value does not reject at α — the audit's declared inference contract requires a significant correction-adjusted test before claiming direction. No dominance or cost-gap rule fires. Action: keep the current selection until additional evidence (more N to tighten the test, or cost data that triggers the cost-gap rule) shifts the picture.
 - **Claim status:** inconclusive
 - **Why:** delta +40.00 pp with bootstrap CI [+10.00 pp, +70.00 pp] over 10 paired tasks; treatment is 0.67x the control's cost
 - **What would change it:** ~350 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
@@ -97,7 +97,7 @@
 | baseline | locked | inconclusive_no_action |
 | alpha | 0.01 | inconclusive_no_action |
 | alpha | 0.10 | switch ← flips |
-| errored_policy | excluded | switch ← flips |
+| errored_policy | excluded | inconclusive_no_action |
 | correction_method | none | switch ← flips |
 | cost_gap_threshold | 0.05 | inconclusive_no_action |
 | cost_gap_threshold | 0.20 | inconclusive_no_action |
@@ -129,7 +129,7 @@
 | Dimension | Result | Notes |
 |---|---|---|
 | Multiple-comparison correction | does not survive | verdict flips at α=0.10, correction=none |
-| Errored-row policy | does not survive | verdict flips when errored rows excluded (inconclusive_no_action → switch) |
+| Errored-row policy | survives | verdict unchanged when errored rows excluded |
 | Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
 | Target MDE | does not survive | CI half-width 30.00 pp > MDE 5.00 pp; under-resolved |
 | Cost provenance | does not survive | n/a |

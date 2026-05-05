@@ -13,6 +13,13 @@ Three of the four perturbations are cheap (no re-bootstrap):
 The errored-row exclusion perturbation is the only expensive one — it
 recomputes per-agent successes/n_total/Wilson CI and re-runs the paired-task
 bootstrap on the graded-only frame.
+
+**Rejection basis invariant.** Every perturbation MUST derive ``rejects_null``
+from the same statistic the baseline does — the correction-adjusted paired
+p-value vs alpha. Using bootstrap CI overlap as a substitute is not
+equivalent (the two can disagree near the boundary, e.g. p = 0.0504 with a
+CI that excludes zero) and would mean the perturbation reports a verdict
+shift caused by switching the test, not by switching the policy.
 """
 
 from __future__ import annotations
@@ -25,6 +32,7 @@ from eval_audit.report.decisions import ClaimContext, decision_impact, direction
 from eval_audit.schema import StudySpec
 from eval_audit.stats import AnalysisResult, ClaimResult
 from eval_audit.stats.bootstrap import paired_task_bootstrap
+from eval_audit.stats.correction import benjamini_hochberg, holm_bonferroni
 from eval_audit.stats.intervals import wilson_interval
 from eval_audit.stats.outcomes import success_rate_numeric_expr
 from eval_audit.stats.pareto import pareto_frontier
@@ -142,11 +150,39 @@ def verdict_with_errored_excluded(
 ) -> str:
     """Re-derive the verdict with errored rows excluded from the denominator.
 
-    This is the only perturbation that re-runs the bootstrap and Wilson CI.
-    The Pareto frontier and per-agent costs are recomputed from graded-only
-    rows so the verdict is internally consistent with the perturbed denominator.
+    No-op short-circuit: if neither arm in the claim has any errored rows,
+    excluding errored rows is by definition a no-op, and the perturbation
+    returns the baseline verdict. The pre-fix code skipped this check and
+    instead recomputed the bootstrap CI and used CI overlap as the rejection
+    signal, which can disagree with the baseline's adjusted-p test near the
+    boundary (e.g. p = 0.0504 with a one-sided CI). That disagreement showed
+    up as a spurious verdict flip on Exhibit C, where ``n_errored == 0``.
+
+    With at least one errored row on either arm, the perturbation:
+
+    1. Recomputes the paired-task p-value on the graded-only frame.
+    2. Re-applies the study's correction method across the claim family,
+       substituting the perturbed claim's raw p so the adjusted p reflects
+       the same correction the baseline used.
+    3. Recomputes the bootstrap CI for the verdict's CI-crosses-zero
+       branch, the per-agent Wilson summary for the Pareto frontier, and
+       per-agent cost from the graded-only frame.
+
+    The key invariant: ``rejects_null`` is derived from
+    ``adjusted_p_value <= alpha`` — the same statistic the baseline uses.
     """
     alpha = study.inference.alpha
+    n_errored_in_claim = (
+        runs.filter(
+            pl.col("agent_id").is_in([claim.treatment, claim.control])
+            & (pl.col("outcome_status") == "errored")
+        ).height
+    )
+    if n_errored_in_claim == 0:
+        # No-op perturbation: excluding zero rows leaves the denominator,
+        # paired p, bootstrap CI, Pareto frontier, and costs unchanged.
+        return _baseline_verdict(claim, result, study)
+
     graded = runs.filter(pl.col("outcome_status") == "graded")
 
     treatment_rows = graded.filter(pl.col("agent_id") == claim.treatment)
@@ -155,19 +191,7 @@ def verdict_with_errored_excluded(
     if treatment_rows.height == 0 or control_rows.height == 0:
         # Degenerate perturbation (every row errored on one arm). Fall back to
         # the baseline verdict so the table renders without crashing.
-        return decision_impact(
-            _build_context(
-                claim,
-                rejects_null=claim.rejects_null,
-                delta_ci_low=claim.delta_ci_low,
-                delta_ci_high=claim.delta_ci_high,
-                treatment_is_dominated=claim.treatment not in result.pareto_frontier,
-                direction_matches_claim=direction_matches_claim(
-                    study.primary_outcome.direction,
-                    claim.delta_point_estimate,
-                ),
-            )
-        )
+        return _baseline_verdict(claim, result, study)
 
     # Recompute paired-task bootstrap on the graded-only frame after explicitly
     # aligning task sets; the bootstrap helper refuses mismatched task ids.
@@ -177,19 +201,7 @@ def verdict_with_errored_excluded(
     treatment_rows = treatment_rows.filter(pl.col("task_id").is_in(common_tasks))
     control_rows = control_rows.filter(pl.col("task_id").is_in(common_tasks))
     if treatment_rows.height < 2 or control_rows.height < 2:
-        return decision_impact(
-            _build_context(
-                claim,
-                rejects_null=claim.rejects_null,
-                delta_ci_low=claim.delta_ci_low,
-                delta_ci_high=claim.delta_ci_high,
-                treatment_is_dominated=claim.treatment not in result.pareto_frontier,
-                direction_matches_claim=direction_matches_claim(
-                    study.primary_outcome.direction,
-                    claim.delta_point_estimate,
-                ),
-            )
-        )
+        return _baseline_verdict(claim, result, study)
 
     boot = paired_task_bootstrap(
         treatment_rows,
@@ -200,9 +212,29 @@ def verdict_with_errored_excluded(
         seed=bootstrap_seed,
     )
 
-    # Use the bootstrap CI's overlap with zero as the rejection signal — equivalent
-    # to a 1-alpha CI test on the bootstrap distribution.
-    rejects = not (boot.delta_ci_low <= 0.0 <= boot.delta_ci_high)
+    # Recompute paired raw p on the graded-only frame and re-apply the study's
+    # correction across the family. This keeps the rejection basis identical
+    # to the baseline (correction-adjusted paired-p test vs alpha).
+    from eval_audit.stats.analyze import paired_task_p_value
+
+    perturbed_raw_p = paired_task_p_value(treatment_rows, control_rows)
+    raw_p_pairs: list[tuple[str, float]] = []
+    for c in result.claims:
+        rp = perturbed_raw_p if c.claim_id == claim.claim_id else c.raw_p_value
+        raw_p_pairs.append((c.claim_id, rp))
+    if study.inference.correction_method == "holm_bonferroni":
+        corrected = holm_bonferroni(raw_p_pairs, alpha=alpha)
+    elif study.inference.correction_method == "benjamini_hochberg":
+        corrected = benjamini_hochberg(raw_p_pairs, alpha=alpha)
+    else:
+        # Should never happen given the StudySpec validator; fall back conservatively.
+        corrected = [
+            (cid, rp, rp, rp <= alpha) for (cid, rp) in raw_p_pairs
+        ]
+    perturbed_adj_p = next(
+        adj for (cid, _rp, adj, _rej) in corrected if cid == claim.claim_id
+    )
+    rejects = perturbed_adj_p <= alpha
 
     # Pareto dominance: recompute against ALL agents in the study under
     # graded-only stats, so the frontier definition matches analyze() at baseline.
