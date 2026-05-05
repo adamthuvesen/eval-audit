@@ -1,0 +1,48 @@
+# Bring-your-own-data minimal example.
+#
+# A toy 2-agent 10-task audit demonstrating the eval-audit input contract.
+# See agents/docs/INPUT_CONTRACT.md for the full field-by-field RunRecord
+# reference and BYO-data guidance.
+
+id: byo-minimal
+benchmark: byo-minimal
+analysis_mode: declared_reanalysis
+data_observation: summary_seen
+harness: byo-minimal
+
+primary_outcome:
+  name: success_rate
+  unit: task
+  direction: higher_is_better
+
+agents:
+  - id: alice
+  - id: bob
+
+design:
+  task_sampling: fixed_public_validation_set
+  run_strategy: observed_public_runs
+  observed_runs_per_agent: 1
+  rerun_policy: recommend_if_decision_sensitive
+
+inference:
+  alpha: 0.05
+  correction_method: holm_bonferroni
+  comparison_family: declared_claims
+  target_mde: 0.05
+
+cost:
+  metrics:
+    - reconstructed_per_task_cost_usd
+  primary_view: pareto_frontier
+
+claims:
+  - id: alice_vs_bob
+    text: >-
+      Alice (8/10 = 80%) outperforms Bob (4/10 = 40%) on the toy 10-task BYO
+      benchmark while costing 2x more per task ($0.10 vs $0.05). This worked
+      example demonstrates the canonical input contract; the audit verdict
+      should be unambiguous given the deliberately wide success-rate gap.
+    treatment: alice
+    control: bob
+    outcome: success_rate
