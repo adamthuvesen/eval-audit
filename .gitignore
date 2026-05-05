@@ -32,8 +32,8 @@ htmlcov/
 *.local.json
 
 # Claude / agent local state
-.claude/settings.local.json
-.claude/projects/
+.claude/
+.codex/
 worktrees/
 openspec/
 
