@@ -1,0 +1,53 @@
+{
+  "study_id": "exhibit-c",
+  "per_agent": [
+    {
+      "agent_id": "exhibit-c-haiku-4-5",
+      "n_graded": 60,
+      "n_errored": 0,
+      "success_rate": 0.8833333333333333,
+      "success_rate_ci_low": 0.7782121197582914,
+      "success_rate_ci_high": 0.9423227935994396,
+      "total_cost_usd": 0.0522984,
+      "cost_per_success_usd": 0.0009867622641509435
+    },
+    {
+      "agent_id": "exhibit-c-sonnet-4-6",
+      "n_graded": 60,
+      "n_errored": 0,
+      "success_rate": 1.0,
+      "success_rate_ci_low": 0.93982814785791,
+      "success_rate_ci_high": 1.0,
+      "total_cost_usd": 0.104484,
+      "cost_per_success_usd": 0.0017414
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "sonnet46_vs_haiku45_on_humaneval30",
+      "text": "On a 30-task HumanEval slice (seed=42) under the `eval-audit/exhibit-c-direct-v1` thin direct-completion harness with tools disabled and temperature=0, Claude Sonnet 4.6 is compared against Claude Haiku 4.5 on success_rate. The audit asks whether any observed gap is statistically distinguishable from noise on n=30 (target MDE 0.10), and what the cost-quality tradeoff looks like at the price-table date 2026-05-03.",
+      "treatment": "exhibit-c-sonnet-4-6",
+      "control": "exhibit-c-haiku-4-5",
+      "delta_point_estimate": 0.1166666666666667,
+      "delta_ci_low": 0.01666666666666672,
+      "delta_ci_high": 0.23333333333333328,
+      "raw_p_value": 0.05040694161721571,
+      "adjusted_p_value": 0.05040694161721571,
+      "rejects_null": false,
+      "treatment_total_cost_usd": 0.104484,
+      "control_total_cost_usd": 0.0522984,
+      "bootstrap": [
+        0.1166666666666667,
+        0.01666666666666672,
+        0.23333333333333328,
+        8000,
+        42
+      ]
+    }
+  ],
+  "pareto_frontier": [
+    "exhibit-c-haiku-4-5",
+    "exhibit-c-sonnet-4-6"
+  ],
+  "bootstrap_seed": 42
+}

@@ -51,7 +51,16 @@ checkpoints/
 # Scouting fixtures are intentionally tracked (they are the contract for the
 # next change). The exception below overrides the *.parquet rule above.
 !scouting/**/*.parquet
+# Exhibit C's canonical RunRecord parquet is the only path-of-record for the
+# controlled run (provider non-determinism means it cannot be regenerated
+# byte-identically from a re-run). Track it. Other example/* parquets stay
+# gitignored — they are regenerated from `make_runs.py` at test time.
+!examples/exhibit-c/runs.parquet
 
 # Local scouting download cache: encrypted zips and decrypted JSON traces.
 # Regenerable from huggingface.co/datasets/agent-evals/hal_traces.
 .scout-cache/
+
+# Exhibit C raw + graded API responses (regeneratable from API + grader).
+scouting/exhibit-c/raw/
+scouting/exhibit-c/graded/

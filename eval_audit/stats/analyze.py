@@ -65,7 +65,7 @@ class AnalysisResult:
     bootstrap_seed: int
 
 
-def _paired_task_p_value(
+def paired_task_p_value(
     treatment_rows: pl.DataFrame,
     control_rows: pl.DataFrame,
 ) -> float:
@@ -74,6 +74,9 @@ def _paired_task_p_value(
     For each task, compute the per-task mean success on each arm (averaging over seeds
     when present), then run a paired t-test on the per-task differences. This respects
     within-task clustering, which a naive 2-proportion z-test would ignore.
+
+    Public so the report-rendering layer can recompute paired p-values for
+    sensitivity perturbations against the same statistic the baseline uses.
     """
     success_expr = success_rate_numeric_expr()
     a_means = treatment_rows.group_by("task_id").agg(success_expr.mean().alias("_a"))
@@ -259,7 +262,7 @@ def analyze(
         )
         bootstraps[claim.id] = boot
 
-        raw_p = _paired_task_p_value(treatment_rows, control_rows)
+        raw_p = paired_task_p_value(treatment_rows, control_rows)
         raw_p_pairs.append((claim.id, raw_p))
 
     if study.inference.correction_method == "holm_bonferroni":

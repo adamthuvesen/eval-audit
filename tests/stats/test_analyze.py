@@ -158,7 +158,7 @@ def test_analyze__benjamini_hochberg_dispatches_to_bh(monkeypatch) -> None:
     def fake_p_value(_treatment_rows, _control_rows) -> float:
         return next(raw_p_values)
 
-    monkeypatch.setattr(analyze_module, "_paired_task_p_value", fake_p_value)
+    monkeypatch.setattr(analyze_module, "paired_task_p_value", fake_p_value)
 
     treatment = "agent_t"
     control = "agent_c"

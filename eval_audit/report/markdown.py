@@ -60,10 +60,12 @@ _VERDICT_RATIONALE: dict[str, str] = {
         "your use case."
     ),
     "inconclusive_no_action": (
-        "No decision rule fires cleanly: the data is neither significantly directional, "
-        "Pareto-dominated, nor cost-driven by the threshold. The audit produces no "
-        "actionable verdict from this evidence. Action: keep the current selection until "
-        "additional evidence (more N, broader benchmarks, or cost data) shifts the picture."
+        "The bootstrap CI for the delta is one-sided (does not cross zero), but the "
+        "correction-adjusted p-value does not reject at α — the audit's declared "
+        "inference contract requires a significant correction-adjusted test before "
+        "claiming direction. No dominance or cost-gap rule fires. Action: keep the "
+        "current selection until additional evidence (more N to tighten the test, or "
+        "cost data that triggers the cost-gap rule) shifts the picture."
     ),
 }
 
@@ -472,10 +474,139 @@ _DECISION_DOC_ALIAS = {
 }
 
 
-def _resolve_decision_doc(repo_root: Path, benchmark: str) -> tuple[Path, str]:
-    """Return (path, relative_label) for the per-benchmark scouting decision doc."""
-    filename = _DECISION_DOC_ALIAS.get(benchmark, f"{benchmark}-decision.md")
-    return repo_root / "scouting" / filename, f"scouting/{filename}"
+def _dominant_cost_provenance(runs: pl.DataFrame) -> str:
+    """Most-frequent ``cost_provenance`` value in the runs frame.
+
+    Used by controlled-evidence reports where there is no scouting
+    cost-reconciliation.json — provenance is per-row in the canonical parquet.
+    Falls back to ``n/a`` when the column is absent or empty.
+    """
+    if "cost_provenance" not in runs.columns or runs.is_empty():
+        return "n/a"
+    counts = runs.group_by("cost_provenance").len().sort("len", descending=True)
+    if counts.is_empty():
+        return "n/a"
+    return str(counts.row(0)[0])
+
+
+def _render_provenance_controlled_evidence(
+    study: StudySpec,
+    runs: pl.DataFrame,
+    repo_root: Path,
+    cost_provenance_class: str,
+) -> list[str]:
+    """Provenance block for controlled original-evidence exhibits.
+
+    Surfaces the run-design artifact, task source, harness/scaffold version,
+    model arms, run dates, rerun policy, and cost provenance class. Pulls
+    its data from the runs frame's ``rerun_metadata`` column and the study
+    spec — no scouting/candidates fixture is required.
+
+    Spec source: ``controlled-evidence-exhibits``: "Controlled evidence
+    reports identify original run provenance".
+    """
+    parts: list[str] = []
+
+    run_plan_rel = f"scouting/{study.id}/run-plan.md"
+    decision_rel = f"scouting/{study.id}-decision.md"
+    run_plan_exists = (repo_root / run_plan_rel).exists()
+    decision_exists = (repo_root / decision_rel).exists()
+
+    parts.append(
+        "- **mode:** `controlled_original_runs` — predeclared run, paired arms on "
+        "the same task IDs under one harness; this is original evidence, not "
+        "public-data reanalysis or a synthetic example."
+    )
+    if run_plan_exists:
+        parts.append(f"- **run_plan:** `{run_plan_rel}`")
+    if decision_exists:
+        parts.append(f"- **decision_doc:** `{decision_rel}`")
+
+    # Pull provenance from rerun_metadata. Use the first row to read fields
+    # that are constant across rows (harness, harness_commit, task_source,
+    # price_table_date) and aggregate where they vary (model_id, rerun count).
+    if not runs.is_empty() and "rerun_metadata" in runs.columns:
+        first_meta: dict = runs.row(0, named=True)["rerun_metadata"] or {}
+        task_source = first_meta.get("task_source")
+        harness_commit = first_meta.get("harness_commit")
+        rerun_policy = first_meta.get("rerun_policy")
+        price_table_date = first_meta.get("price_table_date")
+
+        if task_source:
+            parts.append(f"- **task_source:** `{task_source}`")
+        harness_line = f"- **harness:** `{study.harness}`"
+        if harness_commit and harness_commit != "unknown":
+            harness_line += f" at git commit `{harness_commit}`"
+        parts.append(harness_line)
+
+        # Model arms with their concrete model_ids and run counts.
+        arm_summary = (
+            runs.group_by(["agent_id", "model_id"])
+            .agg(pl.col("run_id").n_unique().alias("n_runs"))
+            .sort("agent_id")
+        )
+        parts.append("- **model_arms:**")
+        for row in arm_summary.iter_rows(named=True):
+            parts.append(
+                f"  - `{row['agent_id']}` → `{row['model_id']}` "
+                f"({row['n_runs']} run(s) per task)"
+            )
+
+        if rerun_policy:
+            parts.append(f"- **rerun_policy:** `{rerun_policy}`")
+
+        # Run date range from the timestamp column.
+        if "timestamp" in runs.columns:
+            with_ts = runs.filter(pl.col("timestamp").is_not_null())
+            if not with_ts.is_empty():
+                ts_min = with_ts["timestamp"].min()
+                ts_max = with_ts["timestamp"].max()
+                if ts_min == ts_max:
+                    parts.append(f"- **run_dates:** `{ts_min.date().isoformat()}` (UTC)")
+                else:
+                    parts.append(
+                        f"- **run_dates:** `{ts_min.date().isoformat()}` to "
+                        f"`{ts_max.date().isoformat()}` (UTC)"
+                    )
+
+        if price_table_date:
+            parts.append(f"- **price_table_pinned_at:** `{price_table_date}`")
+    else:
+        parts.append(f"- **harness:** `{study.harness}`")
+
+    # Cost provenance class with row-level coverage when known.
+    if "cost_provenance" in runs.columns and not runs.is_empty():
+        total = runs.height
+        match = runs.filter(pl.col("cost_provenance") == cost_provenance_class).height
+        parts.append(
+            f"- **cost_provenance:** `{cost_provenance_class}` ({match}/{total} rows)"
+        )
+    else:
+        parts.append(f"- **cost_provenance:** `{cost_provenance_class}`")
+
+    parts.append("")
+    return parts
+
+
+def _resolve_decision_doc(
+    repo_root: Path, benchmark: str, study_id: str
+) -> tuple[Path, str]:
+    """Return (path, relative_label) for the per-study scouting decision doc.
+
+    Resolution order: benchmark alias → ``<benchmark>-decision.md`` if it
+    exists → ``<study_id>-decision.md``. The third fallback supports
+    controlled-evidence exhibits whose decision doc is keyed by the study id
+    (e.g. Exhibit C uses ``scouting/exhibit-c-decision.md``) rather than by
+    a public-benchmark name.
+    """
+    if benchmark in _DECISION_DOC_ALIAS:
+        filename = _DECISION_DOC_ALIAS[benchmark]
+        return repo_root / "scouting" / filename, f"scouting/{filename}"
+    by_benchmark = repo_root / "scouting" / f"{benchmark}-decision.md"
+    if by_benchmark.exists():
+        return by_benchmark, f"scouting/{benchmark}-decision.md"
+    by_study = repo_root / "scouting" / f"{study_id}-decision.md"
+    return by_study, f"scouting/{study_id}-decision.md"
 
 
 def _extract_residual_risks(decision_md_path: Path, relative_label: str) -> str:
@@ -548,7 +679,9 @@ def render_report(
     baseline's iteration count and seed.
     """
     _validate_report_outcome(study)
-    decision_md, decision_md_label = _resolve_decision_doc(repo_root, study.benchmark)
+    decision_md, decision_md_label = _resolve_decision_doc(
+        repo_root, study.benchmark, study.id
+    )
     benchmark_dir = benchmark_dir_name(study.benchmark)
     cost_recon = (
         repo_root
@@ -568,6 +701,9 @@ def render_report(
     if cost_recon.exists():
         cost_recon_data = json.loads(cost_recon.read_text())
         cost_provenance_class = cost_recon_data.get("outcome", "n/a")
+    elif study.analysis_mode == "preregistered":
+        # Controlled-evidence path: cost provenance is per-row in the runs frame.
+        cost_provenance_class = _dominant_cost_provenance(runs)
     source_url = ""
     retrieved_at = ""
     if provenance.exists():
@@ -604,12 +740,19 @@ def render_report(
 
     # 3. Provenance
     parts.append("## Provenance\n")
-    parts.append(f"- **source_fixture:** `scouting/candidates/{benchmark_dir}/sample.parquet`")
-    parts.append(f"- **source_url:** {source_url}")
-    parts.append(f"- **retrieved_at:** `{retrieved_at}`")
-    parts.append(f"- **price_table_pinned_at:** `{PRICE_TABLE_PINNED_AT}`")
-    parts.append(f"- **cost_provenance:** `{cost_provenance_class}`")
-    parts.append("")
+    if study.analysis_mode == "preregistered":
+        parts.extend(
+            _render_provenance_controlled_evidence(
+                study, runs, repo_root, cost_provenance_class
+            )
+        )
+    else:
+        parts.append(f"- **source_fixture:** `scouting/candidates/{benchmark_dir}/sample.parquet`")
+        parts.append(f"- **source_url:** {source_url}")
+        parts.append(f"- **retrieved_at:** `{retrieved_at}`")
+        parts.append(f"- **price_table_pinned_at:** `{PRICE_TABLE_PINNED_AT}`")
+        parts.append(f"- **cost_provenance:** `{cost_provenance_class}`")
+        parts.append("")
 
     if cost_provenance_class == "as_reported_only":
         parts.append("### Cost provenance caveat\n")
