@@ -90,6 +90,6 @@
   ],
   "structural_findings": {
     "no_run_level_public_data": "BrowseComp's published artifacts cover the dataset (questions and answers) and aggregate accuracies for the agents OpenAI evaluated in the launch paper. There is no public run-level data, no per-task grading record, and no token/cost telemetry. This makes it unusable as Exhibit A under the v0 selection gates.",
-    "binary_outcome_with_no_uncertainty": "Reported accuracies in the launch paper are single point estimates with no confidence intervals, no seed information, and no per-task indicators \u2014 exactly the methodology gap the rigor project is meant to address. BrowseComp is therefore a useful future target for reanalysis IF run-level data is ever released, but not for v0."
+    "binary_outcome_with_no_uncertainty": "Reported accuracies in the launch paper are single point estimates with no confidence intervals, no seed information, and no per-task indicators \u2014 exactly the methodology gap the eval-audit project is meant to address. BrowseComp is therefore a useful future target for reanalysis IF run-level data is ever released, but not for v0."
   }
 }

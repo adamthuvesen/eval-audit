@@ -8,7 +8,7 @@ from typing import Protocol, runtime_checkable
 import polars as pl
 from pydantic import ValidationError
 
-from rigor.schema import RunRecord
+from eval_audit.schema import RunRecord
 
 
 class IngestContractError(RuntimeError):

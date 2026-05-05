@@ -36,7 +36,7 @@ def test_baseline_verdict_matches_decision_impact_invariant(
     to decision_impact() would produce. The sensitivity table reads the rule
     table; it does not redefine it.
     """
-    from rigor.report.decisions import ClaimContext, decision_impact
+    from eval_audit.report.decisions import ClaimContext, decision_impact
 
     # Skip nonsense cases where lo > hi (hypothesis may generate them).
     if delta_lo > delta_hi:

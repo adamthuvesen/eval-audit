@@ -1,4 +1,4 @@
-"""Acceptance tests for the `rigor report` CLI command."""
+"""Acceptance tests for the `eval-audit report` CLI command."""
 
 from __future__ import annotations
 
@@ -18,11 +18,11 @@ def test_cli_report__default_invocation_runs_validation_first(
     repo_root: Path,
     tmp_path: Path,
 ) -> None:
-    """WHEN the user runs `rigor report studies/exhibit-a.yaml` with no flags,
+    """WHEN the user runs `eval-audit report studies/exhibit-a.yaml` with no flags,
     THEN the synthetic-validation suite runs first and the report is only
     written if it passes.
     """
-    from rigor.cli import app
+    from eval_audit.cli import app
 
     out_dir = tmp_path / "reports"
     result = runner.invoke(
@@ -52,7 +52,7 @@ def test_cli_report__skip_flag_warns(
     THEN a warning containing 'WARNING: synthetic validation skipped' is written
     to stderr before the report is written.
     """
-    from rigor.cli import app
+    from eval_audit.cli import app
 
     out_dir = tmp_path / "reports"
     result = runner.invoke(

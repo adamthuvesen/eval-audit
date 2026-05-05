@@ -1,8 +1,8 @@
 """Pydantic schema for studies, run records, and claims."""
 
-from rigor.schema.enums import CostProvenance, OutcomeStatus
-from rigor.schema.run_record import RunRecord
-from rigor.schema.study import (
+from eval_audit.schema.enums import CostProvenance, OutcomeStatus
+from eval_audit.schema.run_record import RunRecord
+from eval_audit.schema.study import (
     AgentRef,
     Claim,
     CostConfig,

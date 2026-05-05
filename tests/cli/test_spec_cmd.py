@@ -1,4 +1,4 @@
-"""Acceptance tests for the `rigor spec` CLI sub-app."""
+"""Acceptance tests for the `eval-audit spec` CLI sub-app."""
 
 from __future__ import annotations
 
@@ -14,10 +14,10 @@ def runner() -> CliRunner:
 
 
 def test_cli_spec_validate__exits_zero_on_valid_file(runner: CliRunner, repo_root: Path) -> None:
-    """WHEN `rigor spec validate studies/exhibit-a.yaml` is invoked,
+    """WHEN `eval-audit spec validate studies/exhibit-a.yaml` is invoked,
     THEN exit code is 0 and stdout contains a single-line success message naming the study id.
     """
-    from rigor.cli import app
+    from eval_audit.cli import app
 
     result = runner.invoke(app, ["spec", "validate", str(repo_root / "studies" / "exhibit-a.yaml")])
     assert result.exit_code == 0, result.output
@@ -28,10 +28,10 @@ def test_cli_spec_validate__exits_zero_on_valid_file(runner: CliRunner, repo_roo
 def test_cli_spec_validate__exits_nonzero_on_malformed_file(
     runner: CliRunner, tmp_path: Path
 ) -> None:
-    """WHEN `rigor spec validate` is invoked against a YAML file missing required fields,
+    """WHEN `eval-audit spec validate` is invoked against a YAML file missing required fields,
     THEN exit code is non-zero and the pydantic ValidationError is printed verbatim.
     """
-    from rigor.cli import app
+    from eval_audit.cli import app
 
     bad = tmp_path / "broken.yaml"
     bad.write_text("id: x\n")
@@ -44,12 +44,12 @@ def test_cli_spec_validate__exits_nonzero_on_malformed_file(
 def test_cli_spec_render__writes_deterministic_markdown(
     runner: CliRunner, repo_root: Path, tmp_path: Path
 ) -> None:
-    """WHEN `rigor spec render STUDY.yaml --out PATH.md` is invoked twice with same input,
+    """WHEN `eval-audit spec render STUDY.yaml --out PATH.md` is invoked twice with same input,
     THEN both invocations produce byte-identical files and exit zero.
     """
     import hashlib
 
-    from rigor.cli import app
+    from eval_audit.cli import app
 
     out1 = tmp_path / "spec1.md"
     out2 = tmp_path / "spec2.md"
@@ -74,10 +74,10 @@ def test_cli_spec_render__writes_deterministic_markdown(
 def test_cli_spec_render__rejects_unsupported_format(
     runner: CliRunner, repo_root: Path, tmp_path: Path
 ) -> None:
-    """WHEN `rigor spec render --format html` is invoked,
+    """WHEN `eval-audit spec render --format html` is invoked,
     THEN exit code is non-zero with a clear message naming the supported format.
     """
-    from rigor.cli import app
+    from eval_audit.cli import app
 
     out = tmp_path / "spec.html"
     result = runner.invoke(

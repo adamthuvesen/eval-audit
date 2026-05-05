@@ -10,7 +10,7 @@ This writeup pulls the Tool Calling number from our Exhibit B reanalysis (data) 
 
 ## The two numbers
 
-**Tool Calling: 44%.** From [`reports/exhibit-b/analysis.json`](../exhibit-b/analysis.json), produced by `rigor analyze studies/exhibit-b.yaml`. Reproducible:
+**Tool Calling: 44%.** From [`reports/exhibit-b/analysis.json`](../exhibit-b/analysis.json), produced by `eval-audit analyze studies/exhibit-b.yaml`. Reproducible:
 
 ```python
 import json
@@ -59,7 +59,7 @@ What the writeup does *not* claim:
 - That the 12 pp is "scaffold effect, full stop." HAL's two harnesses likely also differ in reasoning effort, prompt layout, and retry budget — confounds the leaderboard does not break out.
 - That HAL Generalist is "better" or "worse" than Tool Calling. Better/worse is downstream of which scaffold matches the deployment context.
 
-## Why this matters for `rigor`
+## Why this matters for `eval-audit`
 
 This is the project's strongest scouting finding. The toolkit's response is procedural: every study spec is locked to a single harness; the analyze step refuses to compare agents across harnesses (`CrossHarnessComparisonError`). A user trying to cross harnesses inside a `StudySpec` is told to open a separate change. The writeup above is what the procedural rule is *protecting against*: it is one number on a leaderboard, and changing the scaffold changes it by ~12 pp without changing the model.
 

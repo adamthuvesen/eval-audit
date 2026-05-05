@@ -11,7 +11,7 @@ FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
 
 
 def _stub_study_for_taubench():
-    from rigor.schema import StudySpec
+    from eval_audit.schema import StudySpec
 
     return StudySpec(
         id="exhibit-b-stub",
@@ -53,9 +53,9 @@ def _stub_study_for_taubench():
 
 
 def _render_taubench_report(repo_root: Path) -> str:
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
-    from rigor.report.markdown import render_report
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.report.markdown import render_report
+    from eval_audit.stats import analyze
 
     study = _stub_study_for_taubench()
     runs = HalTauBenchAdapter().load(repo_root / "scouting" / "candidates" / "tau-bench")
@@ -117,10 +117,10 @@ def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path) -> None:
     """
     import os
 
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
-    from rigor.report.markdown import render_report
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.report.markdown import render_report
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
     runs = HalGaiaAdapter().load(repo_root / "scouting" / "candidates" / "gaia")
@@ -217,10 +217,10 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
     """
     import shutil
 
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
-    from rigor.report.markdown import render_report
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.report.markdown import render_report
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     # Build a shadow repo with the same scouting fixture but no decision doc.
     shadow_root = tmp_path / "shadow"

@@ -323,7 +323,7 @@ def run(check_only: bool = False) -> int:
     Returns the process exit code (0 on success).
     """
     spec = _load_spec()
-    with tempfile.TemporaryDirectory(prefix="rigor-synthetic-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="eval-audit-synthetic-") as tmp:
         tmp_runs = Path(tmp) / "runs.parquet"
         tmp_truth = Path(tmp) / "truth.json"
         rows, truth = _generate_to(spec, tmp_runs, tmp_truth)

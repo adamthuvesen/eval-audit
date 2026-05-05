@@ -11,9 +11,9 @@ import pytest
 
 @pytest.fixture
 def exhibit_a_inputs(repo_root: Path):
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
     adapter = HalGaiaAdapter()
@@ -23,7 +23,7 @@ def exhibit_a_inputs(repo_root: Path):
 
 
 def _render(study, runs, result, repo_root: Path) -> str:
-    from rigor.report.markdown import render_report
+    from eval_audit.report.markdown import render_report
 
     return render_report(
         result,
@@ -132,9 +132,9 @@ def test_report__cross_harness_study_produces_no_report_file(repo_root: Path, tm
     have different harness values, THEN no markdown file is written and a
     CrossHarnessComparisonError propagates.
     """
-    from rigor.report.markdown import render_report_to
-    from rigor.schema import StudySpec
-    from rigor.stats import CrossHarnessComparisonError
+    from eval_audit.report.markdown import render_report_to
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import CrossHarnessComparisonError
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
 
@@ -186,7 +186,7 @@ def test_report__unsupported_lower_is_better_study_is_not_rendered(
     """WHEN rendering receives a StudySpec that bypassed validation with lower_is_better,
     THEN rendering fails before emitting a claim row.
     """
-    from rigor.report.markdown import render_report
+    from eval_audit.report.markdown import render_report
 
     study, runs, result = exhibit_a_inputs
     bad_primary = study.primary_outcome.model_copy(update={"direction": "lower_is_better"})

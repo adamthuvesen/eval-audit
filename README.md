@@ -1,8 +1,8 @@
-# rigor
+# eval-audit
 
 **Verdict-grade evals for agent benchmarks.**
 
-`rigor` turns benchmark claims into auditable decisions. Instead of stopping at
+`eval-audit` turns benchmark claims into auditable decisions. Instead of stopping at
 a leaderboard rank, it asks:
 
 - What claim is being tested?
@@ -21,7 +21,7 @@ Agent benchmark reporting often looks like a scoreboard: point estimates, vague
 run policies, uncorrected pairwise comparisons, and cost treated as metadata.
 That is too weak for model-selection decisions.
 
-`rigor` is a small methodology toolkit for a better default:
+`eval-audit` is a small methodology toolkit for a better default:
 
 > Declare the claim, declare the analysis plan, analyze task-level data, and
 > report only what survives uncertainty, correction, cost, and sensitivity
@@ -91,27 +91,27 @@ uv sync --extra dev
 Validate a study spec:
 
 ```bash
-uv run rigor spec validate studies/exhibit-a.yaml
+uv run eval-audit spec validate studies/exhibit-a.yaml
 ```
 
 Render a study-spec document:
 
 ```bash
-uv run rigor spec render studies/exhibit-a.yaml --out /tmp/exhibit-a-spec.md
+uv run eval-audit spec render studies/exhibit-a.yaml --out /tmp/exhibit-a-spec.md
 ```
 
 Run analysis:
 
 ```bash
-uv run rigor analyze studies/exhibit-a.yaml
-uv run rigor analyze studies/exhibit-b.yaml
+uv run eval-audit analyze studies/exhibit-a.yaml
+uv run eval-audit analyze studies/exhibit-b.yaml
 ```
 
 Render reports:
 
 ```bash
-uv run rigor report studies/exhibit-a.yaml
-uv run rigor report studies/exhibit-b.yaml
+uv run eval-audit report studies/exhibit-a.yaml
+uv run eval-audit report studies/exhibit-b.yaml
 ```
 
 Run the full local check:
@@ -122,7 +122,7 @@ make check
 
 ## Current v0 scope
 
-`rigor` deliberately supports a narrow, honest v0 contract:
+`eval-audit` deliberately supports a narrow, honest v0 contract:
 
 - primary outcome: `success_rate`
 - direction: `higher_is_better`
@@ -137,7 +137,7 @@ only with metric-specific inference and report semantics.
 
 ## Methodology
 
-For success-rate studies, `rigor` uses:
+For success-rate studies, `eval-audit` uses:
 
 - errored rows counted as failures in the headline denominator, with
   `n_errored` still surfaced separately
@@ -152,7 +152,7 @@ For success-rate studies, `rigor` uses:
 ## Repository map
 
 ```text
-rigor/
+eval_audit/
   schema/      StudySpec and RunRecord models
   ingest/      benchmark fixture adapters
   stats/       intervals, bootstrap, correction, analysis, Pareto

@@ -7,14 +7,14 @@ lint:
 	uv run ruff check .
 
 format:
-	uv run ruff format rigor tests
+	uv run ruff format eval_audit tests
 
 check:
 	uv run pytest
 	uv run ruff check .
 
 analyze:
-	uv run rigor analyze studies/exhibit-a.yaml
+	uv run eval-audit analyze studies/exhibit-a.yaml
 
 report:
-	uv run rigor report studies/exhibit-a.yaml
+	uv run eval-audit report studies/exhibit-a.yaml

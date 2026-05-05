@@ -1,6 +1,6 @@
 """Statistical methods for binary outcomes, paired comparisons, and frontier analysis."""
 
-from rigor.stats.analyze import (
+from eval_audit.stats.analyze import (
     AgentSummary,
     AnalysisResult,
     ClaimResult,
@@ -8,10 +8,10 @@ from rigor.stats.analyze import (
     UnsupportedOutcomeError,
     analyze,
 )
-from rigor.stats.bootstrap import BootstrapResult, paired_task_bootstrap
-from rigor.stats.correction import benjamini_hochberg, holm_bonferroni
-from rigor.stats.intervals import wilson_interval
-from rigor.stats.pareto import pareto_frontier
+from eval_audit.stats.bootstrap import BootstrapResult, paired_task_bootstrap
+from eval_audit.stats.correction import benjamini_hochberg, holm_bonferroni
+from eval_audit.stats.intervals import wilson_interval
+from eval_audit.stats.pareto import pareto_frontier
 
 __all__ = [
     "AgentSummary",

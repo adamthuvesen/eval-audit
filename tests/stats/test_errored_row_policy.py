@@ -41,7 +41,7 @@ def _row(
 
 
 def _stub_study(treatment: str, control: str, harness: str = "tau_bench_tool_calling"):
-    from rigor.schema import StudySpec
+    from eval_audit.schema import StudySpec
 
     return StudySpec(
         id="stub",
@@ -135,9 +135,9 @@ def test_errored_row_policy__gaia_exhibit_a_byte_identical(repo_root) -> None:
     in tests/report_snapshots/exhibit-a-report.md, because n_total == n_graded
     when n_errored == 0.
     """
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
     runs = HalGaiaAdapter().load(repo_root / "scouting" / "candidates" / "gaia")
@@ -169,7 +169,7 @@ def test_errored_row_policy__claude_success_rate_matches_leaderboard_044() -> No
     success == True, THEN the Claude per-agent summary reports n_graded == 47,
     n_errored == 3, success_rate == 22/50 == 0.44.
     """
-    from rigor.stats import analyze
+    from eval_audit.stats import analyze
 
     rows = _claude_taubench_rows() + _o4mini_taubench_rows()
     frame = pl.DataFrame(rows, strict=False)
@@ -191,7 +191,7 @@ def test_errored_row_policy__paired_bootstrap_task_set_aligned_with_errored() ->
     task sets'); both arms contribute all 50 task_ids; errored Claude rows aggregate
     as 0.0 in their per-task arm mean.
     """
-    from rigor.stats import analyze
+    from eval_audit.stats import analyze
 
     rows = _claude_taubench_rows() + _o4mini_taubench_rows()
     frame = pl.DataFrame(rows, strict=False)
@@ -213,7 +213,7 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     count of graded successes (an errored row cannot be a success), regardless of
     whether cost_provenance is reconciled or as_reported_only.
     """
-    from rigor.stats import analyze
+    from eval_audit.stats import analyze
 
     # Reconciled path: 10 rows, 2 errored, 5 graded-successes, 3 graded-fail.
     # Each row's reconstructed_per_task_cost_usd = 0.10 (errored rows are None).
@@ -299,7 +299,7 @@ def test_errored_row_policy__property_success_rate_invariants(
     successes, AND success_rate <= n_graded / n_total (an errored row cannot
     increase the success rate vs the graded-only computation).
     """
-    from rigor.stats import analyze
+    from eval_audit.stats import analyze
 
     n_total = n_successes + n_failures + n_errored
     if n_total < 2:  # bootstrap needs at least one task per arm to do anything

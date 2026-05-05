@@ -1,5 +1,5 @@
 {
-  "study_id": "rigor-v0-synthetic-known-truth",
+  "study_id": "eval-audit-v0-synthetic-known-truth",
   "spec_path": "scouting/synthetic/spec.yaml",
   "n_agents": 4,
   "n_tasks": 60,

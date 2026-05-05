@@ -11,7 +11,7 @@ def test_wilson__known_reference_values() -> None:
     """
     from scipy.stats import binomtest
 
-    from rigor.stats import wilson_interval
+    from eval_audit.stats import wilson_interval
 
     point, lo, hi = wilson_interval(54, 100, 0.05)
     ref = binomtest(54, 100).proportion_ci(method="wilson", confidence_level=0.95)
@@ -25,7 +25,7 @@ def test_wilson__edge_case_at_zero_successes() -> None:
     """WHEN wilson_interval(0, 50, 0.05) is called,
     THEN the lower bound equals 0.0 and the upper bound is positive and < 0.1.
     """
-    from rigor.stats import wilson_interval
+    from eval_audit.stats import wilson_interval
 
     point, lo, hi = wilson_interval(0, 50, 0.05)
     assert point == 0.0

@@ -14,7 +14,7 @@
     "https://github.com/openai/simple-evals"
   ],
   "selected_zips": [],
-  "selection_rationale": "Default non-HAL fallback per the design's open question. Included to confirm that the selection gates are not HAL-specific and to surface the broader methodology gap: OpenAI's launch paper for BrowseComp publishes single-point aggregates with no run-level data, no confidence intervals, and no cost figures. This is exactly the kind of benchmark report the rigor project is meant to challenge \u2014 but reanalysis would require data that is not public.",
+  "selection_rationale": "Default non-HAL fallback per the design's open question. Included to confirm that the selection gates are not HAL-specific and to surface the broader methodology gap: OpenAI's launch paper for BrowseComp publishes single-point aggregates with no run-level data, no confidence intervals, and no cost figures. This is exactly the kind of benchmark report the eval-audit project is meant to challenge \u2014 but reanalysis would require data that is not public.",
   "transformations": [
     "extracted aggregate accuracies from OpenAI's BrowseComp launch paper and confirming secondary references",
     "encoded each evaluated configuration as one row (agent_id, model_id, browsing, accuracy, accuracy_lower, accuracy_upper, accuracy_source, note)",

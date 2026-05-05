@@ -28,8 +28,8 @@ def test_hal_tau_bench__loads_canonical_schema_for_three_agents(taubench_dir: Pa
     field as a column, harness == 'tau_bench_tool_calling' for every row, and
     cost_provenance == 'as_reported_only' for every row.
     """
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
-    from rigor.schema import RunRecord
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.schema import RunRecord
 
     adapter = HalTauBenchAdapter()
     frame = adapter.load(taubench_dir)
@@ -48,7 +48,7 @@ def test_hal_tau_bench__errored_rows_preserved_with_success_none(taubench_dir: P
     THEN the 3 rows with raw outcome_status == 'errored' appear in the output with
     success and partial_credit both None, and outcome_status == 'errored' for those rows.
     """
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 
     adapter = HalTauBenchAdapter()
     frame = adapter.load(taubench_dir)
@@ -65,7 +65,7 @@ def test_hal_tau_bench__per_task_cost_reconstruction_not_attempted(taubench_dir:
     THEN reconstructed_per_task_cost_usd is None for that row, AND the row's
     rerun_metadata does NOT include a price_table_pinned_at key.
     """
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 
     adapter = HalTauBenchAdapter()
     frame = adapter.load(taubench_dir)
@@ -82,8 +82,8 @@ def test_hal_tau_bench__outcome_class_drift_fails_ingest(
     'reconciled' while the fixture's per-task tokens still don't reconcile,
     THEN the adapter raises IngestContractError naming the unexpected outcome value.
     """
-    from rigor.ingest import IngestContractError
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.ingest import IngestContractError
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 
     shadow = tmp_path / "tau-bench"
     shutil.copytree(taubench_dir, shadow)
@@ -105,7 +105,7 @@ def test_hal_tau_bench__run_total_replicated_per_agent_run(taubench_dir: Path) -
     reported_run_total_cost_usd, equal to the fixture's run_total_cost_usd for
     that group.
     """
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 
     adapter = HalTauBenchAdapter()
     frame = adapter.load(taubench_dir)
@@ -134,7 +134,7 @@ def test_hal_tau_bench__loaded_fixture_passes_adapter_validation(taubench_dir: P
     """WHEN the committed TAU-bench fixture is loaded,
     THEN the returned frame passes full RunRecord row validation.
     """
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 
     adapter = HalTauBenchAdapter()
     frame = adapter.load(taubench_dir)

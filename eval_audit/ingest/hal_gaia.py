@@ -15,8 +15,8 @@ from pathlib import Path
 
 import polars as pl
 
-from rigor.ingest._prices import PRICE_TABLE, PRICE_TABLE_PINNED_AT
-from rigor.ingest.base import IngestContractError, validate_run_records
+from eval_audit.ingest._prices import PRICE_TABLE, PRICE_TABLE_PINNED_AT
+from eval_audit.ingest.base import IngestContractError, validate_run_records
 
 # Locked column mapping from scouting/exhibit-a-decision.md.
 # raw_name -> semantic_role for the GAIA per_task table.

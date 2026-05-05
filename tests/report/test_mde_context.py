@@ -7,10 +7,10 @@ from pathlib import Path
 
 
 def _render_for_study(study_yaml: Path, repo_root: Path) -> str:
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
-    from rigor.report.markdown import render_report
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.report.markdown import render_report
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     study = StudySpec.from_yaml(study_yaml)
     adapter = HalGaiaAdapter()

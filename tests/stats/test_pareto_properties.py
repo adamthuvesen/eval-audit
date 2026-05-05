@@ -8,7 +8,7 @@ import polars as pl
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from rigor.stats import pareto_frontier
+from eval_audit.stats import pareto_frontier
 
 _SETTINGS = settings(max_examples=100, deadline=2_000)
 

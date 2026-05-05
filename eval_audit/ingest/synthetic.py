@@ -8,7 +8,7 @@ from pathlib import Path
 import polars as pl
 import yaml
 
-from rigor.ingest.base import IngestContractError, validate_run_records
+from eval_audit.ingest.base import IngestContractError, validate_run_records
 
 
 class SyntheticAdapter:

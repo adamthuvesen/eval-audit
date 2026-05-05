@@ -21,9 +21,9 @@ def truth(scouting_dir: Path) -> dict:
 
 @pytest.fixture(scope="module")
 def analysis(scouting_dir: Path):
-    from rigor.ingest.synthetic import SyntheticAdapter
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.synthetic import SyntheticAdapter
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     adapter = SyntheticAdapter()
     runs = adapter.load(scouting_dir / "synthetic")
@@ -84,8 +84,8 @@ def test_synthetic_validation__per_agent_success_rate_within_tolerance(analysis,
 @pytest.mark.synthetic_validation
 def test_synthetic_validation__pairwise_true_effect_ranking_matches(analysis, truth, scouting_dir: Path) -> None:
     """For every pair in truth.json, the recovered point estimate has the right sign."""
-    from rigor.ingest.synthetic import SyntheticAdapter
-    from rigor.stats.bootstrap import paired_task_bootstrap
+    from eval_audit.ingest.synthetic import SyntheticAdapter
+    from eval_audit.stats.bootstrap import paired_task_bootstrap
 
     adapter = SyntheticAdapter()
     runs = adapter.load(scouting_dir / "synthetic")

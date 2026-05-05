@@ -10,8 +10,8 @@ def test_render__produces_all_required_sections(repo_root: Path) -> None:
     THEN the returned string contains all seven section headings in order,
     agents are listed verbatim, and the primary claim text appears once.
     """
-    from rigor.schema import StudySpec
-    from rigor.spec import render_study_spec
+    from eval_audit.schema import StudySpec
+    from eval_audit.spec import render_study_spec
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
     text = render_study_spec(study)
@@ -46,8 +46,8 @@ def test_render__is_byte_identical_across_runs(repo_root: Path) -> None:
     """
     import hashlib
 
-    from rigor.schema import StudySpec
-    from rigor.spec import render_study_spec
+    from eval_audit.schema import StudySpec
+    from eval_audit.spec import render_study_spec
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
     a = render_study_spec(study)
@@ -59,8 +59,8 @@ def test_render__null_target_mde_renders_none_declared(repo_root: Path, tmp_path
     """WHEN a study's inference.target_mde is null,
     THEN the rendered Inference plan section contains 'none declared'.
     """
-    from rigor.schema import StudySpec
-    from rigor.spec import render_study_spec
+    from eval_audit.schema import StudySpec
+    from eval_audit.spec import render_study_spec
 
     src = (repo_root / "studies" / "exhibit-a.yaml").read_text()
     src = src.replace("target_mde: 0.03", "target_mde: null")

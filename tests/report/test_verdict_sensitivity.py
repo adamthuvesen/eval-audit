@@ -13,10 +13,10 @@ FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
 
 @pytest.fixture
 def exhibit_a(repo_root: Path):
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
-    from rigor.report.markdown import render_report
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.report.markdown import render_report
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
     runs = HalGaiaAdapter().load(repo_root / "scouting" / "candidates" / "gaia")
@@ -37,10 +37,10 @@ def exhibit_a(repo_root: Path):
 
 @pytest.fixture
 def exhibit_b(repo_root: Path):
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
-    from rigor.report.markdown import render_report
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.report.markdown import render_report
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-b.yaml")
     runs = HalTauBenchAdapter().load(repo_root / "scouting" / "candidates" / "tau-bench")
@@ -133,7 +133,7 @@ def test_sensitivity__verdicts_are_in_controlled_vocabulary(exhibit_b) -> None:
     """Every perturbation row's verdict is one of the six controlled-vocabulary
     values, optionally followed by ` ← flips`.
     """
-    from rigor.report.decisions import DECISION_IMPACT_VOCAB
+    from eval_audit.report.decisions import DECISION_IMPACT_VOCAB
 
     _study, result, text = exhibit_b
 
