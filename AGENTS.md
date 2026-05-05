@@ -125,6 +125,13 @@ have reviewed the diff.
   - `reconciled` means reconstructed per-task cost matches reported totals.
   - `as_reported_only` must remain visible in reports when reconstruction does
     not reconcile.
+  - `cost_not_available` is the explicit "no honest cost data" mode for public
+    artifacts that expose neither tokens nor reported totals (e.g. SWE-bench
+    Verified OpenHands submissions). Both cost fields MUST be null on every
+    row; the report suppresses Pareto and per-success cost columns; analyze()
+    sets `pareto_status="suppressed_cost_not_available"`; `decision_impact`
+    cannot return `hedge_on_cost`. Never fabricate cost (zeros, stale price
+    tables) to dodge this mode.
 - Do not silently swap data sources during scouting. Record gate failures and
   provenance honestly.
 
