@@ -38,15 +38,16 @@ def _render(study, runs, result, repo_root: Path) -> str:
     )
 
 
-def test_report__all_seven_sections_are_present(exhibit_a_inputs, repo_root: Path) -> None:
+def test_report__all_eight_sections_are_present(exhibit_a_inputs, repo_root: Path) -> None:
     """WHEN the renderer is run against the Exhibit A study and GAIA fixture,
-    THEN the resulting markdown contains all seven ## sections in the listed order.
+    THEN the resulting markdown contains all eight ## sections in the listed order.
     """
     study, runs, result = exhibit_a_inputs
 
     text = _render(study, runs, result, repo_root)
 
     expected_sections = [
+        "## Audit Summary",
         "## Study",
         "## Provenance",
         "## Per-agent summary",
@@ -257,3 +258,251 @@ def test_report__unsupported_lower_is_better_study_is_not_rendered(
         )
 
     assert "higher_is_better" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# Audit Summary header — unit tests for the helpers and the rendered section.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def exhibit_b_inputs(repo_root: Path):
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
+
+    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-b.yaml")
+    runs = HalTauBenchAdapter().load(repo_root / "scouting" / "candidates" / "tau-bench")
+    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+    return study, runs, result
+
+
+def _extract_audit_summary(text: str) -> str:
+    """Return everything between '## Audit Summary' and the next '## ' heading."""
+    start = text.index("## Audit Summary")
+    rest = text[start:]
+    next_section = rest.index("\n## ", 1)
+    return rest[: next_section + 1]
+
+
+def test_verdict_gloss__covers_every_decision_token() -> None:
+    """`_VERDICT_GLOSS` MUST cover exactly the six tokens in DECISION_IMPACT_VOCAB."""
+    from eval_audit.report.decisions import DECISION_IMPACT_VOCAB
+    from eval_audit.report.markdown import _VERDICT_GLOSS
+
+    assert set(_VERDICT_GLOSS.keys()) == set(DECISION_IMPACT_VOCAB)
+    for gloss in _VERDICT_GLOSS.values():
+        assert gloss and isinstance(gloss, str), "every gloss must be a non-empty string"
+
+
+def test_render_audit_summary_stanza__unknown_decision_token_raises() -> None:
+    """Rendering a stanza with a verdict not in the gloss table fails loudly."""
+    from eval_audit.report import ReportContractError
+    from eval_audit.report.markdown import _render_audit_summary_stanza
+
+    fake_claim = type(
+        "C", (), {"delta_point_estimate": 0.0, "delta_ci_low": -0.05, "delta_ci_high": 0.05}
+    )()
+
+    with pytest.raises(ReportContractError) as exc_info:
+        _render_audit_summary_stanza(
+            fake_claim,
+            "not_a_real_token",
+            "inconclusive",
+            target_mde=None,
+            ci_half_width=0.05,
+            n_paired=10,
+            treatment_cost=1.0,
+            control_cost=1.0,
+            pushback="none",
+        )
+    assert "not_a_real_token" in str(exc_info.value)
+
+
+def test_what_would_change_it__ci_wider_than_mde_picks_more_paired_tasks() -> None:
+    from eval_audit.report.markdown import _what_would_change_it
+
+    assert (
+        _what_would_change_it(target_mde=0.03, ci_half_width=0.09)
+        == "more paired tasks would tighten the CI below the declared MDE"
+    )
+
+
+def test_what_would_change_it__ci_narrower_than_mde_picks_already_resolves() -> None:
+    from eval_audit.report.markdown import _what_would_change_it
+
+    assert _what_would_change_it(target_mde=0.05, ci_half_width=0.02) == (
+        "the study already resolves below the declared MDE; "
+        "no additional N would change the verdict"
+    )
+
+
+def test_what_would_change_it__null_target_mde_picks_encouragement() -> None:
+    from eval_audit.report.markdown import _what_would_change_it
+
+    assert _what_would_change_it(target_mde=None, ci_half_width=0.10) == (
+        "declaring an inference.target_mde would let this report estimate "
+        "required sample size"
+    )
+
+
+def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
+    """Errored rows -> cost provenance -> residual risks, comma-separated."""
+    from dataclasses import dataclass
+
+    from eval_audit.report.markdown import _reviewer_pushback
+
+    @dataclass
+    class FakeAgent:
+        agent_id: str
+        n_errored: int
+
+    per_agent = [FakeAgent("a", 3), FakeAgent("b", 0)]
+    residual = "1. risk one\n2. risk two\n"
+
+    line = _reviewer_pushback(
+        per_agent,
+        cost_provenance_class="as_reported_only",
+        residual_risks_text=residual,
+    )
+
+    assert line == (
+        "errored rows present (3 across 1 agent), "
+        "cost provenance is as_reported_only, "
+        "2 residual risks inherited from scouting"
+    )
+
+
+def test_reviewer_pushback__none_flagged_when_no_caveats_apply() -> None:
+    from dataclasses import dataclass
+
+    from eval_audit.report.markdown import _reviewer_pushback
+
+    @dataclass
+    class FakeAgent:
+        agent_id: str
+        n_errored: int
+
+    per_agent = [FakeAgent("a", 0), FakeAgent("b", 0)]
+    placeholder = (
+        "_(no scouting decision document at scouting/foo-decision.md; "
+        "residual risks not surfaced.)_"
+    )
+
+    line = _reviewer_pushback(
+        per_agent,
+        cost_provenance_class="reconciled",
+        residual_risks_text=placeholder,
+    )
+
+    assert line == "none flagged at this stage"
+
+
+def test_audit_summary__exhibit_a_has_exactly_five_bullet_lines(
+    exhibit_a_inputs, repo_root: Path
+) -> None:
+    """Single-claim study renders five bullets in the fixed order, no sub-headings."""
+    study, runs, result = exhibit_a_inputs
+    text = _render(study, runs, result, repo_root)
+    summary = _extract_audit_summary(text)
+
+    assert "### Claim" not in summary, "single-claim study must not emit a sub-heading"
+    bullet_prefixes = [
+        "- **Verdict:**",
+        "- **Claim status:**",
+        "- **Why:**",
+        "- **What would change it:**",
+        "- **Reviewer pushback:**",
+    ]
+    last_pos = summary.index("## Audit Summary")
+    for prefix in bullet_prefixes:
+        pos = summary.find(prefix)
+        assert pos != -1, f"missing bullet: {prefix}"
+        assert pos > last_pos, f"bullet out of order: {prefix}"
+        last_pos = pos
+
+
+def test_audit_summary__exhibit_b_emits_one_sub_stanza_per_claim(
+    exhibit_b_inputs, repo_root: Path
+) -> None:
+    """Multi-claim study emits one `### Claim <id>` sub-stanza per claim."""
+    study, runs, result = exhibit_b_inputs
+    text = _render(study, runs, result, repo_root)
+    summary = _extract_audit_summary(text)
+
+    claim_ids = [c.claim_id for c in result.claims]
+    assert len(claim_ids) == 3, "exhibit-b sanity check: expected three claims"
+
+    last_pos = -1
+    for claim_id in claim_ids:
+        marker = f"### Claim `{claim_id}`"
+        pos = summary.find(marker)
+        assert pos != -1, f"missing sub-stanza for claim {claim_id!r}"
+        assert pos > last_pos, f"claim sub-stanza out of order: {claim_id!r}"
+        last_pos = pos
+
+    # Each sub-stanza has the five bullets.
+    for prefix in ("- **Verdict:**", "- **Claim status:**", "- **Why:**",
+                   "- **What would change it:**", "- **Reviewer pushback:**"):
+        assert summary.count(prefix) == len(claim_ids), (
+            f"expected {len(claim_ids)} occurrences of {prefix!r} in summary"
+        )
+
+
+def test_audit_summary__claim_status_matches_claims_table_value(
+    exhibit_a_inputs, repo_root: Path
+) -> None:
+    """Vocabulary alignment: Audit Summary status must match Claims-table status."""
+    study, runs, result = exhibit_a_inputs
+    text = _render(study, runs, result, repo_root)
+    summary = _extract_audit_summary(text)
+
+    # Pull the status from the audit summary.
+    status_line = next(
+        line for line in summary.splitlines() if line.startswith("- **Claim status:**")
+    )
+    summary_status = status_line.split(":**", 1)[1].strip()
+
+    # Pull the status from the Claims table row (third '|' field after the header).
+    after_summary = text[text.index("## Claims"):]
+    claims_rows = [
+        line for line in after_summary.splitlines()
+        if line.startswith("|") and not line.startswith("|---") and "|---" not in line
+    ]
+    # Skip header row.
+    data_row = claims_rows[1]
+    cells = [c.strip() for c in data_row.split("|")[1:-1]]
+    table_status = cells[2]
+
+    assert summary_status == table_status
+    assert summary_status in {"supported", "unsupported", "inconclusive"}
+
+
+def test_audit_summary__verdict_line_carries_token_and_gloss(
+    exhibit_a_inputs, repo_root: Path
+) -> None:
+    """Exhibit A's hedge_on_cost verdict surfaces with the exact gloss string."""
+    study, runs, result = exhibit_a_inputs
+    text = _render(study, runs, result, repo_root)
+    summary = _extract_audit_summary(text)
+
+    expected = (
+        "- **Verdict:** `hedge_on_cost` — "
+        "CI crosses zero and the cost gap is material"
+    )
+    assert expected in summary
+
+
+def test_audit_summary__verdict_glosses_are_exhaustive_and_pinned() -> None:
+    """The gloss for each token matches the spec's pinned wording exactly."""
+    from eval_audit.report.markdown import _VERDICT_GLOSS
+
+    expected = {
+        "switch": "claim is supported and the effect favours the treatment",
+        "hold": "rejection is in the wrong direction; treatment fails the claim",
+        "drop_from_shortlist": "treatment is Pareto-dominated on cost-quality",
+        "rerun_more_n": "CI crosses zero with no material cost gap; needs more data",
+        "hedge_on_cost": "CI crosses zero and the cost gap is material",
+        "inconclusive_no_action": "result does not meet any decision threshold",
+    }
+    assert expected == _VERDICT_GLOSS

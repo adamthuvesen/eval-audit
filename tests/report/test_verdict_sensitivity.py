@@ -181,13 +181,14 @@ def test_sensitivity__flip_annotation_only_on_non_baseline_verdicts(exhibit_b) -
             )
 
 
-def test_sensitivity__seven_section_shape_unchanged(exhibit_b) -> None:
-    """The sub-block does NOT break the seven-section shape contract."""
+def test_sensitivity__eight_section_shape_unchanged(exhibit_b) -> None:
+    """The sub-block does NOT break the eight-section shape contract."""
     _study, _result, text = exhibit_b
 
     headings = [line for line in text.splitlines() if line.startswith("## ")]
     section_titles = [h.removeprefix("## ").strip() for h in headings]
     assert section_titles == [
+        "Audit Summary",
         "Study",
         "Provenance",
         "Per-agent summary",
