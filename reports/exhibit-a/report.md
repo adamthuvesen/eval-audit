@@ -3,7 +3,7 @@
 - **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
 - **Claim status:** inconclusive
 - **Why:** delta +1.82 pp with bootstrap CI [-7.27 pp, +10.91 pp] over 165 paired tasks; treatment is 2.20x the control's cost
-- **What would change it:** more paired tasks would tighten the CI below the declared MDE
+- **What would change it:** ~1351 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
 - **Reviewer pushback:** 5 residual risks inherited from scouting
 
 ## Study
@@ -76,7 +76,7 @@ All agents are on the frontier; no dominance to report.
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-03T07:51:23.065979+00:00`
-- **git_commit:** `748f3f1`
+- **rendered_at:** `2026-05-03T08:03:44.500329+00:00`
+- **git_commit:** `c0b91ed`
 - **fixture_sha256:** `83d4a0ce9d82d23c7563e66e03f50350d245a8537ddc3b2f6a25a3bae9619720`
 - **bootstrap_seed:** `42`

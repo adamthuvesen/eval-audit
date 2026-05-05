@@ -44,22 +44,35 @@ def _claim_status(rejects: bool, direction_matches: bool, ci_crosses_zero: bool)
     return "inconclusive"
 
 
-def _what_would_change_it(target_mde: float | None, ci_half_width: float) -> str:
-    """Pick the placeholder phrasing for the audit summary's resolution line.
+def _what_would_change_it(
+    target_mde: float | None,
+    ci_half_width: float,
+    n_paired: int,
+) -> str:
+    """Render the audit summary's resolution-planning line.
 
-    Change 2 (Resolution planning) replaces these strings with concrete N
-    estimates; the branching is chosen so that replacement is local.
+    When target_mde is declared, the line carries a concrete N estimate
+    derived from the variance-fixed scaling approximation in
+    ``eval_audit/stats/resolution.py``. The approximation is named explicitly
+    in the rendered output so readers see the model used.
     """
     if target_mde is None:
         return (
             "declaring an inference.target_mde would let this report estimate "
             "required sample size"
         )
+    from eval_audit.stats.resolution import estimate_required_paired_tasks
+
     if ci_half_width > target_mde:
-        return "more paired tasks would tighten the CI below the declared MDE"
+        est = estimate_required_paired_tasks(n_paired, ci_half_width, target_mde)
+        return (
+            f"~{est.additional_tasks} more paired tasks would tighten the CI to "
+            f"≤ MDE (estimated, variance-fixed scaling)"
+        )
     return (
-        "the study already resolves below the declared MDE; "
-        "no additional N would change the verdict"
+        f"the study already resolves below the declared MDE "
+        f"(CI half-width {ci_half_width * 100:.2f} pp ≤ MDE "
+        f"{target_mde * 100:.2f} pp); no additional N would change the verdict"
     )
 
 
@@ -146,7 +159,7 @@ def _render_audit_summary_stanza(
             f"[{ci_low_pp:+.2f} pp, {ci_high_pp:+.2f} pp] over {n_paired} paired tasks; "
             f"{cost_str}"
         ),
-        f"- **What would change it:** {_what_would_change_it(target_mde, ci_half_width)}",
+        f"- **What would change it:** {_what_would_change_it(target_mde, ci_half_width, n_paired)}",
         f"- **Reviewer pushback:** {pushback}",
     ]
 
