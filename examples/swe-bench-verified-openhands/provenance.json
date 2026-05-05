@@ -1,0 +1,38 @@
+{
+  "agents": {
+    "20250807_openhands_gpt5": {
+      "model_id": "gpt-5-2025-08-07",
+      "no_generation_count": 1,
+      "no_logs_count": 0,
+      "resolved_count": 359
+    },
+    "20251127_openhands_claude-opus-4-5": {
+      "model_id": "claude-opus-4-5-202511017",
+      "no_generation_count": 2,
+      "no_logs_count": 0,
+      "resolved_count": 388
+    }
+  },
+  "cost_provenance": "cost_not_available",
+  "cost_provenance_reason": "Sampled OpenHands trajectories expose no stable token, usage, or cost fields. Cost is suppressed across all rows; report rendering omits cost-derived columns and Pareto views.",
+  "fetched_at_utc": "2026-05-03T17:40:27Z",
+  "scouting_decision": "scouting/swe-bench-verified-openhands-decision.md",
+  "sources": [
+    {
+      "purpose": "SWE-bench Verified 500-task universe",
+      "sha256": "43ed5a3d1d98da36472c1ade65ddd2085d7b4ff694fcaf6a023a07c5c1f32f21",
+      "url": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/resolve/main/data/test-00000-of-00001.parquet"
+    },
+    {
+      "purpose": "treatment submission resolved/no_generation/no_logs",
+      "sha256": "d5c91e5bb2e0fa418eee578a0e5f91e79c08513e1797982193053e8d26690e57",
+      "url": "https://raw.githubusercontent.com/swe-bench/experiments/2f15350cd32becc4569e0d826361048555b605c0/evaluation/verified/20251127_openhands_claude-opus-4-5/results/results.json"
+    },
+    {
+      "purpose": "control submission resolved/no_generation/no_logs",
+      "sha256": "4aba4bbf158e4cfb76d717cd617954749058cefecd364aec117bb45415f9b907",
+      "url": "https://raw.githubusercontent.com/swe-bench/experiments/2f15350cd32becc4569e0d826361048555b605c0/evaluation/verified/20250807_openhands_gpt5/results/results.json"
+    }
+  ],
+  "swe_bench_experiments_commit": "2f15350cd32becc4569e0d826361048555b605c0"
+}

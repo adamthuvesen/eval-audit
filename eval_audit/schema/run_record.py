@@ -78,3 +78,22 @@ class RunRecord(BaseModel):
                 "(fields: cost_provenance, reconstructed_per_task_cost_usd)"
             )
         return self
+
+    @model_validator(mode="after")
+    def _cost_not_available_requires_null_cost_fields(self) -> RunRecord:
+        if self.cost_provenance != CostProvenance.COST_NOT_AVAILABLE:
+            return self
+        errors: list[str] = []
+        if self.reconstructed_per_task_cost_usd is not None:
+            errors.append(
+                "cost_provenance='cost_not_available' requires null reconstructed_per_task_cost_usd "
+                "(fields: cost_provenance, reconstructed_per_task_cost_usd)"
+            )
+        if self.reported_run_total_cost_usd is not None:
+            errors.append(
+                "cost_provenance='cost_not_available' requires null reported_run_total_cost_usd "
+                "(fields: cost_provenance, reported_run_total_cost_usd)"
+            )
+        if errors:
+            raise ValueError("; ".join(errors))
+        return self

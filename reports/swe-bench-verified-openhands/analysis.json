@@ -1,0 +1,51 @@
+{
+  "study_id": "swe-bench-verified-openhands",
+  "per_agent": [
+    {
+      "agent_id": "20251127_openhands_claude-opus-4-5",
+      "n_graded": 500,
+      "n_errored": 0,
+      "success_rate": 0.776,
+      "success_rate_ci_low": 0.7374303353251315,
+      "success_rate_ci_high": 0.8103610287400917,
+      "total_cost_usd": null,
+      "cost_per_success_usd": null
+    },
+    {
+      "agent_id": "20250807_openhands_gpt5",
+      "n_graded": 500,
+      "n_errored": 0,
+      "success_rate": 0.718,
+      "success_rate_ci_low": 0.6770122207860065,
+      "success_rate_ci_high": 0.7556635667727567,
+      "total_cost_usd": null,
+      "cost_per_success_usd": null
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "opus45_vs_gpt5_submission",
+      "text": "On SWE-bench Verified (500 tasks), the public OpenHands + Claude Opus 4.5 submission (20251127_openhands_claude-opus-4-5) resolves 388/500 instances and the public OpenHands + GPT-5 submission (20250807_openhands_gpt5) resolves 359/500. This re-analysis evaluates whether the +5.8 pp headline gap is statistically distinguishable from noise once the paired discordants (45 treatment-only solves vs 16 control-only solves) are surfaced. The submissions differ in OpenHands runtime commit and `max_iterations` budget (500 vs 100); this is a submission-level audit, not a model-only effect.",
+      "treatment": "20251127_openhands_claude-opus-4-5",
+      "control": "20250807_openhands_gpt5",
+      "delta_point_estimate": 0.05800000000000005,
+      "delta_ci_low": 0.030000000000000027,
+      "delta_ci_high": 0.08800000000000008,
+      "raw_p_value": 0.00018887665699298818,
+      "adjusted_p_value": 0.00018887665699298818,
+      "rejects_null": true,
+      "treatment_total_cost_usd": null,
+      "control_total_cost_usd": null,
+      "bootstrap": [
+        0.05800000000000005,
+        0.030000000000000027,
+        0.08800000000000008,
+        10000,
+        42
+      ]
+    }
+  ],
+  "pareto_frontier": [],
+  "bootstrap_seed": 42,
+  "pareto_status": "suppressed_cost_not_available"
+}

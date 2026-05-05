@@ -145,6 +145,31 @@ HAL Generalist and 44% under Tool Calling on TAU-bench Airline. The same model
 on the same benchmark shifts by 12 pp across scaffolds, which is exactly why
 benchmark rows should not be read as pure model effects.
 
+### SWE-bench Verified: OpenHands public-submission audit
+
+[reports/swe-bench-verified-openhands/report.md](reports/swe-bench-verified-openhands/report.md)
+is a **public-submission re-analysis** on the SWE-bench Verified 500-task
+universe, comparing two public OpenHands submissions:
+`20251127_openhands_claude-opus-4-5` (388/500 resolved) vs
+`20250807_openhands_gpt5` (359/500 resolved). The paired bootstrap finds a
++5.8 pp delta with CI [+2.8 pp, +8.8 pp] and adjusted p ≈ 0.0002, supporting
+a `switch` verdict on quality.
+
+This is the first exhibit to exercise the `cost_not_available` provenance
+path: the upstream OpenHands artifacts expose no stable token, usage, or
+cost fields, so the report **suppresses** every cost-derived view rather
+than smuggle in zeros. Per-agent cost columns, the Cost-quality view, and
+`hedge_on_cost` decisions are all unavailable for this study by design. A
+reader sees the absence, not a misleading low-cost number.
+
+The two submissions also differ in OpenHands runtime commit and
+`max_iterations` budget (500 vs 100), so this is framed as
+"OpenHands + Opus 4.5 submission vs OpenHands + GPT-5 submission," not a
+model-only effect. The fixture under
+[examples/swe-bench-verified-openhands/](examples/swe-bench-verified-openhands/)
+is regenerated from public artifacts via
+`uv run python tools/regenerate_swe_bench_verified.py`.
+
 ## Controlled original-evidence audit
 
 Exhibits A and B above are reanalyses of *public* HAL run records — useful for
@@ -185,12 +210,13 @@ through to the rendered verdict.
 
 ## Example reports
 
-The four committed reports exercise different decision verbs, evidence
+The five committed reports exercise different decision verbs, evidence
 modes, and provenance paths.
 
 - [reports/exhibit-a/report.md](reports/exhibit-a/report.md) — verdict `hedge_on_cost`. Single-claim within-harness reanalysis (HAL Generalist on GAIA) with `reconciled` cost provenance.
 - [reports/exhibit-b/report.md](reports/exhibit-b/report.md) — three pairwise claims producing two `hedge_on_cost` verdicts and one `drop_from_shortlist`. Exercises the `as_reported_only` cost-provenance path.
 - [reports/exhibit-c/report.md](reports/exhibit-c/report.md) — verdict `inconclusive_no_action`. Controlled original-evidence audit on HumanEval (Haiku 4.5 vs Sonnet 4.6) with `reconciled` cost provenance and a predeclared run plan.
+- [reports/swe-bench-verified-openhands/report.md](reports/swe-bench-verified-openhands/report.md) — verdict `switch` on a 500-task SWE-bench Verified public-submission re-analysis. Exercises the `cost_not_available` provenance path: cost columns and Pareto are suppressed because the upstream artifacts expose no honest cost.
 - [reports/byo-minimal/report.md](reports/byo-minimal/report.md) — synthetic worked example producing a `switch` verdict. Demonstrates the bring-your-own-data path end-to-end.
 
 ## Decision pattern gallery

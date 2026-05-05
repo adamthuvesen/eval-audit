@@ -11,6 +11,7 @@ class CostProvenance(StrEnum):
     RECONCILED = "reconciled"
     PARTIAL = "partial"
     AS_REPORTED_ONLY = "as_reported_only"
+    COST_NOT_AVAILABLE = "cost_not_available"
 
 
 class OutcomeStatus(StrEnum):

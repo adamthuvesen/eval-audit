@@ -100,5 +100,6 @@
   "pareto_frontier": [
     "Taubench ToolCalling (o4-mini-2025-04-16 high)"
   ],
-  "bootstrap_seed": 42
+  "bootstrap_seed": 42,
+  "pareto_status": "computed"
 }

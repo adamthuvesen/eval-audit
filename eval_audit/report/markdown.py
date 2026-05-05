@@ -148,6 +148,8 @@ def _reviewer_pushback(
 
     if cost_provenance_class == "as_reported_only":
         caveats.append("cost provenance is as_reported_only")
+    elif cost_provenance_class == "cost_not_available":
+        caveats.append("cost provenance is cost_not_available")
 
     risks_count = _count_residual_risks(residual_risks_text)
     if risks_count > 0:
@@ -166,8 +168,8 @@ def _render_audit_summary_stanza(
     target_mde: float | None,
     ci_half_width: float,
     n_paired: int,
-    treatment_cost: float,
-    control_cost: float,
+    treatment_cost: float | None,
+    control_cost: float | None,
     pushback: str,
 ) -> list[str]:
     """Emit the five bullet lines for one claim's audit-summary stanza."""
@@ -181,7 +183,9 @@ def _render_audit_summary_stanza(
     delta_pp = claim.delta_point_estimate * 100
     ci_low_pp = claim.delta_ci_low * 100
     ci_high_pp = claim.delta_ci_high * 100
-    if control_cost > 0:
+    if treatment_cost is None or control_cost is None:
+        cost_str = "cost provenance is `cost_not_available`; no cost ratio is reported"
+    elif control_cost > 0:
         cost_ratio = treatment_cost / control_cost
         cost_str = f"treatment is {cost_ratio:.2f}x the control's cost"
     else:
@@ -246,8 +250,18 @@ def _robustness_errored_policy(rows, baseline: str) -> tuple[str, str]:
     )
 
 
-def _robustness_cost_threshold(rows, baseline: str) -> tuple[str, str]:
+def _robustness_cost_threshold(
+    rows, baseline: str, *, pareto_suppressed: bool = False
+) -> tuple[str, str]:
     """Compose cost_gap_threshold={0.05,0.20} rows into one verdict."""
+    if pareto_suppressed:
+        # decision_impact's cost-gap branch is unreachable under suppression,
+        # so cost_gap_threshold cannot pivot the verdict by construction.
+        return (
+            "n/a",
+            "cost-gap threshold not applicable; cost provenance is "
+            "cost_not_available",
+        )
     flipped: list[str] = []
     for r in rows:
         if r.dimension == "cost_gap_threshold" and r.verdict != baseline:
@@ -288,6 +302,12 @@ def _robustness_cost_provenance(cost_provenance_class: str) -> tuple[str, str]:
         return ("survives", "reconciled")
     if cost_provenance_class in ("as_reported_only", "partial"):
         return ("caveat", cost_provenance_class)
+    if cost_provenance_class == "cost_not_available":
+        return (
+            "does not survive",
+            "cost_not_available — Pareto and cost-per-success suppressed; "
+            "see Cost provenance caveat",
+        )
     return ("does not survive", cost_provenance_class)
 
 
@@ -297,6 +317,8 @@ def _render_robustness_review_table(
     target_mde: float | None,
     ci_half_width: float,
     cost_provenance_class: str,
+    *,
+    pareto_suppressed: bool = False,
 ) -> list[str]:
     """Emit the markdown table header + five fixed-order data rows."""
     parts = ["| Dimension | Result | Notes |", "|---|---|---|"]
@@ -307,7 +329,9 @@ def _render_robustness_review_table(
     result, notes = _robustness_errored_policy(rows, baseline)
     parts.append(f"| Errored-row policy | {result} | {notes} |")
 
-    result, notes = _robustness_cost_threshold(rows, baseline)
+    result, notes = _robustness_cost_threshold(
+        rows, baseline, pareto_suppressed=pareto_suppressed
+    )
     parts.append(f"| Cost-threshold sensitivity | {result} | {notes} |")
 
     result, notes = _robustness_target_mde(target_mde, ci_half_width)
@@ -336,6 +360,7 @@ def _render_robustness_review(
 
     target_mde = study.inference.target_mde
     multi_claim = len(result.claims) > 1
+    pareto_suppressed = result.pareto_status == "suppressed_cost_not_available"
 
     for c in result.claims:
         rows = sensitivity_rows_by_claim[c.claim_id]
@@ -347,7 +372,12 @@ def _render_robustness_review(
 
         parts.extend(
             _render_robustness_review_table(
-                rows, baseline, target_mde, ci_half_width, cost_provenance_class
+                rows,
+                baseline,
+                target_mde,
+                ci_half_width,
+                cost_provenance_class,
+                pareto_suppressed=pareto_suppressed,
             )
         )
         parts.append("")
@@ -379,10 +409,16 @@ def _render_audit_summary(
     )
     multi_claim = len(result.claims) > 1
 
+    pareto_suppressed = result.pareto_status == "suppressed_cost_not_available"
     for c in result.claims:
         ci_crosses = c.delta_ci_low <= 0.0 <= c.delta_ci_high
         direction_matches = direction_matches_claim(
             study.primary_outcome.direction, c.delta_point_estimate
+        )
+        # Under cost suppression the frontier is empty by design; treating absence
+        # from the empty frontier as dominance would falsely fire drop_from_shortlist.
+        treatment_dominated = (
+            False if pareto_suppressed else c.treatment not in result.pareto_frontier
         )
         ctx = ClaimContext(
             rejects_null=c.rejects_null,
@@ -391,7 +427,7 @@ def _render_audit_summary(
             delta_ci_high=c.delta_ci_high,
             treatment_cost_usd=by_id[c.treatment].total_cost_usd,
             control_cost_usd=by_id[c.control].total_cost_usd,
-            treatment_is_dominated=c.treatment not in result.pareto_frontier,
+            treatment_is_dominated=treatment_dominated,
             direction_matches_claim=direction_matches,
         )
         di = decision_impact(ctx)
@@ -704,12 +740,35 @@ def render_report(
     elif study.analysis_mode == "preregistered":
         # Controlled-evidence path: cost provenance is per-row in the runs frame.
         cost_provenance_class = _dominant_cost_provenance(runs)
+    else:
+        # Public-submission re-analyses (declared_reanalysis) without a scouting
+        # cost-reconciliation.json file. Today this fires for cost-suppressed
+        # studies where the upstream artifacts expose no cost and provenance is
+        # carried row-by-row as `cost_not_available`. Other provenance classes
+        # for declared_reanalysis still come from the cost-reconciliation.json
+        # so existing exhibits stay byte-identical.
+        row_level = _dominant_cost_provenance(runs)
+        if row_level == "cost_not_available":
+            cost_provenance_class = row_level
     source_url = ""
     retrieved_at = ""
+    source_fixture_rel = f"scouting/candidates/{benchmark_dir}/sample.parquet"
     if provenance.exists():
         prov = json.loads(provenance.read_text())
         source_url = prov.get("source_url", "")
         retrieved_at = prov.get("retrieved_at", "")
+    else:
+        # Public-submission re-analyses without a scouting/candidates package
+        # commit their fixture under examples/<study.id>/ instead. Pick that up
+        # so the Provenance section points at real artifacts, not stale paths.
+        examples_provenance = repo_root / "examples" / study.id / "provenance.json"
+        if examples_provenance.exists():
+            prov = json.loads(examples_provenance.read_text())
+            source_fixture_rel = f"examples/{study.id}/runs.parquet"
+            sources = prov.get("sources") or []
+            if sources:
+                source_url = sources[0].get("url", "")
+            retrieved_at = prov.get("fetched_at_utc", "")
     residual_risks_text = _extract_residual_risks(decision_md, decision_md_label)
 
     rendered_at = clock().isoformat()
@@ -747,7 +806,7 @@ def render_report(
             )
         )
     else:
-        parts.append(f"- **source_fixture:** `scouting/candidates/{benchmark_dir}/sample.parquet`")
+        parts.append(f"- **source_fixture:** `{source_fixture_rel}`")
         parts.append(f"- **source_url:** {source_url}")
         parts.append(f"- **retrieved_at:** `{retrieved_at}`")
         parts.append(f"- **price_table_pinned_at:** `{PRICE_TABLE_PINNED_AT}`")
@@ -783,24 +842,69 @@ def render_report(
             parts.append(f"- {c}")
         parts.append("")
 
+    if cost_provenance_class == "cost_not_available":
+        parts.append("### Cost provenance caveat\n")
+        parts.append("> ⚠️ Cost provenance: cost_not_available")
+        parts.append("")
+        parts.append(
+            "The upstream artifacts for this study expose no stable token, usage, or "
+            "cost fields. Per-task cost cannot be reconstructed from token breakdowns "
+            "× pinned provider prices, and no per-run reported total is available. "
+            "Rather than smuggle in zeros, this report **suppresses** every "
+            "cost-derived view: per-agent `total_cost_usd` and `cost_per_success_usd` "
+            "columns are omitted from the Per-agent summary, the Cost-quality view "
+            "(Pareto frontier) is suppressed, and `decision_impact` cannot return "
+            "`hedge_on_cost` for any claim in this study."
+        )
+        parts.append("")
+        suppressed_agents = [s.agent_id for s in result.per_agent if s.total_cost_usd is None]
+        if suppressed_agents:
+            parts.append("**Cost-suppressed agents:**\n")
+            for agent_id in suppressed_agents:
+                parts.append(f"- `{agent_id}`")
+            parts.append("")
+        parts.append(
+            "Cost-related residual risks are inherited from the scouting decision "
+            "document (see Residual risks below)."
+        )
+        parts.append("")
+
     # 4. Per-agent summary
     parts.append("## Per-agent summary\n")
-    parts.append(
-        "| agent_id | n_graded | n_errored | success_rate | success_rate_ci_low "
-        "| success_rate_ci_high | total_cost_usd | cost_per_success_usd |"
-    )
-    parts.append("|---|---:|---:|---:|---:|---:|---:|---:|")
-    for s in result.per_agent:
-        cps = (
-            "inf" if s.cost_per_success_usd == float("inf")
-            else _format_currency(s.cost_per_success_usd)
-        )
+    pareto_suppressed_table = result.pareto_status == "suppressed_cost_not_available"
+    if pareto_suppressed_table:
         parts.append(
-            f"| {s.agent_id} | {s.n_graded} | {s.n_errored} | "
-            f"{_format_rate(s.success_rate)} | {_format_rate(s.success_rate_ci_low)} | "
-            f"{_format_rate(s.success_rate_ci_high)} | "
-            f"{_format_currency(s.total_cost_usd)} | {cps} |"
+            "| agent_id | n_graded | n_errored | success_rate | success_rate_ci_low "
+            "| success_rate_ci_high |"
         )
+        parts.append("|---|---:|---:|---:|---:|---:|")
+        for s in result.per_agent:
+            parts.append(
+                f"| {s.agent_id} | {s.n_graded} | {s.n_errored} | "
+                f"{_format_rate(s.success_rate)} | {_format_rate(s.success_rate_ci_low)} | "
+                f"{_format_rate(s.success_rate_ci_high)} |"
+            )
+        parts.append("")
+        parts.append(
+            "_Cost columns suppressed: cost provenance is `cost_not_available`._"
+        )
+    else:
+        parts.append(
+            "| agent_id | n_graded | n_errored | success_rate | success_rate_ci_low "
+            "| success_rate_ci_high | total_cost_usd | cost_per_success_usd |"
+        )
+        parts.append("|---|---:|---:|---:|---:|---:|---:|---:|")
+        for s in result.per_agent:
+            cps = (
+                "inf" if s.cost_per_success_usd == float("inf")
+                else _format_currency(s.cost_per_success_usd)
+            )
+            parts.append(
+                f"| {s.agent_id} | {s.n_graded} | {s.n_errored} | "
+                f"{_format_rate(s.success_rate)} | {_format_rate(s.success_rate_ci_low)} | "
+                f"{_format_rate(s.success_rate_ci_high)} | "
+                f"{_format_currency(s.total_cost_usd)} | {cps} |"
+            )
     parts.append("")
 
     # 5. Claims
@@ -815,12 +919,18 @@ def render_report(
         parts.append("| claim_id | mode | status | effect | adjusted_result | decision_impact |")
         parts.append("|---|---|---|---|---|---|")
     by_id = {s.agent_id: s for s in result.per_agent}
+    pareto_suppressed_claims = result.pareto_status == "suppressed_cost_not_available"
     mde_per_claim: list[tuple[str, float, float]] = []  # (claim_id, ci_half_width, target_mde)
     for c in result.claims:
         ci_crosses = c.delta_ci_low <= 0.0 <= c.delta_ci_high
         direction_matches = direction_matches_claim(
             study.primary_outcome.direction,
             c.delta_point_estimate,
+        )
+        treatment_dominated_claim = (
+            False
+            if pareto_suppressed_claims
+            else c.treatment not in result.pareto_frontier
         )
         ctx = ClaimContext(
             rejects_null=c.rejects_null,
@@ -829,7 +939,7 @@ def render_report(
             delta_ci_high=c.delta_ci_high,
             treatment_cost_usd=by_id[c.treatment].total_cost_usd,
             control_cost_usd=by_id[c.control].total_cost_usd,
-            treatment_is_dominated=c.treatment not in result.pareto_frontier,
+            treatment_is_dominated=treatment_dominated_claim,
             direction_matches_claim=direction_matches,
         )
         di = decision_impact(ctx)
@@ -893,6 +1003,7 @@ def render_report(
         )
 
     # Verdict sensitivity sub-block (one per claim).
+    pareto_suppressed_sens = result.pareto_status == "suppressed_cost_not_available"
     for c in result.claims:
         rows = sensitivity_rows_by_claim[c.claim_id]
         baseline_verdict = rows[0].verdict
@@ -900,9 +1011,17 @@ def render_report(
         parts.append("| dimension | value | verdict |")
         parts.append("|---|---|---|")
         for r in rows:
-            verdict_cell = r.verdict
-            if r.dimension != "baseline" and r.verdict != baseline_verdict:
-                verdict_cell = f"{r.verdict} ← flips"
+            # Under cost suppression the cost-gap branch in decision_impact is
+            # unreachable; rendering numeric verdicts on cost_gap_threshold
+            # perturbations would falsely imply the threshold pivots the
+            # verdict. Mark them N/A so the suppression is visible in the very
+            # table designed to expose it.
+            if pareto_suppressed_sens and r.dimension == "cost_gap_threshold":
+                verdict_cell = "n/a (cost suppressed)"
+            else:
+                verdict_cell = r.verdict
+                if r.dimension != "baseline" and r.verdict != baseline_verdict:
+                    verdict_cell = f"{r.verdict} ← flips"
             parts.append(f"| {r.dimension} | {r.value} | {verdict_cell} |")
         parts.append("")
 
@@ -915,18 +1034,29 @@ def render_report(
 
     # 7. Cost-quality view
     parts.append("## Cost-quality view\n")
-    pareto_sorted = sorted(result.pareto_frontier)
-    parts.append(f"**Pareto frontier (max success_rate, min total_cost_usd):** {pareto_sorted}")
-    parts.append("")
-    dominated = [s.agent_id for s in result.per_agent if s.agent_id not in result.pareto_frontier]
-    if dominated:
+    if result.pareto_status == "suppressed_cost_not_available":
         parts.append(
-            f"Dominated agents: {sorted(dominated)}. Each is dominated by another agent that "
-            "achieves at least the same success_rate at no greater total_cost_usd."
+            "_Cost-quality view suppressed: cost provenance is `cost_not_available`. "
+            "See the **Cost provenance caveat** above._"
         )
+        parts.append("")
     else:
-        parts.append("All agents are on the frontier; no dominance to report.")
-    parts.append("")
+        pareto_sorted = sorted(result.pareto_frontier)
+        parts.append(
+            f"**Pareto frontier (max success_rate, min total_cost_usd):** {pareto_sorted}"
+        )
+        parts.append("")
+        dominated = [
+            s.agent_id for s in result.per_agent if s.agent_id not in result.pareto_frontier
+        ]
+        if dominated:
+            parts.append(
+                f"Dominated agents: {sorted(dominated)}. Each is dominated by another agent that "
+                "achieves at least the same success_rate at no greater total_cost_usd."
+            )
+        else:
+            parts.append("All agents are on the frontier; no dominance to report.")
+        parts.append("")
 
     # 8. Residual risks
     parts.append("## Residual risks\n")

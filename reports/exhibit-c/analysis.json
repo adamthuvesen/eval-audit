@@ -49,5 +49,6 @@
     "exhibit-c-haiku-4-5",
     "exhibit-c-sonnet-4-6"
   ],
-  "bootstrap_seed": 42
+  "bootstrap_seed": 42,
+  "pareto_status": "computed"
 }

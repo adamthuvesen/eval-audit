@@ -23,8 +23,8 @@ class ClaimContext:
     delta_point_estimate: float
     delta_ci_low: float
     delta_ci_high: float
-    treatment_cost_usd: float
-    control_cost_usd: float
+    treatment_cost_usd: float | None
+    control_cost_usd: float | None
     treatment_is_dominated: bool
     direction_matches_claim: bool
 
@@ -48,6 +48,13 @@ def decision_impact(
         return "hold"
     ci_crosses_zero = ctx.delta_ci_low <= 0.0 <= ctx.delta_ci_high
     if ci_crosses_zero:
+        # Cost suppression: if either arm has no honest cost, the cost-gap
+        # branch is unreachable (hedge_on_cost cannot fire). Fall through to
+        # rerun_more_n — collecting more paired tasks can still tighten the
+        # quality CI even when cost data is permanently absent. This matches
+        # the "no meaningful cost gap" branch for finite-cost studies.
+        if ctx.treatment_cost_usd is None or ctx.control_cost_usd is None:
+            return "rerun_more_n"
         cheaper = min(ctx.treatment_cost_usd, ctx.control_cost_usd)
         gap = abs(ctx.treatment_cost_usd - ctx.control_cost_usd)
         meaningful_gap = cheaper > 0 and (gap / cheaper) >= cost_gap_threshold
