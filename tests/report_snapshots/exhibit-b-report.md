@@ -1,3 +1,29 @@
+## Audit Summary
+
+### Claim `o4mini_vs_claude`
+
+- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Claim status:** inconclusive
+- **Why:** delta +12.00 pp with bootstrap CI [-6.00 pp, +28.00 pp] over 47 paired tasks; treatment is 0.54x the control's cost
+- **What would change it:** more paired tasks would tighten the CI below the declared MDE
+- **Reviewer pushback:** errored rows present (3 across 1 agent), cost provenance is as_reported_only, 6 residual risks inherited from scouting
+
+### Claim `o4mini_vs_o3`
+
+- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Claim status:** inconclusive
+- **Why:** delta +2.00 pp with bootstrap CI [-14.00 pp, +18.00 pp] over 50 paired tasks; treatment is 0.26x the control's cost
+- **What would change it:** more paired tasks would tighten the CI below the declared MDE
+- **Reviewer pushback:** errored rows present (3 across 1 agent), cost provenance is as_reported_only, 6 residual risks inherited from scouting
+
+### Claim `claude_vs_o3`
+
+- **Verdict:** `drop_from_shortlist` — treatment is Pareto-dominated on cost-quality
+- **Claim status:** inconclusive
+- **Why:** delta -10.00 pp with bootstrap CI [-26.00 pp, +6.00 pp] over 47 paired tasks; treatment is 0.48x the control's cost
+- **What would change it:** more paired tasks would tighten the CI below the declared MDE
+- **Reviewer pushback:** errored rows present (3 across 1 agent), cost provenance is as_reported_only, 6 residual risks inherited from scouting
+
 ## Study
 
 - **id:** `exhibit-b`

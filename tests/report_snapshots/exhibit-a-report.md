@@ -1,3 +1,11 @@
+## Audit Summary
+
+- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Claim status:** inconclusive
+- **Why:** delta +1.82 pp with bootstrap CI [-7.88 pp, +10.91 pp] over 165 paired tasks; treatment is 2.20x the control's cost
+- **What would change it:** more paired tasks would tighten the CI below the declared MDE
+- **Reviewer pushback:** 5 residual risks inherited from scouting
+
 ## Study
 
 - **id:** `exhibit-a`
