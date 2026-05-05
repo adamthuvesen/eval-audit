@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import polars as pl
 from scipy.stats import ttest_rel
 
 from eval_audit.schema import StudySpec
+from eval_audit.schema.enums import CostProvenance
 from eval_audit.stats.bootstrap import BootstrapResult, paired_task_bootstrap
 from eval_audit.stats.correction import benjamini_hochberg, holm_bonferroni
 from eval_audit.stats.intervals import wilson_interval
 from eval_audit.stats.outcomes import success_rate_numeric_expr
 from eval_audit.stats.pareto import pareto_frontier
+
+ParetoStatus = Literal["computed", "suppressed_cost_not_available"]
 
 
 class CrossHarnessComparisonError(RuntimeError):
@@ -35,8 +39,8 @@ class AgentSummary:
     success_rate: float
     success_rate_ci_low: float
     success_rate_ci_high: float
-    total_cost_usd: float
-    cost_per_success_usd: float
+    total_cost_usd: float | None
+    cost_per_success_usd: float | None
 
 
 @dataclass(frozen=True)
@@ -51,8 +55,8 @@ class ClaimResult:
     raw_p_value: float
     adjusted_p_value: float
     rejects_null: bool
-    treatment_total_cost_usd: float
-    control_total_cost_usd: float
+    treatment_total_cost_usd: float | None
+    control_total_cost_usd: float | None
     bootstrap: BootstrapResult
 
 
@@ -63,6 +67,7 @@ class AnalysisResult:
     claims: list[ClaimResult]
     pareto_frontier: set[str]
     bootstrap_seed: int
+    pareto_status: ParetoStatus = "computed"
 
 
 def paired_task_p_value(
@@ -172,13 +177,34 @@ def _agent_summary(
         point, lo, hi = wilson_interval(successes, n_total, alpha)
     else:
         point, lo, hi = 0.0, 0.0, 1.0
+    # cost_not_available branch: every row of the agent declares cost is genuinely
+    # absent. Suppress (None), don't zero, so the renderer can omit cost columns
+    # rather than display misleading zeros. Mixed provenance still raises below.
+    provenance_values = set(rows["cost_provenance"].to_list())
+    if provenance_values == {CostProvenance.COST_NOT_AVAILABLE.value}:
+        return AgentSummary(
+            agent_id=agent_id,
+            n_graded=n_graded,
+            n_errored=n_errored,
+            success_rate=point,
+            success_rate_ci_low=lo,
+            success_rate_ci_high=hi,
+            total_cost_usd=None,
+            cost_per_success_usd=None,
+        )
+    if CostProvenance.COST_NOT_AVAILABLE.value in provenance_values:
+        raise CostProvenanceError(
+            f"agent_id={agent_id!r} has mixed cost_provenance including "
+            f"'cost_not_available' (cost_provenance={sorted(provenance_values)}); "
+            "cost suppression must be whole-agent"
+        )
     # Per design.md: errored rows have None reconstructed cost; sum() ignores None,
     # so the reconstructed total covers graded rows only — which is the correct
     # numerator. For as_reported_only studies, reconstructed sums to 0 across the
     # frame; the renderer falls back to reported_run_total_cost_usd in that path.
     reconstructed_null_count = rows["reconstructed_per_task_cost_usd"].null_count()
     if 0 < reconstructed_null_count < rows.height:
-        provenance = sorted(set(rows["cost_provenance"].to_list()))
+        provenance = sorted(provenance_values)
         raise CostProvenanceError(
             f"agent_id={agent_id!r} has incomplete reconstructed cost data "
             f"({reconstructed_null_count}/{rows.height} null reconstructed_per_task_cost_usd; "
@@ -235,14 +261,23 @@ def analyze(
         per_agent.append(summary)
         by_id[agent_id] = summary
 
-    per_agent_for_pareto = pl.DataFrame(
-        {
-            "agent_id": [s.agent_id for s in per_agent],
-            "success_rate": [s.success_rate for s in per_agent],
-            "cost": [s.total_cost_usd for s in per_agent],
-        }
-    )
-    frontier = pareto_frontier(per_agent_for_pareto, success_col="success_rate", cost_col="cost")
+    if any(s.total_cost_usd is None for s in per_agent):
+        # Cost suppression is whole-study: a frontier with mixed finite and None
+        # costs would mislead readers about dominance. Skip and flag.
+        frontier: set[str] = set()
+        pareto_status: ParetoStatus = "suppressed_cost_not_available"
+    else:
+        per_agent_for_pareto = pl.DataFrame(
+            {
+                "agent_id": [s.agent_id for s in per_agent],
+                "success_rate": [s.success_rate for s in per_agent],
+                "cost": [s.total_cost_usd for s in per_agent],
+            }
+        )
+        frontier = pareto_frontier(
+            per_agent_for_pareto, success_col="success_rate", cost_col="cost"
+        )
+        pareto_status = "computed"
 
     raw_p_pairs: list[tuple[str, float]] = []
     bootstraps: dict[str, BootstrapResult] = {}
@@ -304,4 +339,5 @@ def analyze(
         claims=claim_results,
         pareto_frontier=frontier,
         bootstrap_seed=bootstrap_seed,
+        pareto_status=pareto_status,
     )

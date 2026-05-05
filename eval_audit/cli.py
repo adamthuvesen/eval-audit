@@ -24,6 +24,7 @@ from eval_audit.ingest import IngestContractError
 from eval_audit.ingest.generic import load_run_records
 from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
+from eval_audit.ingest.swe_bench_verified import SweBenchVerifiedAdapter
 from eval_audit.ingest.synthetic import SyntheticAdapter
 from eval_audit.report.markdown import render_report_to
 from eval_audit.schema import StudySpec
@@ -96,7 +97,15 @@ _ADAPTERS: dict[str, Callable[[], object]] = {
     "gaia": HalGaiaAdapter,
     "synthetic": SyntheticAdapter,
     "tau_bench": HalTauBenchAdapter,
+    "swe-bench-verified": SweBenchVerifiedAdapter,
 }
+
+# Benchmarks whose committed fixture lives under `examples/<study.id>/` rather
+# than `scouting/candidates/<benchmark>/`. Public-submission re-analyses ship
+# their canonical RunRecord parquet inside the repo (see scouting-fixtures
+# capability spec) because the upstream artifacts (e.g. S3-hosted submission
+# logs) are not committed.
+_EXAMPLES_BACKED_BENCHMARKS: frozenset[str] = frozenset({"swe-bench-verified"})
 
 
 def _resolve_repo_root(explicit: Path | None) -> Path:
@@ -114,6 +123,8 @@ def _load_runs(study: StudySpec, repo_root: Path):
     adapter = _ADAPTERS[study.benchmark]()
     if study.benchmark == "synthetic":
         source = repo_root / "scouting" / "synthetic"
+    elif study.benchmark in _EXAMPLES_BACKED_BENCHMARKS:
+        source = repo_root / "examples" / study.id
     else:
         source = (
             repo_root / "scouting" / "candidates" / benchmark_dir_name(study.benchmark)
@@ -152,6 +163,8 @@ def _fixture_sha256(
         path = runs_override
     elif study.benchmark == "synthetic":
         path = repo_root / "scouting" / "synthetic" / "runs.parquet"
+    elif study.benchmark in _EXAMPLES_BACKED_BENCHMARKS:
+        path = repo_root / "examples" / study.id / "runs.parquet"
     else:
         path = (
             repo_root

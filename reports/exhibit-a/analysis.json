@@ -49,5 +49,6 @@
     "HAL Generalist Agent (claude-3-7-sonnet-20250219)",
     "HAL Generalist Agent (o4-mini-2025-04-16 high)"
   ],
-  "bootstrap_seed": 42
+  "bootstrap_seed": 42,
+  "pareto_status": "computed"
 }

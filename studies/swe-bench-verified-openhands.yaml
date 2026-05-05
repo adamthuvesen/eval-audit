@@ -1,0 +1,67 @@
+# SWE-bench Verified — OpenHands + Opus 4.5 vs OpenHands + GPT-5
+#
+# Public-submission re-analysis (Exhibit A / B family) under the SWE-bench
+# Verified 500-task universe. Both agents are public OpenHands submissions
+# from `swe-bench/experiments`. Cost provenance is `cost_not_available`
+# because the upstream artifacts (results.json + S3 trajectories) expose
+# no stable token, usage, or cost fields. The rendered report suppresses
+# every cost-derived view; this is by design and inherited verbatim from
+# the scouting decision document.
+#
+# This is a SUBMISSION-LEVEL audit, not a model-only effect. The two
+# OpenHands submissions ran on different OpenHands commits and different
+# `max_iterations` (500 vs 100). Those differences are first-class report
+# content (see Provenance + Residual risks).
+
+schema_version: 1
+id: swe-bench-verified-openhands
+benchmark: swe-bench-verified
+analysis_mode: declared_reanalysis
+data_observation: full_seen
+harness: swe-bench-verified/openhands-public-submission-v1
+
+primary_outcome:
+  name: success_rate
+  unit: task
+  direction: higher_is_better
+
+agents:
+  - id: 20251127_openhands_claude-opus-4-5
+  - id: 20250807_openhands_gpt5
+
+design:
+  task_sampling: fixed_public_verified_universe_500
+  run_strategy: observed_public_submissions
+  observed_runs_per_agent: 1
+  rerun_policy: not_applicable_public_submission
+
+inference:
+  alpha: 0.05
+  correction_method: holm_bonferroni
+  comparison_family: declared_claims
+  # n=500 paired tasks; the paired-bootstrap CI half-width is ~3 pp at 8000
+  # iterations under the scouting calculation, so a 5 pp MDE is well-resolved.
+  target_mde: 0.05
+
+cost:
+  metrics:
+    - reconstructed_per_task_cost_usd
+    - reported_run_total_cost_usd
+    - cost_per_success_usd
+  primary_view: pareto_frontier
+
+claims:
+  - id: opus45_vs_gpt5_submission
+    text: >-
+      On SWE-bench Verified (500 tasks), the public OpenHands + Claude Opus 4.5
+      submission (20251127_openhands_claude-opus-4-5) resolves 388/500 instances
+      and the public OpenHands + GPT-5 submission (20250807_openhands_gpt5)
+      resolves 359/500. This re-analysis evaluates whether the +5.8 pp headline
+      gap is statistically distinguishable from noise once the paired discordants
+      (45 treatment-only solves vs 16 control-only solves) are surfaced. The
+      submissions differ in OpenHands runtime commit and `max_iterations`
+      budget (500 vs 100); this is a submission-level audit, not a model-only
+      effect.
+    treatment: 20251127_openhands_claude-opus-4-5
+    control: 20250807_openhands_gpt5
+    outcome: success_rate
