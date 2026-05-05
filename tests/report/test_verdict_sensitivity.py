@@ -181,8 +181,8 @@ def test_sensitivity__flip_annotation_only_on_non_baseline_verdicts(exhibit_b) -
             )
 
 
-def test_sensitivity__eight_section_shape_unchanged(exhibit_b) -> None:
-    """The sub-block does NOT break the eight-section shape contract."""
+def test_sensitivity__nine_section_shape_unchanged(exhibit_b) -> None:
+    """The sub-block does NOT break the nine-section shape contract."""
     _study, _result, text = exhibit_b
 
     headings = [line for line in text.splitlines() if line.startswith("## ")]
@@ -193,20 +193,21 @@ def test_sensitivity__eight_section_shape_unchanged(exhibit_b) -> None:
         "Provenance",
         "Per-agent summary",
         "Claims",
+        "Robustness Review",
         "Cost-quality view",
         "Residual risks",
         "Reproducibility footer",
     ]
 
     # Sensitivity sub-blocks live entirely between the Claims table and the
-    # Cost-quality view heading.
+    # Robustness Review heading.
     claims_idx = text.index("## Claims")
-    cost_idx = text.index("## Cost-quality view")
-    block = text[claims_idx:cost_idx]
+    rr_idx = text.index("## Robustness Review")
+    block = text[claims_idx:rr_idx]
     assert "**Verdict sensitivity**" in block
     # And NOT outside that range.
     assert "**Verdict sensitivity**" not in text[:claims_idx]
-    assert "**Verdict sensitivity**" not in text[cost_idx:]
+    assert "**Verdict sensitivity**" not in text[rr_idx:]
 
 
 def test_sensitivity__multiple_claims_one_subblock_each(exhibit_b) -> None:

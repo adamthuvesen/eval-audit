@@ -164,6 +164,161 @@ def _render_audit_summary_stanza(
     ]
 
 
+_ROBUSTNESS_DIMENSIONS: tuple[str, ...] = (
+    "Multiple-comparison correction",
+    "Errored-row policy",
+    "Cost-threshold sensitivity",
+    "Target MDE",
+    "Cost provenance",
+)
+
+
+def _robustness_multiple_comparison(rows, baseline: str) -> tuple[str, str]:
+    """Compose alpha={0.01,0.10} + correction_method=none rows into one verdict."""
+    flipped: list[str] = []
+    for r in rows:
+        if r.dimension == "alpha" and r.value == "0.01" and r.verdict != baseline:
+            flipped.append("α=0.01")
+        elif r.dimension == "alpha" and r.value == "0.10" and r.verdict != baseline:
+            flipped.append("α=0.10")
+        elif (
+            r.dimension == "correction_method"
+            and r.value == "none"
+            and r.verdict != baseline
+        ):
+            flipped.append("correction=none")
+    if not flipped:
+        return (
+            "survives",
+            "verdict unchanged at α∈{0.01, 0.10} and with correction=none",
+        )
+    return ("does not survive", f"verdict flips at {', '.join(flipped)}")
+
+
+def _robustness_errored_policy(rows, baseline: str) -> tuple[str, str]:
+    """Compose the errored_policy=excluded row into one verdict."""
+    for r in rows:
+        if r.dimension == "errored_policy" and r.value == "excluded":
+            if r.verdict == baseline:
+                return ("survives", "verdict unchanged when errored rows excluded")
+            return (
+                "does not survive",
+                f"verdict flips when errored rows excluded ({baseline} → {r.verdict})",
+            )
+    raise ReportContractError(
+        "errored_policy=excluded row missing from sensitivity rows"
+    )
+
+
+def _robustness_cost_threshold(rows, baseline: str) -> tuple[str, str]:
+    """Compose cost_gap_threshold={0.05,0.20} rows into one verdict."""
+    flipped: list[str] = []
+    for r in rows:
+        if r.dimension == "cost_gap_threshold" and r.verdict != baseline:
+            flipped.append(r.value)
+    if not flipped:
+        return (
+            "survives",
+            "verdict unchanged at cost_gap_threshold∈{0.05, 0.20}",
+        )
+    return (
+        "does not survive",
+        f"verdict flips at cost_gap_threshold={', '.join(flipped)}",
+    )
+
+
+def _robustness_target_mde(
+    target_mde: float | None, ci_half_width: float
+) -> tuple[str, str]:
+    """Compose CI-half-width-vs-target_mde into one verdict."""
+    if target_mde is None:
+        return ("not assessed", "inference.target_mde not declared")
+    half_pp = ci_half_width * 100
+    mde_pp = target_mde * 100
+    if ci_half_width <= target_mde:
+        return (
+            "survives",
+            f"CI half-width {half_pp:.2f} pp ≤ MDE {mde_pp:.2f} pp; sufficiently resolved",
+        )
+    return (
+        "does not survive",
+        f"CI half-width {half_pp:.2f} pp > MDE {mde_pp:.2f} pp; under-resolved",
+    )
+
+
+def _robustness_cost_provenance(cost_provenance_class: str) -> tuple[str, str]:
+    """Map cost-reconciliation outcome to the four-value Result vocabulary."""
+    if cost_provenance_class == "reconciled":
+        return ("survives", "reconciled")
+    if cost_provenance_class in ("as_reported_only", "partial"):
+        return ("caveat", cost_provenance_class)
+    return ("does not survive", cost_provenance_class)
+
+
+def _render_robustness_review_table(
+    rows,
+    baseline: str,
+    target_mde: float | None,
+    ci_half_width: float,
+    cost_provenance_class: str,
+) -> list[str]:
+    """Emit the markdown table header + five fixed-order data rows."""
+    parts = ["| Dimension | Result | Notes |", "|---|---|---|"]
+
+    result, notes = _robustness_multiple_comparison(rows, baseline)
+    parts.append(f"| Multiple-comparison correction | {result} | {notes} |")
+
+    result, notes = _robustness_errored_policy(rows, baseline)
+    parts.append(f"| Errored-row policy | {result} | {notes} |")
+
+    result, notes = _robustness_cost_threshold(rows, baseline)
+    parts.append(f"| Cost-threshold sensitivity | {result} | {notes} |")
+
+    result, notes = _robustness_target_mde(target_mde, ci_half_width)
+    parts.append(f"| Target MDE | {result} | {notes} |")
+
+    result, notes = _robustness_cost_provenance(cost_provenance_class)
+    parts.append(f"| Cost provenance | {result} | {notes} |")
+
+    return parts
+
+
+def _render_robustness_review(
+    result,
+    study: StudySpec,
+    sensitivity_rows_by_claim: dict,
+    cost_provenance_class: str,
+) -> list[str]:
+    """Emit the `## Robustness Review` section.
+
+    Single-claim studies emit a flat table; multi-claim studies emit one
+    `### Claim <id>` sub-stanza per claim, in claim-table order. Composes
+    sensitivity rows (already computed for the Verdict sensitivity sub-block)
+    + MDE context + cost-provenance class — no new computation.
+    """
+    parts: list[str] = ["## Robustness Review\n"]
+
+    target_mde = study.inference.target_mde
+    multi_claim = len(result.claims) > 1
+
+    for c in result.claims:
+        rows = sensitivity_rows_by_claim[c.claim_id]
+        baseline = rows[0].verdict
+        ci_half_width = (c.delta_ci_high - c.delta_ci_low) / 2.0
+
+        if multi_claim:
+            parts.append(f"### Claim `{c.claim_id}`\n")
+
+        parts.extend(
+            _render_robustness_review_table(
+                rows, baseline, target_mde, ci_half_width, cost_provenance_class
+            )
+        )
+        parts.append("")
+
+    return parts
+
+
 def _render_audit_summary(
     result,
     study: StudySpec,
@@ -526,11 +681,15 @@ def render_report(
             )
         parts.append("")
 
-    # Verdict sensitivity sub-block (one per claim).
+    # Precompute sensitivity rows once per claim. The errored_policy=excluded
+    # perturbation re-bootstraps the graded-only frame, so this is the
+    # expensive bit; the Verdict sensitivity sub-block and the Robustness
+    # Review section both consume the same rows.
     from eval_audit.report.sensitivity import compute_sensitivity_rows
 
+    sensitivity_rows_by_claim: dict[str, list] = {}
     for c in result.claims:
-        rows = compute_sensitivity_rows(
+        sensitivity_rows_by_claim[c.claim_id] = compute_sensitivity_rows(
             c,
             runs,
             study,
@@ -538,6 +697,10 @@ def render_report(
             bootstrap_iterations=bootstrap_iterations,
             bootstrap_seed=bootstrap_seed,
         )
+
+    # Verdict sensitivity sub-block (one per claim).
+    for c in result.claims:
+        rows = sensitivity_rows_by_claim[c.claim_id]
         baseline_verdict = rows[0].verdict
         parts.append(f"**Verdict sensitivity** — `{c.claim_id}`\n")
         parts.append("| dimension | value | verdict |")
@@ -549,7 +712,14 @@ def render_report(
             parts.append(f"| {r.dimension} | {r.value} | {verdict_cell} |")
         parts.append("")
 
-    # 6. Cost-quality view
+    # 6. Robustness Review
+    parts.extend(
+        _render_robustness_review(
+            result, study, sensitivity_rows_by_claim, cost_provenance_class
+        )
+    )
+
+    # 7. Cost-quality view
     parts.append("## Cost-quality view\n")
     pareto_sorted = sorted(result.pareto_frontier)
     parts.append(f"**Pareto frontier (max success_rate, min total_cost_usd):** {pareto_sorted}")
@@ -564,7 +734,7 @@ def render_report(
         parts.append("All agents are on the frontier; no dominance to report.")
     parts.append("")
 
-    # 7. Residual risks
+    # 8. Residual risks
     parts.append("## Residual risks\n")
     parts.append(
         "**Inherited from scouting decision** (verbatim from "
@@ -573,7 +743,7 @@ def render_report(
     parts.append(residual_risks_text)
     parts.append("")
 
-    # 8. Reproducibility footer
+    # 9. Reproducibility footer
     parts.append("## Reproducibility footer\n")
     parts.append(f"- **rendered_at:** `{rendered_at}`")
     parts.append(f"- **git_commit:** `{git_commit}`")

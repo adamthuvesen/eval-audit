@@ -115,6 +115,38 @@ HAL's reported run-total cost is used directly because per-task cost reconstruct
 | cost_gap_threshold | 0.05 | drop_from_shortlist |
 | cost_gap_threshold | 0.20 | drop_from_shortlist |
 
+## Robustness Review
+
+### Claim `o4mini_vs_claude`
+
+| Dimension | Result | Notes |
+|---|---|---|
+| Multiple-comparison correction | survives | verdict unchanged at α∈{0.01, 0.10} and with correction=none |
+| Errored-row policy | survives | verdict unchanged when errored rows excluded |
+| Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
+| Target MDE | does not survive | CI half-width 17.00 pp > MDE 5.00 pp; under-resolved |
+| Cost provenance | caveat | as_reported_only |
+
+### Claim `o4mini_vs_o3`
+
+| Dimension | Result | Notes |
+|---|---|---|
+| Multiple-comparison correction | survives | verdict unchanged at α∈{0.01, 0.10} and with correction=none |
+| Errored-row policy | survives | verdict unchanged when errored rows excluded |
+| Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
+| Target MDE | does not survive | CI half-width 16.00 pp > MDE 5.00 pp; under-resolved |
+| Cost provenance | caveat | as_reported_only |
+
+### Claim `claude_vs_o3`
+
+| Dimension | Result | Notes |
+|---|---|---|
+| Multiple-comparison correction | survives | verdict unchanged at α∈{0.01, 0.10} and with correction=none |
+| Errored-row policy | survives | verdict unchanged when errored rows excluded |
+| Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
+| Target MDE | does not survive | CI half-width 16.00 pp > MDE 5.00 pp; under-resolved |
+| Cost provenance | caveat | as_reported_only |
+
 ## Cost-quality view
 
 **Pareto frontier (max success_rate, min total_cost_usd):** ['Taubench ToolCalling (o4-mini-2025-04-16 high)']

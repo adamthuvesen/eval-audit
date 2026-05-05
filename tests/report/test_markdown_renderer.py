@@ -38,9 +38,9 @@ def _render(study, runs, result, repo_root: Path) -> str:
     )
 
 
-def test_report__all_eight_sections_are_present(exhibit_a_inputs, repo_root: Path) -> None:
+def test_report__all_nine_sections_are_present(exhibit_a_inputs, repo_root: Path) -> None:
     """WHEN the renderer is run against the Exhibit A study and GAIA fixture,
-    THEN the resulting markdown contains all eight ## sections in the listed order.
+    THEN the resulting markdown contains all nine ## sections in the listed order.
     """
     study, runs, result = exhibit_a_inputs
 
@@ -52,6 +52,7 @@ def test_report__all_eight_sections_are_present(exhibit_a_inputs, repo_root: Pat
         "## Provenance",
         "## Per-agent summary",
         "## Claims",
+        "## Robustness Review",
         "## Cost-quality view",
         "## Residual risks",
         "## Reproducibility footer",
@@ -533,3 +534,286 @@ def test_audit_summary__verdict_glosses_are_exhaustive_and_pinned() -> None:
         "inconclusive_no_action": "result does not meet any decision threshold",
     }
     assert expected == _VERDICT_GLOSS
+
+
+# ---------------------------------------------------------------------------
+# Robustness Review — unit tests for the helpers and the rendered section.
+# ---------------------------------------------------------------------------
+
+
+def _row(dim: str, val: str, verdict: str):
+    """Build a SensitivityRow without importing the dataclass at module level."""
+    from eval_audit.report.sensitivity import SensitivityRow
+
+    return SensitivityRow(dimension=dim, value=val, verdict=verdict)
+
+
+def test_robustness_dimensions__exact_five_in_fixed_order() -> None:
+    from eval_audit.report.markdown import _ROBUSTNESS_DIMENSIONS
+
+    assert _ROBUSTNESS_DIMENSIONS == (
+        "Multiple-comparison correction",
+        "Errored-row policy",
+        "Cost-threshold sensitivity",
+        "Target MDE",
+        "Cost provenance",
+    )
+
+
+def test_robustness_multiple_comparison__all_match_baseline_survives() -> None:
+    from eval_audit.report.markdown import _robustness_multiple_comparison
+
+    rows = [
+        _row("baseline", "locked", "hedge_on_cost"),
+        _row("alpha", "0.01", "hedge_on_cost"),
+        _row("alpha", "0.10", "hedge_on_cost"),
+        _row("correction_method", "none", "hedge_on_cost"),
+    ]
+    assert _robustness_multiple_comparison(rows, "hedge_on_cost") == (
+        "survives",
+        "verdict unchanged at α∈{0.01, 0.10} and with correction=none",
+    )
+
+
+def test_robustness_multiple_comparison__only_alpha_001_flips() -> None:
+    from eval_audit.report.markdown import _robustness_multiple_comparison
+
+    rows = [
+        _row("alpha", "0.01", "switch"),
+        _row("alpha", "0.10", "hedge_on_cost"),
+        _row("correction_method", "none", "hedge_on_cost"),
+    ]
+    assert _robustness_multiple_comparison(rows, "hedge_on_cost") == (
+        "does not survive",
+        "verdict flips at α=0.01",
+    )
+
+
+def test_robustness_multiple_comparison__alpha_010_and_correction_flip() -> None:
+    from eval_audit.report.markdown import _robustness_multiple_comparison
+
+    rows = [
+        _row("alpha", "0.01", "hedge_on_cost"),
+        _row("alpha", "0.10", "switch"),
+        _row("correction_method", "none", "switch"),
+    ]
+    assert _robustness_multiple_comparison(rows, "hedge_on_cost") == (
+        "does not survive",
+        "verdict flips at α=0.10, correction=none",
+    )
+
+
+def test_robustness_errored_policy__match_baseline_survives() -> None:
+    from eval_audit.report.markdown import _robustness_errored_policy
+
+    rows = [_row("errored_policy", "excluded", "hedge_on_cost")]
+    assert _robustness_errored_policy(rows, "hedge_on_cost") == (
+        "survives",
+        "verdict unchanged when errored rows excluded",
+    )
+
+
+def test_robustness_errored_policy__flip_includes_baseline_and_flipped_tokens() -> None:
+    from eval_audit.report.markdown import _robustness_errored_policy
+
+    rows = [_row("errored_policy", "excluded", "rerun_more_n")]
+    assert _robustness_errored_policy(rows, "hedge_on_cost") == (
+        "does not survive",
+        "verdict flips when errored rows excluded (hedge_on_cost → rerun_more_n)",
+    )
+
+
+def test_robustness_errored_policy__missing_row_raises() -> None:
+    from eval_audit.report import ReportContractError
+    from eval_audit.report.markdown import _robustness_errored_policy
+
+    with pytest.raises(ReportContractError):
+        _robustness_errored_policy([], "hedge_on_cost")
+
+
+def test_robustness_cost_threshold__both_match_baseline_survives() -> None:
+    from eval_audit.report.markdown import _robustness_cost_threshold
+
+    rows = [
+        _row("cost_gap_threshold", "0.05", "hedge_on_cost"),
+        _row("cost_gap_threshold", "0.20", "hedge_on_cost"),
+    ]
+    assert _robustness_cost_threshold(rows, "hedge_on_cost") == (
+        "survives",
+        "verdict unchanged at cost_gap_threshold∈{0.05, 0.20}",
+    )
+
+
+def test_robustness_cost_threshold__only_020_flips() -> None:
+    from eval_audit.report.markdown import _robustness_cost_threshold
+
+    rows = [
+        _row("cost_gap_threshold", "0.05", "hedge_on_cost"),
+        _row("cost_gap_threshold", "0.20", "rerun_more_n"),
+    ]
+    assert _robustness_cost_threshold(rows, "hedge_on_cost") == (
+        "does not survive",
+        "verdict flips at cost_gap_threshold=0.20",
+    )
+
+
+def test_robustness_target_mde__null_target_returns_not_assessed() -> None:
+    from eval_audit.report.markdown import _robustness_target_mde
+
+    assert _robustness_target_mde(None, 0.05) == (
+        "not assessed",
+        "inference.target_mde not declared",
+    )
+
+
+def test_robustness_target_mde__ci_inside_mde_survives() -> None:
+    from eval_audit.report.markdown import _robustness_target_mde
+
+    assert _robustness_target_mde(0.03, 0.02) == (
+        "survives",
+        "CI half-width 2.00 pp ≤ MDE 3.00 pp; sufficiently resolved",
+    )
+
+
+def test_robustness_target_mde__ci_outside_mde_does_not_survive() -> None:
+    from eval_audit.report.markdown import _robustness_target_mde
+
+    assert _robustness_target_mde(0.03, 0.09) == (
+        "does not survive",
+        "CI half-width 9.00 pp > MDE 3.00 pp; under-resolved",
+    )
+
+
+def test_robustness_cost_provenance__class_to_vocabulary_mapping() -> None:
+    from eval_audit.report.markdown import _robustness_cost_provenance
+
+    assert _robustness_cost_provenance("reconciled") == ("survives", "reconciled")
+    assert _robustness_cost_provenance("as_reported_only") == (
+        "caveat",
+        "as_reported_only",
+    )
+    assert _robustness_cost_provenance("partial") == ("caveat", "partial")
+    assert _robustness_cost_provenance("not_applicable") == (
+        "does not survive",
+        "not_applicable",
+    )
+
+
+def _extract_robustness_review(text: str) -> str:
+    """Return everything between '## Robustness Review' and the next '## ' heading."""
+    start = text.index("## Robustness Review")
+    rest = text[start:]
+    next_section = rest.index("\n## ", 1)
+    return rest[: next_section + 1]
+
+
+def test_robustness_review__appears_between_claims_and_cost_quality(
+    exhibit_a_inputs, repo_root: Path
+) -> None:
+    """Section 6 in the new ordering: between Claims and Cost-quality view."""
+    study, runs, result = exhibit_a_inputs
+    text = _render(study, runs, result, repo_root)
+
+    claims_pos = text.index("## Claims")
+    rr_pos = text.index("## Robustness Review")
+    cost_pos = text.index("## Cost-quality view")
+
+    assert claims_pos < rr_pos < cost_pos
+
+
+def test_robustness_review__exhibit_a_has_five_data_rows_in_listed_order(
+    exhibit_a_inputs, repo_root: Path
+) -> None:
+    """Single-claim study renders five rows in the fixed dimension order."""
+    study, runs, result = exhibit_a_inputs
+    text = _render(study, runs, result, repo_root)
+    section = _extract_robustness_review(text)
+
+    expected_dimensions = [
+        "| Multiple-comparison correction |",
+        "| Errored-row policy |",
+        "| Cost-threshold sensitivity |",
+        "| Target MDE |",
+        "| Cost provenance |",
+    ]
+    last_pos = -1
+    for dim in expected_dimensions:
+        pos = section.find(dim)
+        assert pos != -1, f"missing dimension row: {dim}"
+        assert pos > last_pos, f"dimension out of order: {dim}"
+        last_pos = pos
+
+
+def test_robustness_review__exhibit_a_target_mde_does_not_survive(
+    exhibit_a_inputs, repo_root: Path
+) -> None:
+    """Exhibit A's CI is much wider than its MDE (9.39 pp > 3 pp)."""
+    study, runs, result = exhibit_a_inputs
+    text = _render(study, runs, result, repo_root)
+    section = _extract_robustness_review(text)
+
+    # The Target MDE row should read "does not survive" with the under-resolved note.
+    target_line = next(
+        line for line in section.splitlines() if line.startswith("| Target MDE |")
+    )
+    assert "does not survive" in target_line
+    assert "under-resolved" in target_line
+    assert " pp >" in target_line  # half-width > MDE
+
+
+def test_robustness_review__exhibit_a_cost_provenance_reconciled(
+    exhibit_a_inputs, repo_root: Path
+) -> None:
+    """Exhibit A uses the GAIA fixture which reconciles cleanly."""
+    study, runs, result = exhibit_a_inputs
+    text = _render(study, runs, result, repo_root)
+    section = _extract_robustness_review(text)
+
+    cost_line = next(
+        line for line in section.splitlines() if line.startswith("| Cost provenance |")
+    )
+    assert cost_line == "| Cost provenance | survives | reconciled |"
+
+
+def test_robustness_review__exhibit_b_has_one_sub_stanza_per_claim(
+    exhibit_b_inputs, repo_root: Path
+) -> None:
+    """Multi-claim study emits one `### Claim <id>` sub-stanza per claim."""
+    study, runs, result = exhibit_b_inputs
+    text = _render(study, runs, result, repo_root)
+    section = _extract_robustness_review(text)
+
+    claim_ids = [c.claim_id for c in result.claims]
+    assert len(claim_ids) == 3, "exhibit-b sanity check"
+
+    last_pos = -1
+    for claim_id in claim_ids:
+        marker = f"### Claim `{claim_id}`"
+        pos = section.find(marker)
+        assert pos != -1, f"missing sub-stanza for claim {claim_id!r}"
+        assert pos > last_pos, f"claim sub-stanza out of order: {claim_id!r}"
+        last_pos = pos
+
+
+def test_robustness_review__every_result_value_is_in_vocabulary(
+    exhibit_a_inputs, exhibit_b_inputs, repo_root: Path
+) -> None:
+    """Every Result column value across both exhibits is one of the four vocab values."""
+    allowed = {"survives", "does not survive", "caveat", "not assessed"}
+
+    for inputs in (exhibit_a_inputs, exhibit_b_inputs):
+        study, runs, result = inputs
+        text = _render(study, runs, result, repo_root)
+        section = _extract_robustness_review(text)
+        for line in section.splitlines():
+            if not line.startswith("| ") or line.startswith("| Dimension"):
+                continue
+            if line.startswith("|---"):
+                continue
+            cells = [c.strip() for c in line.split("|")[1:-1]]
+            if len(cells) != 3:
+                continue
+            assert cells[1] in allowed, (
+                f"Result column value {cells[1]!r} not in allowed vocabulary {allowed} "
+                f"on line: {line}"
+            )
