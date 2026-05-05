@@ -1,0 +1,118 @@
+"""Scaffold a new BYO study directory from the examples/byo-minimal/ template.
+
+The runtime template source is the committed worked-example fixture under
+``examples/byo-minimal/``. Reusing it (instead of duplicating into
+``eval_audit/_templates/``) keeps the scaffold and the worked example
+aligned by construction.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+import eval_audit
+
+
+class ScaffoldError(RuntimeError):
+    """Raised when scaffolding a BYO study fails."""
+
+
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+
+def template_dir() -> Path:
+    """Locate the BYO template directory at runtime."""
+    pkg_root = Path(eval_audit.__file__).resolve().parent.parent
+    candidate = pkg_root / "examples" / "byo-minimal"
+    if not candidate.exists():
+        raise ScaffoldError(
+            f"BYO template directory not found at {candidate}. "
+            "examples/byo-minimal/ is required for `eval-audit init`."
+        )
+    return candidate
+
+
+def _substitute_byo_minimal(text: str, study_id: str) -> str:
+    """Rewrite identifier-shaped occurrences of 'byo-minimal' to study_id.
+
+    Substitutes only the YAML/script identifier fields (id, benchmark, harness),
+    not arbitrary occurrences in comments or docs. The targets are:
+
+    - YAML: ``id: byo-minimal``, ``benchmark: byo-minimal``, ``harness: byo-minimal``
+    - Python: ``"harness": "byo-minimal"`` (the dict literal in the row builder)
+    """
+    out = text
+    out = re.sub(r"^id: byo-minimal$", f"id: {study_id}", out, flags=re.M)
+    out = re.sub(r"^benchmark: byo-minimal$", f"benchmark: {study_id}", out, flags=re.M)
+    out = re.sub(r"^harness: byo-minimal$", f"harness: {study_id}", out, flags=re.M)
+    out = out.replace('"harness": "byo-minimal"', f'"harness": "{study_id}"')
+    return out
+
+
+_USER_README = """\
+# {study_id}
+
+Bring-your-own-data study scaffolded by `eval-audit init`.
+
+Files:
+
+- `study.yaml` — your audit declaration (claims, MDE, cost view).
+- `make_runs.py` — Python script that constructs `runs.parquet` from inline data.
+  **Re-running this script overwrites `runs.parquet`** — keep your edits in the
+  script, not in the parquet directly.
+- `runs.parquet` — canonical RunRecord-shaped data the audit consumes.
+- `README.md` — this file.
+
+Next steps:
+
+1. Edit `make_runs.py` to define your data. The example uses two agents
+   (`alice`, `bob`) with toy success rates; replace with your real agents,
+   tasks, and outcomes.
+2. Run `python make_runs.py` to regenerate `runs.parquet`.
+3. Edit `study.yaml` so `claims[].treatment` and `claims[].control` match your
+   agent identifiers. Adjust `inference.target_mde` to the smallest effect
+   you'd want to detect.
+4. Run `eval-audit validate runs.parquet study.yaml` to pre-flight.
+5. Run `eval-audit analyze study.yaml --runs runs.parquet` to write
+   `reports/{study_id}/analysis.json`, or `eval-audit report ...` for the
+   markdown audit report.
+
+For the formal field-by-field RunRecord reference, see
+[`agents/docs/INPUT_CONTRACT.md`](../agents/docs/INPUT_CONTRACT.md). For the
+worked example narrative, see
+[`examples/byo-minimal/README.md`](../examples/byo-minimal/README.md).
+"""
+
+
+def scaffold_byo_study(target_dir: Path, study_id: str) -> None:
+    """Scaffold a new BYO study directory.
+
+    Copies ``study.yaml`` and ``make_runs.py`` from the example fixture (with
+    identifier substitutions), writes a stub ``README.md``, then runs
+    ``make_runs.py`` to materialise ``runs.parquet``.
+    """
+    src = template_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    for filename in ("study.yaml", "make_runs.py"):
+        src_path = src / filename
+        dst_path = target_dir / filename
+        text = src_path.read_text()
+        text = _substitute_byo_minimal(text, study_id)
+        dst_path.write_text(text)
+
+    (target_dir / "README.md").write_text(_USER_README.format(study_id=study_id))
+
+    result = subprocess.run(
+        [sys.executable, str(target_dir / "make_runs.py")],
+        cwd=str(target_dir),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise ScaffoldError(
+            f"make_runs.py failed in {target_dir}: {result.stderr.strip()}"
+        )
