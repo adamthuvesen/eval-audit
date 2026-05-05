@@ -12,7 +12,7 @@ def _row(
     outcome_status: str,
     success: bool | None,
     harness: str = "tau_bench_tool_calling",
-    reconstructed_cost: float | None = 0.10,
+    reconstructed_cost: float | None = None,
     reported_run_total: float = 5.00,
     cost_provenance: str = "as_reported_only",
 ) -> dict:
@@ -207,6 +207,28 @@ def test_errored_row_policy__paired_bootstrap_task_set_aligned_with_errored() ->
     assert abs(claim.delta_point_estimate - (0.44 - 0.56)) < 1e-9
 
 
+def test_errored_row_policy__malformed_errored_success_treated_as_failure() -> None:
+    """WHEN analysis receives a bypassed frame with success=True on an errored row,
+    THEN both the headline summary and bootstrap treat that row as failure.
+    """
+    from eval_audit.stats import analyze
+
+    rows = [
+        _row(agent_id="agent", task_id="t0", outcome_status="errored", success=True),
+        _row(agent_id="agent", task_id="t1", outcome_status="graded", success=False),
+        _row(agent_id="control", task_id="t0", outcome_status="graded", success=False),
+        _row(agent_id="control", task_id="t1", outcome_status="graded", success=False),
+    ]
+    frame = pl.DataFrame(rows, strict=False)
+    study = _stub_study("agent", "control")
+
+    result = analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
+
+    by_id = {s.agent_id: s for s in result.per_agent}
+    assert by_id["agent"].success_rate == 0.0
+    assert result.claims[0].delta_point_estimate == 0.0
+
+
 def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     """WHEN the per-agent summary is computed for an agent with n_errored > 0,
     THEN cost_per_success_usd = total_cost_usd / successes where successes is the
@@ -249,7 +271,7 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
             success=None,
             harness="hal_generalist_agent",
             cost_provenance="reconciled",
-            reconstructed_cost=None,
+            reconstructed_cost=0.10,
             reported_run_total=1.00,
         ))
     # Pair with a control agent so analyze() has a comparison to chew on.
@@ -274,8 +296,65 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     assert agent.n_graded == 8
     assert agent.n_errored == 2
     # successes = 5 graded-true rows (errored rows can never count as success).
-    assert abs(agent.total_cost_usd - 0.80) < 1e-9
-    assert abs(agent.cost_per_success_usd - (0.80 / 5)) < 1e-9
+    assert abs(agent.total_cost_usd - 1.00) < 1e-9
+    assert abs(agent.cost_per_success_usd - (1.00 / 5)) < 1e-9
+
+
+def test_errored_row_policy__mixed_reconstructed_cost_fails_analysis() -> None:
+    """WHEN reconstructed per-task costs are mixed null/non-null for an agent,
+    THEN analysis refuses to present an incomplete reconstructed cost total.
+    """
+    import pytest
+
+    from eval_audit.stats import analyze
+
+    rows = [
+        _row(
+            agent_id="agent",
+            task_id="t0",
+            outcome_status="graded",
+            success=True,
+            harness="hal_generalist_agent",
+            cost_provenance="partial",
+            reconstructed_cost=0.10,
+        ),
+        _row(
+            agent_id="agent",
+            task_id="t1",
+            outcome_status="graded",
+            success=False,
+            harness="hal_generalist_agent",
+            cost_provenance="partial",
+            reconstructed_cost=None,
+        ),
+        _row(
+            agent_id="control",
+            task_id="t0",
+            outcome_status="graded",
+            success=False,
+            harness="hal_generalist_agent",
+            cost_provenance="reconciled",
+            reconstructed_cost=0.05,
+        ),
+        _row(
+            agent_id="control",
+            task_id="t1",
+            outcome_status="graded",
+            success=False,
+            harness="hal_generalist_agent",
+            cost_provenance="reconciled",
+            reconstructed_cost=0.05,
+        ),
+    ]
+    frame = pl.DataFrame(rows, strict=False)
+    study = _stub_study("agent", "control", harness="hal_generalist_agent")
+
+    with pytest.raises(ValueError) as exc_info:
+        analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
+
+    msg = str(exc_info.value)
+    assert "agent" in msg
+    assert "incomplete reconstructed cost" in msg
 
 
 # Hypothesis property test: for any random agent row distribution with errored,

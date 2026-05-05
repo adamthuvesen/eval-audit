@@ -95,6 +95,52 @@ def test_analyze__mixed_harness_comparison_is_rejected() -> None:
     assert "agent_c" in msg
 
 
+def test_analyze__rows_must_match_declared_study_harness() -> None:
+    """WHEN both agents have rows under the same harness but not study.harness,
+    THEN analyze rejects the comparison before reporting under the wrong label.
+    """
+    import pytest
+
+    from eval_audit.stats import CrossHarnessComparisonError, analyze
+
+    frame = pl.DataFrame([
+        _row("agent_t", "t01", "tau_bench_tool_calling"),
+        _row("agent_t", "t02", "tau_bench_tool_calling"),
+        _row("agent_c", "t01", "tau_bench_tool_calling"),
+        _row("agent_c", "t02", "tau_bench_tool_calling"),
+    ])
+    study = _stub_study("agent_t", "agent_c", "hal_generalist_agent")
+
+    with pytest.raises(CrossHarnessComparisonError) as exc_info:
+        analyze(study, frame)
+
+    msg = str(exc_info.value)
+    assert "hal_generalist_agent" in msg
+    assert "tau_bench_tool_calling" in msg
+
+
+def test_analyze__missing_claimed_agent_rows_fail_clearly() -> None:
+    """WHEN a claimed treatment or control has no rows,
+    THEN analyze names the missing agent before bootstrap execution.
+    """
+    import pytest
+
+    from eval_audit.stats import CrossHarnessComparisonError, analyze
+
+    frame = pl.DataFrame([
+        _row("agent_t", "t01", "hal_generalist_agent"),
+        _row("agent_t", "t02", "hal_generalist_agent"),
+    ])
+    study = _stub_study("agent_t", "agent_c", "hal_generalist_agent")
+
+    with pytest.raises(CrossHarnessComparisonError) as exc_info:
+        analyze(study, frame)
+
+    msg = str(exc_info.value)
+    assert "agent_c" in msg
+    assert "no rows" in msg
+
+
 def test_analyze__benjamini_hochberg_dispatches_to_bh(monkeypatch) -> None:
     """WHEN correction_method is benjamini_hochberg,
     THEN analyze reports BH adjusted p-values rather than raw p-values.

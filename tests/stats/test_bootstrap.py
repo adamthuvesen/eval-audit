@@ -72,3 +72,39 @@ def test_bootstrap__missing_outcome_column_raises() -> None:
         paired_task_bootstrap(frame, frame, outcome="partial_credit")
 
     assert "partial_credit" in str(exc_info.value)
+
+
+def test_bootstrap__invalid_parameters_raise_clear_errors() -> None:
+    """WHEN bootstrap parameters are degenerate,
+    THEN the function raises clear ValueError messages before NumPy calls.
+    """
+    import pytest
+
+    from eval_audit.stats import paired_task_bootstrap
+
+    arm = _arm("a", 0.5)
+    same = arm.with_columns(pl.lit("b").alias("agent_id"))
+
+    with pytest.raises(ValueError) as iter_exc:
+        paired_task_bootstrap(arm, same, outcome="success", n_iter=0)
+    assert "n_iter" in str(iter_exc.value)
+
+    with pytest.raises(ValueError) as alpha_exc:
+        paired_task_bootstrap(arm, same, outcome="success", alpha=1.0)
+    assert "alpha" in str(alpha_exc.value)
+
+
+def test_bootstrap__empty_paired_task_set_raises_clear_error() -> None:
+    """WHEN either arm has no paired task rows,
+    THEN the function raises a clear ValueError naming the paired task requirement.
+    """
+    import pytest
+
+    from eval_audit.stats import paired_task_bootstrap
+
+    empty = pl.DataFrame({"agent_id": [], "task_id": [], "success": []})
+
+    with pytest.raises(ValueError) as exc_info:
+        paired_task_bootstrap(empty, empty, outcome="success")
+
+    assert "paired task" in str(exc_info.value)
