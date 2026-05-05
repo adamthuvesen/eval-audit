@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import importlib.metadata
 import json
 import subprocess
 from collections.abc import Callable
@@ -18,6 +19,7 @@ from pathlib import Path
 import typer
 
 from eval_audit.fixtures import benchmark_dir_name
+from eval_audit.ingest.generic import load_run_records
 from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 from eval_audit.ingest.synthetic import SyntheticAdapter
@@ -26,9 +28,31 @@ from eval_audit.schema import StudySpec
 from eval_audit.spec import render_study_spec
 from eval_audit.stats import analyze
 
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(importlib.metadata.version("eval-audit"))
+        raise typer.Exit(code=0)
+
+
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 spec_app = typer.Typer(no_args_is_help=True, help="Validate and render StudySpec files.")
 app.add_typer(spec_app, name="spec")
+
+
+@app.callback()
+def _main(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Print the eval-audit package version and exit.",
+    ),
+) -> None:
+    """eval-audit — verdict-grade audit reports for AI benchmark claims."""
+    # Body intentionally empty; the callback exists to host the --version flag.
+    return
 
 
 @spec_app.command("validate")
@@ -95,6 +119,19 @@ def _load_runs(study: StudySpec, repo_root: Path):
     return adapter.load(source)
 
 
+def _resolve_runs_frame(study: StudySpec, repo_root: Path, runs_override: Path | None):
+    """Pick between the BYO --runs file and the benchmark-keyed adapter path."""
+    if runs_override is None:
+        return _load_runs(study, repo_root)
+    if not runs_override.exists():
+        typer.echo(
+            f"--runs path does not exist: {runs_override}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    return load_run_records(runs_override)
+
+
 def _git_commit(repo_root: Path) -> str:
     try:
         out = subprocess.check_output(
@@ -106,8 +143,12 @@ def _git_commit(repo_root: Path) -> str:
         return "unknown"
 
 
-def _fixture_sha256(study: StudySpec, repo_root: Path) -> str:
-    if study.benchmark == "synthetic":
+def _fixture_sha256(
+    study: StudySpec, repo_root: Path, runs_override: Path | None = None
+) -> str:
+    if runs_override is not None:
+        path = runs_override
+    elif study.benchmark == "synthetic":
         path = repo_root / "scouting" / "synthetic" / "runs.parquet"
     else:
         path = (
@@ -151,16 +192,24 @@ def analyze_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
     out_dir: Path = typer.Option(Path("reports"), "--out-dir"),
     repo_root: Path | None = typer.Option(None, "--repo-root"),
+    runs: Path | None = typer.Option(
+        None,
+        "--runs",
+        help=(
+            "Path to a canonical RunRecord-shaped parquet. When provided, "
+            "bypasses the benchmark-keyed adapter and loads this file directly."
+        ),
+    ),
     bootstrap_iterations: int = typer.Option(10_000, "--bootstrap-iterations", min=1),
     bootstrap_seed: int = typer.Option(42, "--bootstrap-seed"),
 ) -> None:
     """Run analysis end-to-end and write `reports/<id>/analysis.json`."""
     root = _resolve_repo_root(repo_root)
     study = StudySpec.from_yaml(study_yaml)
-    runs = _load_runs(study, root)
+    runs_frame = _resolve_runs_frame(study, root, runs)
     result = analyze(
         study,
-        runs,
+        runs_frame,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
     )
@@ -176,6 +225,14 @@ def report_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
     out_dir: Path = typer.Option(Path("reports"), "--out-dir"),
     repo_root: Path | None = typer.Option(None, "--repo-root"),
+    runs: Path | None = typer.Option(
+        None,
+        "--runs",
+        help=(
+            "Path to a canonical RunRecord-shaped parquet. When provided, "
+            "bypasses the benchmark-keyed adapter and loads this file directly."
+        ),
+    ),
     skip_validation: bool = typer.Option(False, "--skip-validation"),
     bootstrap_iterations: int = typer.Option(10_000, "--bootstrap-iterations", min=1),
     bootstrap_seed: int = typer.Option(42, "--bootstrap-seed"),
@@ -196,17 +253,17 @@ def report_cmd(
             raise typer.Exit(code=1)
 
     study = StudySpec.from_yaml(study_yaml)
-    runs = _load_runs(study, root)
+    runs_frame = _resolve_runs_frame(study, root, runs)
 
     target_dir = out_dir / study.id
     target = target_dir / "report.md"
     render_report_to(
         target,
         study,
-        runs,
+        runs_frame,
         clock=lambda: datetime.now(UTC),
         git_commit=_git_commit(root),
-        fixture_sha256=_fixture_sha256(study, root),
+        fixture_sha256=_fixture_sha256(study, root, runs),
         repo_root=root,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
