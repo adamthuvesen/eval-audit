@@ -2,7 +2,7 @@
 
 ### Claim `o4mini_vs_claude`
 
-- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Verdict:** `hedge_on_cost` — The bootstrap CI for the delta crosses zero (no quality decision is available), but the cost gap is material (≥10% of the cheaper arm's cost). The decision pivots on cost preference rather than measured quality. Action: pick the cheaper arm unless the (statistically indistinguishable) quality difference matters to your use case.
 - **Claim status:** inconclusive
 - **Why:** delta +12.00 pp with bootstrap CI [-6.00 pp, +28.00 pp] over 50 paired tasks; treatment is 0.54x the control's cost
 - **What would change it:** ~528 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
@@ -10,7 +10,7 @@
 
 ### Claim `o4mini_vs_o3`
 
-- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Verdict:** `hedge_on_cost` — The bootstrap CI for the delta crosses zero (no quality decision is available), but the cost gap is material (≥10% of the cheaper arm's cost). The decision pivots on cost preference rather than measured quality. Action: pick the cheaper arm unless the (statistically indistinguishable) quality difference matters to your use case.
 - **Claim status:** inconclusive
 - **Why:** delta +2.00 pp with bootstrap CI [-14.00 pp, +18.00 pp] over 50 paired tasks; treatment is 0.26x the control's cost
 - **What would change it:** ~462 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
@@ -18,7 +18,7 @@
 
 ### Claim `claude_vs_o3`
 
-- **Verdict:** `drop_from_shortlist` — treatment is Pareto-dominated on cost-quality
+- **Verdict:** `drop_from_shortlist` — Treatment is Pareto-dominated on the cost-quality frontier — another agent achieves equal-or-better quality at equal-or-lower cost. No quality argument can rescue a dominated point. Action: drop the treatment from the shortlist before deciding among the rest.
 - **Claim status:** inconclusive
 - **Why:** delta -10.00 pp with bootstrap CI [-26.00 pp, +6.00 pp] over 50 paired tasks; treatment is 0.48x the control's cost
 - **What would change it:** ~463 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)

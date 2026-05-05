@@ -1,6 +1,6 @@
 ## Audit Summary
 
-- **Verdict:** `switch` — claim is supported and the effect favours the treatment
+- **Verdict:** `switch` — Treatment beat control significantly (the adjusted p-value rejects the null at the declared α) and in the direction the claim predicts. The data supports the claim. Action: switch the default selection to the treatment, subject to cost acceptance.
 - **Claim status:** supported
 - **Why:** delta +40.00 pp with bootstrap CI [+10.00 pp, +70.00 pp] over 10 paired tasks; treatment is 2.00x the control's cost
 - **What would change it:** ~350 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
@@ -76,7 +76,7 @@ _(no scouting decision document at scouting/byo-minimal-decision.md; residual ri
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-03T09:54:11.496762+00:00`
-- **git_commit:** `49adc49`
+- **rendered_at:** `2026-05-03T10:29:41.438392+00:00`
+- **git_commit:** `fb4668d`
 - **fixture_sha256:** `687cf4d211662ca65fbbfbdcfdab5349cad2b33b99d02fd8d412645798038c41`
 - **bootstrap_seed:** `42`

@@ -40,14 +40,36 @@ def test_byo_minimal_readme__mentions_make_runs(repo_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_project_readme__byo_section_exists_between_demo_and_quickstart(
+def test_project_readme__byo_section_exists_between_examples_and_quickstart(
     repo_root: Path,
 ) -> None:
     readme = (repo_root / "README.md").read_text()
     demo_idx = readme.index("## Demo reports")
+    examples_idx = readme.index("## Example reports")
     byo_idx = readme.index("## Bring your own data")
     quickstart_idx = readme.index("## Quickstart")
-    assert demo_idx < byo_idx < quickstart_idx
+    assert demo_idx < examples_idx < byo_idx < quickstart_idx
+
+
+def test_project_readme__example_reports_section_indexes_three_reports(
+    repo_root: Path,
+) -> None:
+    """The Example reports gallery MUST list the three committed reports with
+    their verdict tokens spelled out, so a future verdict change is caught."""
+    readme = (repo_root / "README.md").read_text()
+    examples_idx = readme.index("## Example reports")
+    next_idx = readme.index("## Bring your own data")
+    section = readme[examples_idx:next_idx]
+
+    # Three committed reports, each as a markdown link.
+    assert "reports/exhibit-a/report.md" in section
+    assert "reports/exhibit-b/report.md" in section
+    assert "reports/byo-minimal/report.md" in section
+
+    # Verdict tokens named literally for each report.
+    assert "hedge_on_cost" in section  # exhibit-a (also exhibit-b ×2)
+    assert "drop_from_shortlist" in section  # exhibit-b
+    assert "switch" in section  # byo-minimal
 
 
 def test_project_readme__byo_section_links_input_contract_and_example(
