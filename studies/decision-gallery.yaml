@@ -1,0 +1,88 @@
+# Decision pattern gallery — synthetic study for verdict-pattern reference.
+#
+# This is NOT benchmark evidence. It is a synthetic worked example designed to
+# render each decision rule branch end-to-end so a reader can see what
+# `hold`, `rerun_more_n`, and `inconclusive_no_action` look like in a real
+# audit report. Pareto-frontier coupling and statistical drift are guarded by
+# `examples/decision-gallery/make_runs.py`, which asserts each claim's verdict
+# at fixture-regeneration time.
+#
+# See examples/decision-gallery/README.md for the worked walkthrough.
+
+schema_version: 1
+id: decision-gallery
+benchmark: decision-gallery
+analysis_mode: declared_reanalysis
+data_observation: full_seen
+harness: decision-gallery
+
+primary_outcome:
+  name: success_rate
+  unit: task
+  direction: higher_is_better
+
+agents:
+  - id: hold_treatment
+  - id: hold_control
+  - id: rerun_treatment
+  - id: rerun_control
+  - id: inconc_treatment
+  - id: inconc_control
+
+design:
+  task_sampling: fixed_public_validation_set
+  run_strategy: observed_public_runs
+  observed_runs_per_agent: 1
+  rerun_policy: recommend_if_decision_sensitive
+
+inference:
+  alpha: 0.05
+  correction_method: holm_bonferroni
+  comparison_family: declared_claims
+  target_mde: 0.05
+
+cost:
+  metrics:
+    - reconstructed_per_task_cost_usd
+  primary_view: pareto_frontier
+
+claims:
+  - id: hold_pattern
+    text: >-
+      Synthetic claim targeting the `hold` verdict. The claim asserts
+      hold_treatment beats hold_control on success_rate. The data is
+      constructed so the paired t-test rejects the null at α=0.05 AND the
+      observed direction is opposite the claim — treatment significantly
+      underperforms control. hold_treatment is cheaper than hold_control so
+      it is not Pareto-dominated, which is what lets the engine reach the
+      `hold` rule branch instead of `drop_from_shortlist`.
+    treatment: hold_treatment
+    control: hold_control
+    outcome: success_rate
+
+  - id: rerun_more_n_pattern
+    text: >-
+      Synthetic claim targeting the `rerun_more_n` verdict. The claim asserts
+      rerun_treatment beats rerun_control on success_rate. The data is
+      constructed with tied per-arm success rates and per-task differences
+      that span both directions, so the bootstrap CI clearly crosses zero
+      and the paired t-test does not reject. Costs differ by ~6.67% of the
+      cheaper arm — below the 10% material threshold — so the engine reaches
+      `rerun_more_n` rather than `hedge_on_cost`.
+    treatment: rerun_treatment
+    control: rerun_control
+    outcome: success_rate
+
+  - id: inconclusive_no_action_pattern
+    text: >-
+      Synthetic claim targeting the `inconclusive_no_action` verdict. The
+      claim asserts inconc_treatment beats inconc_control on success_rate.
+      The data is constructed so the bootstrap CI is entirely positive (no
+      negative per-task differences), but the paired raw p-value is large
+      enough that Holm-Bonferroni correction across the three-claim family
+      pushes the adjusted p above α=0.05. This is the CI vs adjusted-p
+      disagreement case the verdict was designed for; it is naturally rare
+      and the rationale text describes the verdict as a fallback.
+    treatment: inconc_treatment
+    control: inconc_control
+    outcome: success_rate
