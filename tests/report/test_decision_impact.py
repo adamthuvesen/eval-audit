@@ -29,7 +29,7 @@ def _stub_claim_result(
 
 
 def test_decision_impact__inconclusive_with_cost_gap_maps_to_hedge_on_cost() -> None:
-    """WHEN the Exhibit A reanalysis produces a delta CI that crosses zero and
+    """WHEN the GAIA HAL Generalist reanalysis produces a delta CI that crosses zero and
     Claude is 2.2x more expensive than o4-mini,
     THEN the report's claim row has decision_impact == 'hedge_on_cost'.
     """

@@ -127,19 +127,19 @@ def _o4mini_taubench_rows() -> list[dict]:
     return rows
 
 
-def test_errored_row_policy__gaia_exhibit_a_byte_identical(repo_root) -> None:
-    """WHEN analyze() is run on the Exhibit A GAIA fixture, where every row has
+def test_errored_row_policy__gaia_gaia_hal_generalist_byte_identical(repo_root) -> None:
+    """WHEN analyze() is run on the GAIA HAL Generalist GAIA fixture, where every row has
     outcome_status == 'graded' (n_errored == 0 for both agents),
     THEN every per-agent summary value (success_rate, n_graded, n_errored,
     total_cost_usd, cost_per_success_usd) is unchanged from the values committed
-    in tests/report_snapshots/exhibit-a-report.md, because n_total == n_graded
+    in tests/report_snapshots/gaia-hal-generalist-report.md, because n_total == n_graded
     when n_errored == 0.
     """
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
     runs = HalGaiaAdapter().load(repo_root / "scouting" / "candidates" / "gaia")
     result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
 
@@ -147,7 +147,7 @@ def test_errored_row_policy__gaia_exhibit_a_byte_identical(repo_root) -> None:
     claude = by_id["HAL Generalist Agent (claude-3-7-sonnet-20250219)"]
     o4mini = by_id["HAL Generalist Agent (o4-mini-2025-04-16 high)"]
 
-    # Pinned values from tests/report_snapshots/exhibit-a-report.md.
+    # Pinned values from tests/report_snapshots/gaia-hal-generalist-report.md.
     assert claude.n_graded == 165
     assert claude.n_errored == 0
     assert abs(claude.success_rate - 0.5636) < 5e-5
@@ -164,7 +164,7 @@ def test_errored_row_policy__gaia_exhibit_a_byte_identical(repo_root) -> None:
 
 
 def test_errored_row_policy__claude_success_rate_matches_leaderboard_044() -> None:
-    """WHEN analyze() is run on the Exhibit B fixture, where Claude has 50 task rows of
+    """WHEN analyze() is run on the TAU-bench Airline Tool Calling fixture, where Claude has 50 task rows of
     which 3 have outcome_status == 'errored' and 22 have outcome_status == 'graded' AND
     success == True, THEN the Claude per-agent summary reports n_graded == 47,
     n_errored == 3, success_rate == 22/50 == 0.44.
@@ -185,7 +185,7 @@ def test_errored_row_policy__claude_success_rate_matches_leaderboard_044() -> No
 
 
 def test_errored_row_policy__paired_bootstrap_task_set_aligned_with_errored() -> None:
-    """WHEN the bootstrap is invoked for the Exhibit B Claude-vs-o4-mini comparison,
+    """WHEN the bootstrap is invoked for the TAU-bench Airline Tool Calling Claude-vs-o4-mini comparison,
     where Claude has 3 errored rows on tasks o4-mini graded,
     THEN the bootstrap does NOT raise ValueError('paired bootstrap requires identical
     task sets'); both arms contribute all 50 task_ids; errored Claude rows aggregate

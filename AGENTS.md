@@ -87,10 +87,10 @@ make check
 Useful targeted commands:
 
 ```bash
-uv run eval-audit spec validate studies/exhibit-a.yaml
-uv run eval-audit spec render studies/exhibit-a.yaml --out /tmp/exhibit-a-spec.md
-uv run eval-audit analyze studies/exhibit-a.yaml
-uv run eval-audit report studies/exhibit-a.yaml
+uv run eval-audit spec validate studies/gaia-hal-generalist.yaml
+uv run eval-audit spec render studies/gaia-hal-generalist.yaml --out /tmp/gaia-hal-generalist-spec.md
+uv run eval-audit analyze studies/gaia-hal-generalist.yaml
+uv run eval-audit report studies/gaia-hal-generalist.yaml
 uv run pytest tests/report/test_snapshot.py
 uv run pytest -m synthetic_validation tests/synthetic_validation
 ```

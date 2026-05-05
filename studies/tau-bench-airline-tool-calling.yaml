@@ -1,0 +1,76 @@
+# TAU-bench Airline Tool Calling — TAU-bench Airline Tool Calling: o4-mini High vs Claude 3.7 Sonnet vs o3
+# Three-agent within-harness reanalysis with cost_provenance = as_reported_only.
+#
+# Agent IDs are the verbatim long-form values from the locked TAU-bench column
+# mapping (scouting/candidates/tau-bench/columns.json). The fixture's `agent_id`
+# raw column passes through to RunRecord.agent_id without renaming.
+
+schema_version: 1
+id: tau-bench-airline-tool-calling
+benchmark: tau_bench
+analysis_mode: declared_reanalysis
+data_observation: summary_seen
+harness: tau_bench_tool_calling
+
+primary_outcome:
+  name: success_rate
+  unit: task
+  direction: higher_is_better
+
+agents:
+  - id: "Taubench ToolCalling (o4-mini-2025-04-16 high)"
+  - id: "Taubench ToolCalling (claude-3.7-sonnet)"
+  - id: "Taubench ToolCalling (o3-2025-04-16)"
+
+design:
+  task_sampling: fixed_public_validation_set
+  run_strategy: observed_public_runs
+  observed_runs_per_agent: 1
+  rerun_policy: recommend_if_decision_sensitive
+
+inference:
+  alpha: 0.05
+  correction_method: holm_bonferroni
+  comparison_family: declared_claims
+  # n=50 per arm; the bootstrap CI half-width on a 50-task paired binary is
+  # roughly 9-12 pp, so a 5 pp MDE reflects honest resolution at this sample size.
+  target_mde: 0.05
+
+cost:
+  metrics:
+    - reported_run_total_cost_usd
+    - cost_per_success_usd
+  primary_view: pareto_frontier
+
+claims:
+  - id: o4mini_vs_claude
+    text: >-
+      Within TAU-bench Airline under the Tool Calling harness, the leaderboard
+      reports o4-mini High at 56% and Claude 3.7 Sonnet at 44% (folding errored
+      rows in as failures). This reanalysis evaluates whether that 12 percentage
+      point gap is statistically distinguishable from noise on n=50 paired tasks
+      and whether it is decision-relevant given the 1.8x cost gap ($8.38 vs $15.45).
+    treatment: "Taubench ToolCalling (o4-mini-2025-04-16 high)"
+    control: "Taubench ToolCalling (claude-3.7-sonnet)"
+    outcome: success_rate
+
+  - id: o4mini_vs_o3
+    text: >-
+      Within TAU-bench Airline under the Tool Calling harness, the leaderboard
+      reports o4-mini High at 56% and o3 Medium at 54%. This reanalysis evaluates
+      whether that 2 percentage point gap supports a model-selection decision
+      once uncertainty and the 3.8x cost gap ($8.38 vs $32.24) are shown.
+    treatment: "Taubench ToolCalling (o4-mini-2025-04-16 high)"
+    control: "Taubench ToolCalling (o3-2025-04-16)"
+    outcome: success_rate
+
+  - id: claude_vs_o3
+    text: >-
+      Within TAU-bench Airline under the Tool Calling harness, Claude 3.7 Sonnet
+      is reported at 44% (with 3 of 50 errored rows folded in as failures) and
+      o3 Medium at 54%. This reanalysis evaluates whether that 10 percentage
+      point gap is statistically distinguishable from noise on n=50 paired tasks
+      and whether it is decision-relevant given the 2.1x cost gap ($15.45 vs $32.24).
+    treatment: "Taubench ToolCalling (claude-3.7-sonnet)"
+    control: "Taubench ToolCalling (o3-2025-04-16)"
+    outcome: success_rate

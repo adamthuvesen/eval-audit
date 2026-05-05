@@ -34,7 +34,7 @@ def test_mde__target_mde_set_renders_column_and_paragraph(repo_root: Path) -> No
     THEN the rendered ## Claims table includes a target_mde column AND an
     'MDE context' paragraph appears immediately after the table.
     """
-    text = _render_for_study(repo_root / "studies" / "exhibit-a.yaml", repo_root)
+    text = _render_for_study(repo_root / "studies" / "gaia-hal-generalist.yaml", repo_root)
 
     claims_idx = text.index("## Claims")
     cost_idx = text.index("## Cost-quality view")
@@ -42,7 +42,7 @@ def test_mde__target_mde_set_renders_column_and_paragraph(repo_root: Path) -> No
 
     # target_mde column header in the claims table.
     assert "target_mde" in claims_block
-    # The Exhibit A target_mde is 0.03 = 3.00 pp.
+    # The GAIA HAL Generalist target_mde is 0.03 = 3.00 pp.
     assert "+3.00 pp" in claims_block
     # MDE context paragraph between the table and the next section.
     assert "MDE context" in claims_block
@@ -54,9 +54,9 @@ def test_mde__target_mde_null_omits_column_and_paragraph(repo_root: Path, tmp_pa
     'MDE context' paragraph appears between the ## Claims table and the
     ## Cost-quality view heading.
     """
-    src = (repo_root / "studies" / "exhibit-a.yaml").read_text()
+    src = (repo_root / "studies" / "gaia-hal-generalist.yaml").read_text()
     src = src.replace("target_mde: 0.03", "target_mde: null")
-    no_mde_yaml = tmp_path / "exhibit-a-no-mde.yaml"
+    no_mde_yaml = tmp_path / "gaia-hal-generalist-no-mde.yaml"
     no_mde_yaml.write_text(src)
 
     text = _render_for_study(no_mde_yaml, repo_root)

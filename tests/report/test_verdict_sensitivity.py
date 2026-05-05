@@ -12,13 +12,13 @@ FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture
-def exhibit_a(repo_root: Path):
+def gaia_hal_generalist(repo_root: Path):
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.report.markdown import render_report
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
     runs = HalGaiaAdapter().load(repo_root / "scouting" / "candidates" / "gaia")
     result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
     text = render_report(
@@ -36,13 +36,13 @@ def exhibit_a(repo_root: Path):
 
 
 @pytest.fixture
-def exhibit_b(repo_root: Path):
+def tau_bench_airline_tool_calling(repo_root: Path):
     from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
     from eval_audit.report.markdown import render_report
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-b.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "tau-bench-airline-tool-calling.yaml")
     runs = HalTauBenchAdapter().load(repo_root / "scouting" / "candidates" / "tau-bench")
     result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
     text = render_report(
@@ -71,12 +71,12 @@ def _extract_sensitivity_block(text: str, claim_id: str) -> str:
     return text[start:end]
 
 
-def test_sensitivity__baseline_row_matches_claims_table_verdict(exhibit_a) -> None:
+def test_sensitivity__baseline_row_matches_claims_table_verdict(gaia_hal_generalist) -> None:
     """WHEN the renderer emits the sensitivity sub-block for any claim,
     THEN the table's first row reads `| baseline | locked | <verdict> |` where
     <verdict> is exactly the same decision_impact value the Claims table reports.
     """
-    _study, result, text = exhibit_a
+    _study, result, text = gaia_hal_generalist
 
     for claim in result.claims:
         block = _extract_sensitivity_block(text, claim.claim_id)
@@ -101,11 +101,11 @@ def test_sensitivity__baseline_row_matches_claims_table_verdict(exhibit_a) -> No
         )
 
 
-def test_sensitivity__six_perturbation_rows_present_and_ordered(exhibit_b) -> None:
+def test_sensitivity__six_perturbation_rows_present_and_ordered(tau_bench_airline_tool_calling) -> None:
     """WHEN the renderer emits the sensitivity sub-block,
     THEN the rows after the baseline appear in the locked order.
     """
-    _study, result, text = exhibit_b
+    _study, result, text = tau_bench_airline_tool_calling
 
     expected_rows = [
         ("alpha", "0.01"),
@@ -129,13 +129,13 @@ def test_sensitivity__six_perturbation_rows_present_and_ordered(exhibit_b) -> No
         )
 
 
-def test_sensitivity__verdicts_are_in_controlled_vocabulary(exhibit_b) -> None:
+def test_sensitivity__verdicts_are_in_controlled_vocabulary(tau_bench_airline_tool_calling) -> None:
     """Every perturbation row's verdict is one of the six controlled-vocabulary
     values, optionally followed by ` ← flips`.
     """
     from eval_audit.report.decisions import DECISION_IMPACT_VOCAB
 
-    _study, result, text = exhibit_b
+    _study, result, text = tau_bench_airline_tool_calling
 
     for claim in result.claims:
         block = _extract_sensitivity_block(text, claim.claim_id)
@@ -151,11 +151,11 @@ def test_sensitivity__verdicts_are_in_controlled_vocabulary(exhibit_b) -> None:
             )
 
 
-def test_sensitivity__flip_annotation_only_on_non_baseline_verdicts(exhibit_b) -> None:
+def test_sensitivity__flip_annotation_only_on_non_baseline_verdicts(tau_bench_airline_tool_calling) -> None:
     """A row's verdict cell ends with ` ← flips` iff the verdict differs from
     the baseline verdict for the same claim.
     """
-    _study, result, text = exhibit_b
+    _study, result, text = tau_bench_airline_tool_calling
 
     for claim in result.claims:
         block = _extract_sensitivity_block(text, claim.claim_id)
@@ -181,9 +181,9 @@ def test_sensitivity__flip_annotation_only_on_non_baseline_verdicts(exhibit_b) -
             )
 
 
-def test_sensitivity__nine_section_shape_unchanged(exhibit_b) -> None:
+def test_sensitivity__nine_section_shape_unchanged(tau_bench_airline_tool_calling) -> None:
     """The sub-block does NOT break the nine-section shape contract."""
-    _study, _result, text = exhibit_b
+    _study, _result, text = tau_bench_airline_tool_calling
 
     headings = [line for line in text.splitlines() if line.startswith("## ")]
     section_titles = [h.removeprefix("## ").strip() for h in headings]
@@ -210,11 +210,11 @@ def test_sensitivity__nine_section_shape_unchanged(exhibit_b) -> None:
     assert "**Verdict sensitivity**" not in text[rr_idx:]
 
 
-def test_sensitivity__multiple_claims_one_subblock_each(exhibit_b) -> None:
+def test_sensitivity__multiple_claims_one_subblock_each(tau_bench_airline_tool_calling) -> None:
     """A study with multiple claims emits one sub-block per claim, in
     claim-row order.
     """
-    _study, result, text = exhibit_b
+    _study, result, text = tau_bench_airline_tool_calling
 
     claim_ids = [c.claim_id for c in result.claims]
     indices = [text.index(f"**Verdict sensitivity** — `{cid}`") for cid in claim_ids]

@@ -81,7 +81,7 @@ def test_as_reported_only__renderer_emits_caveat_block_and_omits_price_pin_metad
 
     # Use a stub two-agent study so analyze() runs cleanly.
     study = StudySpec(
-        id="exhibit-b-prop",
+        id="tau-bench-airline-tool-calling-prop",
         benchmark="tau-bench",
         analysis_mode="declared_reanalysis",
         data_observation="full_seen",

@@ -28,7 +28,7 @@ def test_cli_analyze__rejects_zero_bootstrap_iterations(
         app,
         [
             "analyze",
-            str(repo_root / "studies" / "exhibit-a.yaml"),
+            str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
             "--out-dir", str(out_dir),
             "--repo-root", str(repo_root),
             "--bootstrap-iterations", "0",
@@ -37,7 +37,7 @@ def test_cli_analyze__rejects_zero_bootstrap_iterations(
 
     assert result.exit_code != 0
     assert "bootstrap-iterations" in result.output
-    assert not (out_dir / "exhibit-a" / "analysis.json").exists()
+    assert not (out_dir / "gaia-hal-generalist" / "analysis.json").exists()
 
 
 def test_cli_analyze__swe_bench_verified_resolves_examples_backed_fixture(
@@ -78,3 +78,36 @@ def test_cli_analyze__swe_bench_verified_resolves_examples_backed_fixture(
     by_id = {a["agent_id"]: a for a in analysis["per_agent"]}
     assert by_id["20251127_openhands_claude-opus-4-5"]["total_cost_usd"] is None
     assert by_id["20250807_openhands_gpt5"]["total_cost_usd"] is None
+
+
+def test_cli_analyze__terminal_bench_resolves_examples_backed_fixture(
+    runner: CliRunner,
+    repo_root: Path,
+    tmp_path: Path,
+) -> None:
+    """Terminal-Bench 2.0 public submissions resolve through examples/<study.id>."""
+    import json
+
+    from eval_audit.cli import app
+
+    out_dir = tmp_path / "reports"
+    result = runner.invoke(
+        app,
+        [
+            "analyze",
+            str(repo_root / "studies" / "terminal-bench-2-mux.yaml"),
+            "--out-dir", str(out_dir),
+            "--repo-root", str(repo_root),
+            "--bootstrap-iterations", "200",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    analysis_path = out_dir / "terminal-bench-2-mux" / "analysis.json"
+    assert analysis_path.exists()
+
+    analysis = json.loads(analysis_path.read_text())
+    assert analysis["pareto_status"] == "suppressed_cost_not_available"
+    by_id = {a["agent_id"]: a for a in analysis["per_agent"]}
+    assert by_id["Mux__GPT-5.3-Codex"]["total_cost_usd"] is None
+    assert by_id["Mux__Claude-Opus-4.6"]["total_cost_usd"] is None

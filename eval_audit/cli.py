@@ -1,4 +1,4 @@
-"""eval-audit CLI — minimal entry points to reproduce the Exhibit A reanalysis.
+"""eval-audit CLI — minimal entry points to reproduce the GAIA HAL Generalist reanalysis.
 
 Commands:
   eval-audit analyze STUDY_YAML            # write reports/<id>/analysis.json
@@ -26,6 +26,7 @@ from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 from eval_audit.ingest.swe_bench_verified import SweBenchVerifiedAdapter
 from eval_audit.ingest.synthetic import SyntheticAdapter
+from eval_audit.ingest.terminal_bench import TerminalBenchMuxAdapter
 from eval_audit.report.markdown import render_report_to
 from eval_audit.schema import StudySpec
 from eval_audit.spec import render_study_spec
@@ -98,6 +99,7 @@ _ADAPTERS: dict[str, Callable[[], object]] = {
     "synthetic": SyntheticAdapter,
     "tau_bench": HalTauBenchAdapter,
     "swe-bench-verified": SweBenchVerifiedAdapter,
+    "terminal-bench-2": TerminalBenchMuxAdapter,
 }
 
 # Benchmarks whose committed fixture lives under `examples/<study.id>/` rather
@@ -105,7 +107,9 @@ _ADAPTERS: dict[str, Callable[[], object]] = {
 # their canonical RunRecord parquet inside the repo (see scouting-fixtures
 # capability spec) because the upstream artifacts (e.g. S3-hosted submission
 # logs) are not committed.
-_EXAMPLES_BACKED_BENCHMARKS: frozenset[str] = frozenset({"swe-bench-verified"})
+_EXAMPLES_BACKED_BENCHMARKS: frozenset[str] = frozenset(
+    {"swe-bench-verified", "terminal-bench-2"}
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -267,7 +271,7 @@ def report_cmd(
     if skip_validation:
         typer.echo(
             "WARNING: synthetic validation skipped (--skip-validation). "
-            "The report contract requires this gate to pass before any Exhibit A render. "
+            "The report contract requires this gate to pass before any report render. "
             "This run is for development/debug only; do NOT publish the resulting report."
         )
     else:

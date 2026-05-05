@@ -90,7 +90,7 @@ def test_runs_flag__no_flag_preserves_adapter_path_for_existing_exhibits(
         app,
         [
             "analyze",
-            str(repo_root / "studies" / "exhibit-a.yaml"),
+            str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
             "--out-dir", str(out_dir),
             "--repo-root", str(repo_root),
             "--bootstrap-iterations", "200",
@@ -98,7 +98,7 @@ def test_runs_flag__no_flag_preserves_adapter_path_for_existing_exhibits(
     )
 
     assert result.exit_code == 0, result.output
-    assert (out_dir / "exhibit-a" / "analysis.json").exists()
+    assert (out_dir / "gaia-hal-generalist" / "analysis.json").exists()
 
 
 def test_runs_flag__missing_path_exits_nonzero_with_clear_error(

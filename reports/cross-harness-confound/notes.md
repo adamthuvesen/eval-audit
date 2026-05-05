@@ -6,15 +6,15 @@ Claude 3.7 Sonnet on **TAU-bench Airline** sits at **44%** under the public Tool
 
 That gap is roughly the size of the difference between two different frontier models — but it is *not* a model effect. The TAU-bench public leaderboard mixes Tool Calling, HAL Generalist, and TAU few-shot rows in a single ranking, so a reader doing model selection from the leaderboard cannot tell whether a higher row reflects the *model* or the *scaffold the model was wrapped in*.
 
-This writeup pulls the Tool Calling number from our Exhibit B reanalysis (data) and **cites** the HAL Generalist number from the upstream leaderboard (public record we trust but did not re-derive).
+This writeup pulls the Tool Calling number from our TAU-bench Airline Tool Calling reanalysis (data) and **cites** the HAL Generalist number from the upstream leaderboard (public record we trust but did not re-derive).
 
 ## The two numbers
 
-**Tool Calling: 44%.** From [`reports/exhibit-b/analysis.json`](../exhibit-b/analysis.json), produced by `eval-audit analyze studies/exhibit-b.yaml`. Reproducible:
+**Tool Calling: 44%.** From [`reports/tau-bench-airline-tool-calling/analysis.json`](../tau-bench-airline-tool-calling/analysis.json), produced by `eval-audit analyze studies/tau-bench-airline-tool-calling.yaml`. Reproducible:
 
 ```python
 import json
-result = json.load(open("reports/exhibit-b/analysis.json"))
+result = json.load(open("reports/tau-bench-airline-tool-calling/analysis.json"))
 claude = next(
     a for a in result["per_agent"]
     if a["agent_id"] == "Taubench ToolCalling (claude-3.7-sonnet)"
@@ -63,12 +63,12 @@ What the writeup does *not* claim:
 
 This is the project's strongest scouting finding. The toolkit's response is procedural: every study spec is locked to a single harness; the analyze step refuses to compare agents across harnesses (`CrossHarnessComparisonError`). A user trying to cross harnesses inside a `StudySpec` is told to open a separate change. The writeup above is what the procedural rule is *protecting against*: it is one number on a leaderboard, and changing the scaffold changes it by ~12 pp without changing the model.
 
-The same-benchmark, cross-harness comparison is the only honest framing. The reverse — comparing Exhibit A (GAIA, HAL Generalist) to Exhibit B (TAU-bench, Tool Calling) — would mix a benchmark difference with a scaffold difference and tell the reader nothing.
+The same-benchmark, cross-harness comparison is the only honest framing. The reverse — comparing GAIA HAL Generalist (GAIA, HAL Generalist) to TAU-bench Airline Tool Calling (TAU-bench, Tool Calling) — would mix a benchmark difference with a scaffold difference and tell the reader nothing.
 
 ---
 
 ## Last derived from
 
-- **Exhibit B `analysis.json` sha256:** `6880efa90ef384a310cc045b7f4eb8ffd98327ae678ec4b92230358c6a58c224`
+- **TAU-bench Airline Tool Calling `analysis.json` sha256:** `6880efa90ef384a310cc045b7f4eb8ffd98327ae678ec4b92230358c6a58c224`
 - **Cited scouting provenance entry:** [`scouting/candidates/tau-bench/provenance.json`](../../scouting/candidates/tau-bench/provenance.json), JSON path `leaderboard_cross_check[1].note`
 - **Date:** 2026-05-02

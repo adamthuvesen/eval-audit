@@ -547,12 +547,12 @@ def _validate_report_outcome(study: StudySpec) -> None:
 
 
 # Aliases for the residual-risks decision-document path. The renderer resolves
-# `scouting/<benchmark>-decision.md` by default; the aliases preserve Exhibit A's
+# `scouting/<benchmark>-decision.md` by default; the aliases preserve GAIA HAL Generalist's
 # historical filename and translate `tau_bench` -> `tau-bench` to match the
 # scouting fixture's hyphenated directory convention.
 _DECISION_DOC_ALIAS = {
-    "gaia": "exhibit-a-decision.md",
-    "tau_bench": "tau-bench-decision.md",
+    "gaia": "gaia-hal-generalist-decision.md",
+    "tau_bench": "tau-bench-airline-tool-calling-decision.md",
 }
 
 
@@ -678,7 +678,7 @@ def _resolve_decision_doc(
     Resolution order: benchmark alias → ``<benchmark>-decision.md`` if it
     exists → ``<study_id>-decision.md``. The third fallback supports
     controlled-evidence exhibits whose decision doc is keyed by the study id
-    (e.g. Exhibit C uses ``scouting/exhibit-c-decision.md``) rather than by
+    (e.g. HumanEval Direct Completion uses ``scouting/humaneval-direct-completion-decision.md``) rather than by
     a public-benchmark name.
     """
     if benchmark in _DECISION_DOC_ALIAS:
@@ -893,9 +893,9 @@ def render_report(
         parts.append("> ⚠️ Cost provenance: cost_not_available")
         parts.append("")
         parts.append(
-            "The upstream artifacts for this study expose no stable token, usage, or "
-            "cost fields. Per-task cost cannot be reconstructed from token breakdowns "
-            "× pinned provider prices, and no per-run reported total is available. "
+            "The upstream artifacts for this study do not expose complete, stable "
+            "cost fields. Per-task cost cannot be reconstructed with the report's "
+            "pinned price policy, and no complete per-run reported total is available. "
             "Rather than smuggle in zeros, this report **suppresses** every "
             "cost-derived view: per-agent `total_cost_usd` and `cost_per_success_usd` "
             "columns are omitted from the Per-agent summary, the Cost-quality view "

@@ -18,7 +18,7 @@ def test_cli_report__default_invocation_runs_validation_first(
     repo_root: Path,
     tmp_path: Path,
 ) -> None:
-    """WHEN the user runs `eval-audit report studies/exhibit-a.yaml` with no flags,
+    """WHEN the user runs `eval-audit report studies/gaia-hal-generalist.yaml` with no flags,
     THEN the synthetic-validation suite runs first and the report is only
     written if it passes.
     """
@@ -29,7 +29,7 @@ def test_cli_report__default_invocation_runs_validation_first(
         app,
         [
             "report",
-            str(repo_root / "studies" / "exhibit-a.yaml"),
+            str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
             "--out-dir", str(out_dir),
             "--repo-root", str(repo_root),
         ],
@@ -40,7 +40,7 @@ def test_cli_report__default_invocation_runs_validation_first(
     # Validation must have run before report — its marker output appears in output.
     assert "synthetic_validation" in result.output or "synthetic-validation" in result.output
     # Report file written.
-    assert (out_dir / "exhibit-a" / "report.md").exists()
+    assert (out_dir / "gaia-hal-generalist" / "report.md").exists()
 
 
 def test_cli_report__skip_flag_warns(
@@ -59,7 +59,7 @@ def test_cli_report__skip_flag_warns(
         app,
         [
             "report",
-            str(repo_root / "studies" / "exhibit-a.yaml"),
+            str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
             "--out-dir", str(out_dir),
             "--repo-root", str(repo_root),
             "--skip-validation",
@@ -67,7 +67,7 @@ def test_cli_report__skip_flag_warns(
     )
     assert result.exit_code == 0
     assert "WARNING: synthetic validation skipped" in result.output
-    assert (out_dir / "exhibit-a" / "report.md").exists()
+    assert (out_dir / "gaia-hal-generalist" / "report.md").exists()
 
 
 def test_cli_report__rejects_zero_bootstrap_iterations(
@@ -85,7 +85,7 @@ def test_cli_report__rejects_zero_bootstrap_iterations(
         app,
         [
             "report",
-            str(repo_root / "studies" / "exhibit-a.yaml"),
+            str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
             "--out-dir", str(out_dir),
             "--repo-root", str(repo_root),
             "--skip-validation",
@@ -95,4 +95,4 @@ def test_cli_report__rejects_zero_bootstrap_iterations(
 
     assert result.exit_code != 0
     assert "bootstrap-iterations" in result.output
-    assert not (out_dir / "exhibit-a" / "report.md").exists()
+    assert not (out_dir / "gaia-hal-generalist" / "report.md").exists()

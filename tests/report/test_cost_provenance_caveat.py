@@ -14,7 +14,7 @@ def _stub_study_for_taubench():
     from eval_audit.schema import StudySpec
 
     return StudySpec(
-        id="exhibit-b-stub",
+        id="tau-bench-airline-tool-calling-stub",
         benchmark="tau-bench",
         analysis_mode="declared_reanalysis",
         data_observation="full_seen",
@@ -112,7 +112,7 @@ def test_caveat__as_reported_only_renders_sub_block(repo_root: Path) -> None:
 def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path) -> None:
     """WHEN the renderer is called against the GAIA fixture (outcome == 'reconciled'),
     THEN the rendered report's '## Provenance' section does NOT contain a
-    '### Cost provenance caveat' sub-block, and Exhibit A's existing snapshot is
+    '### Cost provenance caveat' sub-block, and GAIA HAL Generalist's existing snapshot is
     unchanged byte-for-byte.
     """
     import os
@@ -122,7 +122,7 @@ def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path) -> None:
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
     runs = HalGaiaAdapter().load(repo_root / "scouting" / "candidates" / "gaia")
     result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
     rendered = render_report(
@@ -143,7 +143,7 @@ def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path) -> None:
 
     # Snapshot byte-equality (the cross-check asked for in the spec).
     snapshot_path = (
-        repo_root / "tests" / "report_snapshots" / "exhibit-a-report.md"
+        repo_root / "tests" / "report_snapshots" / "gaia-hal-generalist-report.md"
     )
     if os.getenv("UPDATE_SNAPSHOTS") != "1":
         expected = snapshot_path.read_text()
@@ -229,9 +229,9 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
         repo_root / "scouting" / "candidates" / "gaia",
         shadow_root / "scouting" / "candidates" / "gaia",
     )
-    # Intentionally do NOT copy scouting/exhibit-a-decision.md.
+    # Intentionally do NOT copy scouting/gaia-hal-generalist-decision.md.
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
     runs = HalGaiaAdapter().load(shadow_root / "scouting" / "candidates" / "gaia")
     result = analyze(study, runs, bootstrap_iterations=200, bootstrap_seed=42)
     text = render_report(
@@ -263,6 +263,6 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
 
     # Placeholder line is present with the resolved (aliased) filename.
     assert (
-        "_(no scouting decision document at scouting/exhibit-a-decision.md; "
+        "_(no scouting decision document at scouting/gaia-hal-generalist-decision.md; "
         "residual risks not surfaced.)_"
     ) in text

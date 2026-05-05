@@ -1,0 +1,62 @@
+# Terminal-Bench 2.0 Mux — GPT-5.3-Codex vs Claude Opus 4.6
+#
+# Public-submission re-analysis under the Terminal-Bench 2.0 task universe.
+# Both rows use the same public Mux agent family from Coder. This is still a
+# submission-level audit, not a model-only effect: the submissions were made on
+# different dates and inherit whatever runtime/config state the public
+# leaderboard artifacts captured.
+#
+# Cost provenance is `cost_not_available`. Public result.json artifacts expose
+# token counts, but agent_result.cost_usd is incomplete across the selected
+# submissions, so the report suppresses Pareto and cost-per-success views.
+
+schema_version: 1
+id: terminal-bench-2-mux
+benchmark: terminal-bench-2
+analysis_mode: declared_reanalysis
+data_observation: full_seen
+harness: terminal-bench-2/mux-public-submission-v1
+
+primary_outcome:
+  name: success_rate
+  unit: task
+  direction: higher_is_better
+
+agents:
+  - id: Mux__GPT-5.3-Codex
+  - id: Mux__Claude-Opus-4.6
+
+design:
+  task_sampling: fixed_public_terminal_bench_2_universe_89
+  run_strategy: observed_public_submissions
+  observed_runs_per_agent: 5
+  rerun_policy: not_applicable_public_submission
+
+inference:
+  alpha: 0.05
+  correction_method: holm_bonferroni
+  comparison_family: declared_claims
+  # n=89 paired tasks with five public trials per agent. A 5 pp MDE keeps the
+  # report honest about whether the observed leaderboard gap is decision-sized.
+  target_mde: 0.05
+
+cost:
+  metrics:
+    - reconstructed_per_task_cost_usd
+    - reported_run_total_cost_usd
+    - cost_per_success_usd
+  primary_view: pareto_frontier
+
+claims:
+  - id: mux_gpt53_codex_vs_opus46_submission
+    text: >-
+      On Terminal-Bench 2.0, the public Mux + GPT-5.3-Codex submission is listed
+      at 74.6% accuracy and the public Mux + Claude Opus 4.6 submission is
+      listed at 66.5% accuracy on the official leaderboard. This audit evaluates
+      whether the observed gap is statistically distinguishable from noise on
+      the paired 89-task universe across five public trials per agent. Cost is
+      suppressed because the selected public result.json artifacts do not expose
+      complete cost_usd values across both submissions.
+    treatment: Mux__GPT-5.3-Codex
+    control: Mux__Claude-Opus-4.6
+    outcome: success_rate

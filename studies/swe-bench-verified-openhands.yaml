@@ -1,6 +1,6 @@
 # SWE-bench Verified — OpenHands + Opus 4.5 vs OpenHands + GPT-5
 #
-# Public-submission re-analysis (Exhibit A / B family) under the SWE-bench
+# Public-submission re-analysis (GAIA HAL Generalist / B family) under the SWE-bench
 # Verified 500-task universe. Both agents are public OpenHands submissions
 # from `swe-bench/experiments`. Cost provenance is `cost_not_available`
 # because the upstream artifacts (results.json + S3 trajectories) expose

@@ -1,7 +1,7 @@
 """Adapter for the HAL GAIA fixture under scouting/candidates/gaia/.
 
 Inherits the locked column-to-semantic-role mapping from
-scouting/exhibit-a-decision.md verbatim. Per-task cost is reconstructed from
+scouting/gaia-hal-generalist-decision.md verbatim. Per-task cost is reconstructed from
 tokens_in_by_model + tokens_out_by_model multiplied by the pinned price table
 in `_prices.py`. After loading, the adapter asserts that summed reconstructed
 per-task cost matches HAL's reported run total within 1% per (agent, run) —
@@ -25,7 +25,7 @@ from eval_audit.ingest.hal_common import (
 )
 from eval_audit.schema.enums import CostProvenance
 
-# Locked column mapping from scouting/exhibit-a-decision.md.
+# Locked column mapping from scouting/gaia-hal-generalist-decision.md.
 # raw_name -> semantic_role for the GAIA per_task table.
 _LOCKED_COLUMN_MAPPING: list[tuple[str, str]] = [
     ("agent_id", "agent_id"),
@@ -135,7 +135,7 @@ class HalGaiaAdapter:
                         "agent_short": str(r.get("agent_short", "")),
                     },
                     # GAIA Level metadata is not exposed in HAL traces (see
-                    # scouting/exhibit-a-decision.md residual risk #2).
+                    # scouting/gaia-hal-generalist-decision.md residual risk #2).
                     task_category=None,
                 )
             )

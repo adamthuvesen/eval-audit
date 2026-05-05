@@ -13,7 +13,7 @@ class RunRecord(BaseModel):
     """One task-level observation within a single agent run.
 
     Field semantics inherit from the locked semantic-role vocabulary in the
-    `exhibit-a-scouting` capability spec; see scouting/exhibit-a-decision.md.
+    `gaia-hal-generalist-scouting` capability spec; see scouting/gaia-hal-generalist-decision.md.
     """
 
     model_config = ConfigDict(frozen=False, extra="forbid")
