@@ -114,6 +114,15 @@ The three committed reports exercise different decision verbs and provenance pat
 - [reports/exhibit-b/report.md](reports/exhibit-b/report.md) — three pairwise claims producing two `hedge_on_cost` verdicts and one `drop_from_shortlist`. Exercises the `as_reported_only` cost-provenance path.
 - [reports/byo-minimal/report.md](reports/byo-minimal/report.md) — synthetic worked example producing a `switch` verdict. Demonstrates the bring-your-own-data path end-to-end.
 
+## Decision pattern gallery
+
+The reports above cover three of the six decision verdicts on real or BYO data. The decision pattern gallery is a **synthetic** worked example that fills in the rest. It is not benchmark evidence — it exists only to demonstrate how each verdict renders end-to-end so a reader can see the verdict language alongside a real audit report.
+
+The gallery covers `hold`, `rerun_more_n`, and `inconclusive_no_action`.
+
+- [reports/decision-gallery/report.md](reports/decision-gallery/report.md) — rendered audit covering all three claims in one report.
+- [examples/decision-gallery/README.md](examples/decision-gallery/README.md) — worked walkthrough explaining each claim's calibration and which decision rule it triggers.
+
 ## Bring your own data
 
 `eval-audit` works on any task-level eval data shaped to the canonical
