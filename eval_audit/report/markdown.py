@@ -322,6 +322,7 @@ def _render_robustness_review(
 def _render_audit_summary(
     result,
     study: StudySpec,
+    runs: pl.DataFrame,
     cost_provenance_class: str,
     residual_risks_text: str,
 ) -> list[str]:
@@ -360,7 +361,7 @@ def _render_audit_summary(
         di = decision_impact(ctx)
         status = _claim_status(c.rejects_null, direction_matches, ci_crosses)
         ci_half_width = (c.delta_ci_high - c.delta_ci_low) / 2.0
-        n_paired = min(by_id[c.treatment].n_graded, by_id[c.control].n_graded)
+        n_paired = _paired_task_count(runs, c.treatment, c.control)
 
         if multi_claim:
             parts.append(f"### Claim `{c.claim_id}`\n")
@@ -381,6 +382,21 @@ def _render_audit_summary(
         parts.append("")
 
     return parts
+
+
+def _paired_task_count(runs: pl.DataFrame, treatment: str, control: str) -> int:
+    """Count the task IDs shared by both claim arms."""
+    treatment_tasks = (
+        runs.filter(pl.col("agent_id") == treatment)
+        .select("task_id")
+        .unique()
+    )
+    control_tasks = (
+        runs.filter(pl.col("agent_id") == control)
+        .select("task_id")
+        .unique()
+    )
+    return treatment_tasks.join(control_tasks, on="task_id", how="inner").height
 
 
 def _format_pp(delta: float) -> str:
@@ -535,6 +551,7 @@ def render_report(
         _render_audit_summary(
             result,
             study,
+            runs,
             cost_provenance_class,
             residual_risks_text,
         )
