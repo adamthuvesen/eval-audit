@@ -5,6 +5,7 @@
 # mapping (scouting/candidates/tau-bench/columns.json). The fixture's `agent_id`
 # raw column passes through to RunRecord.agent_id without renaming.
 
+schema_version: 1
 id: exhibit-b
 benchmark: tau_bench
 analysis_mode: declared_reanalysis

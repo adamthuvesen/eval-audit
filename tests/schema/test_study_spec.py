@@ -17,6 +17,7 @@ def test_study_spec__loading_the_exhibit_a_study_spec_succeeds(repo_root: Path) 
 
     spec = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
 
+    assert spec.schema_version == 1
     assert spec.id == "exhibit-a"
     assert spec.benchmark == "gaia"
     assert spec.harness == "hal_generalist_agent"
@@ -28,6 +29,89 @@ def test_study_spec__loading_the_exhibit_a_study_spec_succeeds(repo_root: Path) 
     assert spec.claims[0].treatment == "HAL Generalist Agent (claude-3-7-sonnet-20250219)"
     assert spec.claims[0].control == "HAL Generalist Agent (o4-mini-2025-04-16 high)"
     assert spec.claims[0].outcome == "success_rate"
+
+
+def _minimal_valid_study_yaml(*, schema_version_line: str | None = None) -> str:
+    """Build a minimal valid study YAML, optionally with an explicit schema_version."""
+    header = f"{schema_version_line}\n" if schema_version_line is not None else ""
+    return f"""\
+{header}id: tiny
+benchmark: bench
+analysis_mode: declared_reanalysis
+data_observation: summary_seen
+harness: tiny
+primary_outcome:
+  name: success_rate
+  unit: task
+  direction: higher_is_better
+agents:
+  - id: a
+  - id: b
+design:
+  task_sampling: fixed_public_validation_set
+  run_strategy: observed_public_runs
+  observed_runs_per_agent: 1
+  rerun_policy: recommend_if_decision_sensitive
+inference:
+  alpha: 0.05
+  correction_method: holm_bonferroni
+  comparison_family: declared_claims
+cost:
+  metrics: ["reconstructed_per_task_cost_usd"]
+  primary_view: pareto_frontier
+claims:
+  - id: a_vs_b
+    text: a beats b
+    treatment: a
+    control: b
+    outcome: success_rate
+"""
+
+
+def test_study_spec__defaults_schema_version_to_one(tmp_path: Path) -> None:
+    """WHEN a YAML file omits schema_version entirely,
+    THEN the resulting StudySpec has schema_version == 1 and validates.
+    """
+    from eval_audit.schema import StudySpec
+
+    path = tmp_path / "no-version.yaml"
+    path.write_text(_minimal_valid_study_yaml())
+
+    spec = StudySpec.from_yaml(path)
+    assert spec.schema_version == 1
+
+
+def test_study_spec__accepts_explicit_schema_version_one(tmp_path: Path) -> None:
+    """WHEN a YAML file declares schema_version: 1,
+    THEN the resulting StudySpec has schema_version == 1 and validates.
+    """
+    from eval_audit.schema import StudySpec
+
+    path = tmp_path / "explicit-v1.yaml"
+    path.write_text(_minimal_valid_study_yaml(schema_version_line="schema_version: 1"))
+
+    spec = StudySpec.from_yaml(path)
+    assert spec.schema_version == 1
+
+
+def test_study_spec__rejects_unknown_schema_version(tmp_path: Path) -> None:
+    """WHEN a YAML file declares schema_version: 2,
+    THEN validation fails with a message naming both the field and the value.
+    """
+    from pydantic import ValidationError
+
+    from eval_audit.schema import StudySpec
+
+    path = tmp_path / "v2.yaml"
+    path.write_text(_minimal_valid_study_yaml(schema_version_line="schema_version: 2"))
+
+    with pytest.raises(ValidationError) as exc_info:
+        StudySpec.from_yaml(path)
+
+    msg = str(exc_info.value)
+    assert "schema_version" in msg
+    assert "2" in msg
+    assert "1" in msg  # message names the supported value too
 
 
 def test_study_spec__multiple_validation_errors_are_surfaced_together(tmp_path: Path) -> None:

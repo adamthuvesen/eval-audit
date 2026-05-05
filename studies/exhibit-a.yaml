@@ -3,6 +3,7 @@
 # DO NOT edit `treatment`, `control`, `outcome`, `harness`, or `benchmark`
 # without first updating the scouting decision document and explaining why.
 
+schema_version: 1
 id: exhibit-a
 benchmark: gaia
 analysis_mode: declared_reanalysis
