@@ -1,5 +1,7 @@
 # eval-audit
 
+[![CI](https://github.com/adamthuvesen/eval-audit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/adamthuvesen/eval-audit/actions/workflows/ci.yml)
+
 **Verdict-grade evals for agent benchmarks.**
 
 `eval-audit` turns benchmark claims into auditable decisions. Instead of stopping at
@@ -186,9 +188,63 @@ formal field-by-field `RunRecord` reference, and
 [`agents/docs/STUDY_SCHEMA.md`](agents/docs/STUDY_SCHEMA.md) for the
 formal field-by-field `StudySpec` reference.
 
+## Install
+
+`eval-audit` ships as a CLI tool. The fastest way in:
+
+```bash
+uv tool install eval-audit
+```
+
+Or, with `pipx`:
+
+```bash
+pipx install eval-audit
+```
+
+Both install paths put the `eval-audit` binary on your `PATH` and resolve
+the version from package metadata, so `eval-audit --version` works without
+a source checkout. See [CHANGELOG.md](CHANGELOG.md) for what's in the
+current release.
+
+## First audit in five minutes
+
+From a fresh `uv tool install`, take a new BYO study from scaffold to
+rendered audit report:
+
+```bash
+# 1. Install (one-time).
+uv tool install eval-audit
+
+# 2. Scaffold a new BYO study with toy data and study spec.
+eval-audit init my-first-audit
+cd my-first-audit
+
+# 3. Pre-flight check: validate the runs parquet and study spec together.
+eval-audit validate runs.parquet study.yaml
+
+# 4. Run the analysis (writes reports/my-first-audit/analysis.json).
+eval-audit analyze study.yaml --runs runs.parquet
+
+# 5. Render the audit report.
+#    --skip-validation bypasses the synthetic-validation pytest gate, which
+#    is a development-time guardrail not bundled with the published wheel.
+eval-audit report study.yaml --runs runs.parquet --skip-validation
+```
+
+The rendered report lands at `reports/my-first-audit/report.md`. Open it
+to see the full nine sections — Audit Summary, Study, Provenance,
+Per-agent summary, Claims, Robustness Review, Cost-quality view, Residual
+risks, and Reproducibility footer — produced from the toy 2-agent 10-task
+fixture. Edit `make_runs.py` (or replace `runs.parquet` with your own
+canonical RunRecord parquet) to point the same audit machinery at your
+data; see [`agents/docs/INPUT_CONTRACT.md`](agents/docs/INPUT_CONTRACT.md)
+for the field-by-field `RunRecord` reference.
+
 ## Quickstart
 
-Install dependencies:
+For contributors and anyone working from a source checkout. Install
+development dependencies:
 
 ```bash
 uv sync --extra dev
