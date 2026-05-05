@@ -15,6 +15,32 @@ The report output is intentionally action-shaped: `switch`, `hold`,
 `drop_from_shortlist`, `rerun_more_n`, `hedge_on_cost`, or
 `inconclusive_no_action`.
 
+## What you'll see
+
+Every report opens with a verdict, then proves it.
+
+<!-- The Audit Summary and Robustness Review below are quoted verbatim from reports/exhibit-a/report.md. Update both together when the renderer changes. -->
+
+### Audit summary
+
+- **Verdict:** `hedge_on_cost` — CI crosses zero and the cost gap is material
+- **Claim status:** inconclusive
+- **Why:** delta +1.82 pp with bootstrap CI [-7.27 pp, +10.91 pp] over 165 paired tasks; treatment is 2.20x the control's cost
+- **What would change it:** ~1351 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
+- **Reviewer pushback:** 5 residual risks inherited from scouting
+
+### Robustness review
+
+| Dimension | Result | Notes |
+|---|---|---|
+| Multiple-comparison correction | survives | verdict unchanged at α∈{0.01, 0.10} and with correction=none |
+| Errored-row policy | survives | verdict unchanged when errored rows excluded |
+| Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
+| Target MDE | does not survive | CI half-width 9.09 pp > MDE 3.00 pp; under-resolved |
+| Cost provenance | survives | reconciled |
+
+See [reports/exhibit-a/report.md](reports/exhibit-a/report.md) for the full report (Study, Provenance, Per-agent summary, Claims, Verdict sensitivity, Cost-quality view, Residual risks, Reproducibility footer).
+
 ## Why this exists
 
 Agent benchmark reporting often looks like a scoreboard: point estimates, vague
@@ -139,6 +165,13 @@ only with metric-specific inference and report semantics.
 
 For success-rate studies, `eval-audit` uses:
 
+- audit summary front-loaded as the first section: verdict, claim status, why,
+  what would change it, reviewer pushback
+- resolution planning: target_mde + bootstrap CI half-width → required N
+  estimate (variance-fixed scaling)
+- robustness review: per-claim survives/does-not-survive/caveat table across
+  multiple-comparison correction, errored-row policy, cost-threshold
+  sensitivity, target MDE, and cost provenance
 - errored rows counted as failures in the headline denominator, with
   `n_errored` still surfaced separately
 - paired-task cluster bootstrap for delta uncertainty
@@ -188,15 +221,14 @@ CI runs pytest and ruff on pushes and PRs to `main`.
 Those are useful directions, but the current project is about making a small
 number of benchmark claims defensible end to end.
 
-## Big missing pieces
+## Future work
 
-The important future work is methodological, not plumbing:
+Methodological extensions worth taking on, in rough priority order:
 
 - richer outcome support beyond binary success rate
-- power / sample-size planning tables
 - run-to-run replication support when benchmark traces expose seeds
 - HTML/PDF report output
 - more public benchmark adapters after the first two examples prove the shape
 
-The critical v0 integrity gaps from review have been fixed: accepted study
-declarations now match what the engine actually evaluates.
+v1 shipped the audit-summary header, resolution planning, and robustness
+review sections; see the demo reports above for the rendered output.
