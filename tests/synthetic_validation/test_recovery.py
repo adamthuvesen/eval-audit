@@ -2,7 +2,7 @@
 
 These tests load the synthetic known-truth dataset, run analyze() against it,
 and assert recovery of the truth declared in scouting/synthetic/truth.json.
-The full set runs as a CLI gate before any Exhibit A report is rendered.
+The full set runs as a CLI gate before any GAIA HAL Generalist report is rendered.
 """
 
 from __future__ import annotations

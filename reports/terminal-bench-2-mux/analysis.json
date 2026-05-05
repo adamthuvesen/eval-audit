@@ -1,0 +1,51 @@
+{
+  "study_id": "terminal-bench-2-mux",
+  "per_agent": [
+    {
+      "agent_id": "Mux__GPT-5.3-Codex",
+      "n_graded": 445,
+      "n_errored": 0,
+      "success_rate": 0.7460674157303371,
+      "success_rate_ci_low": 0.703639331530075,
+      "success_rate_ci_high": 0.7842835100349851,
+      "total_cost_usd": null,
+      "cost_per_success_usd": null
+    },
+    {
+      "agent_id": "Mux__Claude-Opus-4.6",
+      "n_graded": 445,
+      "n_errored": 0,
+      "success_rate": 0.6651685393258427,
+      "success_rate_ci_low": 0.6200723633847013,
+      "success_rate_ci_high": 0.7074374891726679,
+      "total_cost_usd": null,
+      "cost_per_success_usd": null
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "mux_gpt53_codex_vs_opus46_submission",
+      "text": "On Terminal-Bench 2.0, the public Mux + GPT-5.3-Codex submission is listed at 74.6% accuracy and the public Mux + Claude Opus 4.6 submission is listed at 66.5% accuracy on the official leaderboard. This audit evaluates whether the observed gap is statistically distinguishable from noise on the paired 89-task universe across five public trials per agent. Cost is suppressed because the selected public result.json artifacts do not expose complete cost_usd values across both submissions.",
+      "treatment": "Mux__GPT-5.3-Codex",
+      "control": "Mux__Claude-Opus-4.6",
+      "delta_point_estimate": 0.08089887640449456,
+      "delta_ci_low": 0.024719101123595766,
+      "delta_ci_high": 0.13932584269662907,
+      "raw_p_value": 0.005684012773334147,
+      "adjusted_p_value": 0.005684012773334147,
+      "rejects_null": true,
+      "treatment_total_cost_usd": null,
+      "control_total_cost_usd": null,
+      "bootstrap": [
+        0.08089887640449456,
+        0.024719101123595766,
+        0.13932584269662907,
+        10000,
+        42
+      ]
+    }
+  ],
+  "pareto_frontier": [],
+  "bootstrap_seed": 42,
+  "pareto_status": "suppressed_cost_not_available"
+}

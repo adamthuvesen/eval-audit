@@ -1,6 +1,6 @@
 # Decision Pattern Gallery
 
-This is a **synthetic** worked example. It is not benchmark evidence. It exists to demonstrate how each `decision_impact` verdict in `eval_audit/report/decisions.py:DECISION_IMPACT_VOCAB` renders end-to-end, so a reader can see what a verdict looks like in a real audit report rather than only in the rationale prose. The real-data exhibits — Exhibit A on GAIA HAL Generalist and Exhibit B on TAU-bench — are what carry the project's credibility; this gallery is for *teaching the verdict language*.
+This is a **synthetic** worked example. It is not benchmark evidence. It exists to demonstrate how each `decision_impact` verdict in `eval_audit/report/decisions.py:DECISION_IMPACT_VOCAB` renders end-to-end, so a reader can see what a verdict looks like in a real audit report rather than only in the rationale prose. The real-data audits — GAIA HAL Generalist and TAU-bench Airline Tool Calling — are what carry the project's credibility; this gallery is for *teaching the verdict language*.
 
 ## What it covers
 
@@ -10,7 +10,7 @@ The gallery renders three claims, each calibrated to fire one decision rule that
 - **`rerun_more_n`** — `rerun_treatment` (5/10, $0.030/task) vs `rerun_control` (5/10, $0.032/task). Tied per-arm success rates with offsetting per-task wins, so the bootstrap CI clearly straddles zero. The cost gap is ~6.67% — below the 10% material threshold — so the engine emits `rerun_more_n` rather than `hedge_on_cost`.
 - **`inconclusive_no_action`** — `inconc_treatment` (8/10, $0.04/task) vs `inconc_control` (4/10, $0.06/task). Per-task differences are entirely +1 or 0 (no negatives), so the bootstrap percentile CI is entirely positive. The raw t-test p-value (~0.030) is small enough to suggest signal, but Holm-Bonferroni adjustment across the three-claim family pushes the adjusted p above α=0.05. This is the CI/p disagreement case the verdict was designed for; the rationale text describes it as a fallback verdict.
 
-The verdicts already covered by other committed reports (`switch` via BYO minimal, `hedge_on_cost` via Exhibit A and Exhibit B, `drop_from_shortlist` via Exhibit B claim 3) are not duplicated here.
+The verdicts already covered by other committed reports (`switch` via BYO minimal, `hedge_on_cost` via GAIA HAL Generalist and TAU-bench Airline Tool Calling, `drop_from_shortlist` via TAU-bench Airline Tool Calling claim 3) are not duplicated here.
 
 ## How to read it
 

@@ -52,7 +52,7 @@ def test_hal_gaia__locked_mapping_drift_fails_ingest(gaia_dir: Path, tmp_path: P
 
 
 def test_hal_gaia__reconstructed_sum_matches_reported_run_total(gaia_dir: Path) -> None:
-    """WHEN the adapter loads the full GAIA fixture for both Exhibit A agents,
+    """WHEN the adapter loads the full GAIA fixture for both GAIA HAL Generalist agents,
     THEN the cost-sum check passes for both runs without raising
     (per-run abs((sum_recon - reported) / reported) < 0.01).
     """

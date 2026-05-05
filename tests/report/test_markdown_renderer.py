@@ -10,12 +10,12 @@ import pytest
 
 
 @pytest.fixture
-def exhibit_a_inputs(repo_root: Path):
+def gaia_hal_generalist_inputs(repo_root: Path):
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
     adapter = HalGaiaAdapter()
     runs = adapter.load(repo_root / "scouting" / "candidates" / "gaia")
     result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
@@ -38,11 +38,11 @@ def _render(study, runs, result, repo_root: Path) -> str:
     )
 
 
-def test_report__all_nine_sections_are_present(exhibit_a_inputs, repo_root: Path) -> None:
-    """WHEN the renderer is run against the Exhibit A study and GAIA fixture,
+def test_report__all_nine_sections_are_present(gaia_hal_generalist_inputs, repo_root: Path) -> None:
+    """WHEN the renderer is run against the GAIA HAL Generalist study and GAIA fixture,
     THEN the resulting markdown contains all nine ## sections in the listed order.
     """
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
 
     text = _render(study, runs, result, repo_root)
 
@@ -65,12 +65,12 @@ def test_report__all_nine_sections_are_present(exhibit_a_inputs, repo_root: Path
         last_pos = pos
 
 
-def test_report__inherited_residual_risks_are_not_edited(exhibit_a_inputs, repo_root: Path) -> None:
+def test_report__inherited_residual_risks_are_not_edited(gaia_hal_generalist_inputs, repo_root: Path) -> None:
     """WHEN the residual-risks section is rendered,
     THEN the text under 'Inherited from scouting decision' matches the residual-risks
-    bullets in scouting/exhibit-a-decision.md byte-for-byte after whitespace normalization.
+    bullets in scouting/gaia-hal-generalist-decision.md byte-for-byte after whitespace normalization.
     """
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
     text = _render(study, runs, result, repo_root)
 
     # Extract the inherited block from the rendered report.
@@ -81,7 +81,7 @@ def test_report__inherited_residual_risks_are_not_edited(exhibit_a_inputs, repo_
     inherited_block = text[inherited_start:]
 
     # Read the source bullets from the decision document.
-    decision_md = (repo_root / "scouting" / "exhibit-a-decision.md").read_text()
+    decision_md = (repo_root / "scouting" / "gaia-hal-generalist-decision.md").read_text()
     risks_start = decision_md.index("## Residual risks")
     risks_end = decision_md.index("\n## ", risks_start + 1)
     source_block = decision_md[risks_start:risks_end]
@@ -97,30 +97,30 @@ def test_report__inherited_residual_risks_are_not_edited(exhibit_a_inputs, repo_
             assert head_norm in inherited_norm, f"residual risk header missing from report: {head_norm!r}"
 
 
-def test_report__rerunning_renders_byte_identical_output(exhibit_a_inputs, repo_root: Path) -> None:
+def test_report__rerunning_renders_byte_identical_output(gaia_hal_generalist_inputs, repo_root: Path) -> None:
     """WHEN the renderer is invoked twice with the same inputs and a fixed clock,
     THEN the two outputs have identical sha256 hashes.
     """
     import hashlib
 
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
     a = _render(study, runs, result, repo_root)
     b = _render(study, runs, result, repo_root)
 
     assert hashlib.sha256(a.encode()).hexdigest() == hashlib.sha256(b.encode()).hexdigest()
 
 
-def test_report__snapshot_diff_caught_in_tests(exhibit_a_inputs, repo_root: Path, tmp_path: Path) -> None:
+def test_report__snapshot_diff_caught_in_tests(gaia_hal_generalist_inputs, repo_root: Path, tmp_path: Path) -> None:
     """WHEN a developer mutates the renderer's output without updating the snapshot,
     THEN the snapshot test fails with a diff showing the change.
 
     Verified by snapshotting the rendered report, mutating a copy, and asserting
     the comparison detects the mutation.
     """
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
 
     rendered = _render(study, runs, result, repo_root)
-    snapshot_path = tmp_path / "exhibit-a-report.md"
+    snapshot_path = tmp_path / "gaia-hal-generalist-report.md"
     snapshot_path.write_text(rendered)
 
     mutated = rendered.replace("## Per-agent summary", "## Per-agent summary BREAKING CHANGE")
@@ -138,7 +138,7 @@ def test_report__cross_harness_study_produces_no_report_file(repo_root: Path, tm
     from eval_audit.schema import StudySpec
     from eval_audit.stats import CrossHarnessComparisonError
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
 
     treatment = study.claims[0].treatment
     control = study.claims[0].control
@@ -192,7 +192,7 @@ def test_report__incomplete_reconstructed_cost_produces_no_report_file(
     from eval_audit.schema import StudySpec
     from eval_audit.stats import CostProvenanceError
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
     treatment = study.claims[0].treatment
     control = study.claims[0].control
 
@@ -236,14 +236,14 @@ def test_report__incomplete_reconstructed_cost_produces_no_report_file(
 
 
 def test_report__unsupported_lower_is_better_study_is_not_rendered(
-    exhibit_a_inputs, repo_root: Path
+    gaia_hal_generalist_inputs, repo_root: Path
 ) -> None:
     """WHEN rendering receives a StudySpec that bypassed validation with lower_is_better,
     THEN rendering fails before emitting a claim row.
     """
     from eval_audit.report.markdown import render_report
 
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
     bad_primary = study.primary_outcome.model_copy(update={"direction": "lower_is_better"})
     bad_study = study.model_copy(update={"primary_outcome": bad_primary})
 
@@ -267,12 +267,12 @@ def test_report__unsupported_lower_is_better_study_is_not_rendered(
 
 
 @pytest.fixture
-def exhibit_b_inputs(repo_root: Path):
+def tau_bench_airline_tool_calling_inputs(repo_root: Path):
     from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-b.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "tau-bench-airline-tool-calling.yaml")
     runs = HalTauBenchAdapter().load(repo_root / "scouting" / "candidates" / "tau-bench")
     result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
     return study, runs, result
@@ -470,11 +470,11 @@ def test_reviewer_pushback__none_flagged_when_no_caveats_apply() -> None:
     assert line == "none flagged at this stage"
 
 
-def test_audit_summary__exhibit_a_has_exactly_five_bullet_lines(
-    exhibit_a_inputs, repo_root: Path
+def test_audit_summary__gaia_hal_generalist_has_exactly_five_bullet_lines(
+    gaia_hal_generalist_inputs, repo_root: Path
 ) -> None:
     """Single-claim study renders five bullets in the fixed order, no sub-headings."""
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
     text = _render(study, runs, result, repo_root)
     summary = _extract_audit_summary(text)
 
@@ -494,16 +494,16 @@ def test_audit_summary__exhibit_a_has_exactly_five_bullet_lines(
         last_pos = pos
 
 
-def test_audit_summary__exhibit_b_emits_one_sub_stanza_per_claim(
-    exhibit_b_inputs, repo_root: Path
+def test_audit_summary__tau_bench_airline_tool_calling_emits_one_sub_stanza_per_claim(
+    tau_bench_airline_tool_calling_inputs, repo_root: Path
 ) -> None:
     """Multi-claim study emits one `### Claim <id>` sub-stanza per claim."""
-    study, runs, result = exhibit_b_inputs
+    study, runs, result = tau_bench_airline_tool_calling_inputs
     text = _render(study, runs, result, repo_root)
     summary = _extract_audit_summary(text)
 
     claim_ids = [c.claim_id for c in result.claims]
-    assert len(claim_ids) == 3, "exhibit-b sanity check: expected three claims"
+    assert len(claim_ids) == 3, "tau-bench-airline-tool-calling sanity check: expected three claims"
 
     last_pos = -1
     for claim_id in claim_ids:
@@ -521,11 +521,11 @@ def test_audit_summary__exhibit_b_emits_one_sub_stanza_per_claim(
         )
 
 
-def test_audit_summary__exhibit_b_uses_paired_task_count_not_graded_row_count(
-    exhibit_b_inputs, repo_root: Path
+def test_audit_summary__tau_bench_airline_tool_calling_uses_paired_task_count_not_graded_row_count(
+    tau_bench_airline_tool_calling_inputs, repo_root: Path
 ) -> None:
-    """Errored rows count as paired failures, so Exhibit B should report n=50."""
-    study, runs, result = exhibit_b_inputs
+    """Errored rows count as paired failures, so TAU-bench Airline Tool Calling should report n=50."""
+    study, runs, result = tau_bench_airline_tool_calling_inputs
     text = _render(study, runs, result, repo_root)
     summary = _extract_audit_summary(text)
 
@@ -534,10 +534,10 @@ def test_audit_summary__exhibit_b_uses_paired_task_count_not_graded_row_count(
 
 
 def test_audit_summary__claim_status_matches_claims_table_value(
-    exhibit_a_inputs, repo_root: Path
+    gaia_hal_generalist_inputs, repo_root: Path
 ) -> None:
     """Vocabulary alignment: Audit Summary status must match Claims-table status."""
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
     text = _render(study, runs, result, repo_root)
     summary = _extract_audit_summary(text)
 
@@ -563,12 +563,12 @@ def test_audit_summary__claim_status_matches_claims_table_value(
 
 
 def test_audit_summary__verdict_line_carries_token_and_rationale(
-    exhibit_a_inputs, repo_root: Path
+    gaia_hal_generalist_inputs, repo_root: Path
 ) -> None:
-    """Exhibit A's hedge_on_cost verdict bullet must include the token and a
+    """GAIA HAL Generalist's hedge_on_cost verdict bullet must include the token and a
     rule-explanation rationale: it names the rule that fired (CI crossing zero,
     material cost gap) and an action implication for the model selector."""
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
     text = _render(study, runs, result, repo_root)
     summary = _extract_audit_summary(text)
 
@@ -781,10 +781,10 @@ def _extract_robustness_review(text: str) -> str:
 
 
 def test_robustness_review__appears_between_claims_and_cost_quality(
-    exhibit_a_inputs, repo_root: Path
+    gaia_hal_generalist_inputs, repo_root: Path
 ) -> None:
     """Section 6 in the new ordering: between Claims and Cost-quality view."""
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
     text = _render(study, runs, result, repo_root)
 
     claims_pos = text.index("## Claims")
@@ -794,11 +794,11 @@ def test_robustness_review__appears_between_claims_and_cost_quality(
     assert claims_pos < rr_pos < cost_pos
 
 
-def test_robustness_review__exhibit_a_has_five_data_rows_in_listed_order(
-    exhibit_a_inputs, repo_root: Path
+def test_robustness_review__gaia_hal_generalist_has_five_data_rows_in_listed_order(
+    gaia_hal_generalist_inputs, repo_root: Path
 ) -> None:
     """Single-claim study renders five rows in the fixed dimension order."""
-    study, runs, result = exhibit_a_inputs
+    study, runs, result = gaia_hal_generalist_inputs
     text = _render(study, runs, result, repo_root)
     section = _extract_robustness_review(text)
 
@@ -817,11 +817,11 @@ def test_robustness_review__exhibit_a_has_five_data_rows_in_listed_order(
         last_pos = pos
 
 
-def test_robustness_review__exhibit_a_target_mde_does_not_survive(
-    exhibit_a_inputs, repo_root: Path
+def test_robustness_review__gaia_hal_generalist_target_mde_does_not_survive(
+    gaia_hal_generalist_inputs, repo_root: Path
 ) -> None:
-    """Exhibit A's CI is much wider than its MDE (9.39 pp > 3 pp)."""
-    study, runs, result = exhibit_a_inputs
+    """GAIA HAL Generalist's CI is much wider than its MDE (9.39 pp > 3 pp)."""
+    study, runs, result = gaia_hal_generalist_inputs
     text = _render(study, runs, result, repo_root)
     section = _extract_robustness_review(text)
 
@@ -834,11 +834,11 @@ def test_robustness_review__exhibit_a_target_mde_does_not_survive(
     assert " pp >" in target_line  # half-width > MDE
 
 
-def test_robustness_review__exhibit_a_cost_provenance_reconciled(
-    exhibit_a_inputs, repo_root: Path
+def test_robustness_review__gaia_hal_generalist_cost_provenance_reconciled(
+    gaia_hal_generalist_inputs, repo_root: Path
 ) -> None:
-    """Exhibit A uses the GAIA fixture which reconciles cleanly."""
-    study, runs, result = exhibit_a_inputs
+    """GAIA HAL Generalist uses the GAIA fixture which reconciles cleanly."""
+    study, runs, result = gaia_hal_generalist_inputs
     text = _render(study, runs, result, repo_root)
     section = _extract_robustness_review(text)
 
@@ -848,16 +848,16 @@ def test_robustness_review__exhibit_a_cost_provenance_reconciled(
     assert cost_line == "| Cost provenance | survives | reconciled |"
 
 
-def test_robustness_review__exhibit_b_has_one_sub_stanza_per_claim(
-    exhibit_b_inputs, repo_root: Path
+def test_robustness_review__tau_bench_airline_tool_calling_has_one_sub_stanza_per_claim(
+    tau_bench_airline_tool_calling_inputs, repo_root: Path
 ) -> None:
     """Multi-claim study emits one `### Claim <id>` sub-stanza per claim."""
-    study, runs, result = exhibit_b_inputs
+    study, runs, result = tau_bench_airline_tool_calling_inputs
     text = _render(study, runs, result, repo_root)
     section = _extract_robustness_review(text)
 
     claim_ids = [c.claim_id for c in result.claims]
-    assert len(claim_ids) == 3, "exhibit-b sanity check"
+    assert len(claim_ids) == 3, "tau-bench-airline-tool-calling sanity check"
 
     last_pos = -1
     for claim_id in claim_ids:
@@ -869,12 +869,12 @@ def test_robustness_review__exhibit_b_has_one_sub_stanza_per_claim(
 
 
 def test_robustness_review__every_result_value_is_in_vocabulary(
-    exhibit_a_inputs, exhibit_b_inputs, repo_root: Path
+    gaia_hal_generalist_inputs, tau_bench_airline_tool_calling_inputs, repo_root: Path
 ) -> None:
     """Every Result column value across both exhibits is one of the four vocab values."""
     allowed = {"survives", "does not survive", "caveat", "not assessed"}
 
-    for inputs in (exhibit_a_inputs, exhibit_b_inputs):
+    for inputs in (gaia_hal_generalist_inputs, tau_bench_airline_tool_calling_inputs):
         study, runs, result = inputs
         text = _render(study, runs, result, repo_root)
         section = _extract_robustness_review(text)

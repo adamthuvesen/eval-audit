@@ -1,313 +1,273 @@
 # eval-audit
 
-[![CI](https://github.com/adamthuvesen/eval-audit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/adamthuvesen/eval-audit/actions/workflows/ci.yml)
+`eval-audit` helps teams decide which model to choose from benchmark evidence.
 
-**A model-selection audit toolkit for agent benchmarks.**
+Given a declared claim, paired task-level results, and costs, it asks:
 
-You read "Model X beats Model Y by 2 pp on benchmark Z." Should you switch
-your default? `eval-audit` answers that with one of six verdicts —
-`switch`, `hold`, `drop_from_shortlist`, `rerun_more_n`, `hedge_on_cost`,
-`inconclusive_no_action` — each backed by paired-task bootstrap CIs,
-multiple-comparison correction, Pareto cost-quality dominance, and a
-robustness review that perturbs the inference choices to see whether the
-verdict survives.
+> Is there enough evidence to switch models, keep the current choice, rerun with more data, or conclude that no model-selection change is supported?
 
-Concrete: Exhibit A reanalyzes Claude 3.7 Sonnet vs o4-mini High on 165
-paired GAIA tasks under one harness. Claude is +1.82 pp on success rate
-but costs 2.2× more, the paired bootstrap CI crosses zero, and the
-verdict is:
+It does not run benchmarks. It audits benchmark evidence after the runs exist.
 
-```text
-hedge_on_cost
-```
+## What it produces
 
-A plausible leaderboard claim becomes a bounded, decision-relevant
-statement. Three more rendered audits below cover the other verdict
-shapes.
+The main output is a deterministic Markdown report.
 
-```bash
-uv tool install eval-audit
-eval-audit init my-first-audit && cd my-first-audit
-eval-audit report study.yaml --runs runs.parquet --skip-validation
-```
+Each report starts with:
 
-**Install** · [Five-minute walk-through](#first-audit-in-five-minutes) · [Browse rendered audits](#example-reports) · [CHANGELOG](CHANGELOG.md)
+- a verdict
+- whether the claim is supported
+- the paired uncertainty around the effect
+- the cost comparison, when honest cost data exists
+- what would need to change for a clearer decision
+- caveats a reviewer should care about
 
-## What you'll see
+Example: [reports/gaia-hal-generalist/report.md](reports/gaia-hal-generalist/report.md)
 
-Every report opens with a verdict, then proves it.
+## Verdicts
 
-<!-- The Audit Summary and Robustness Review below are quoted verbatim from reports/exhibit-a/report.md. Update both together when the renderer changes. -->
+Each claim receives one decision verb.
 
-### Audit summary
+| Verdict                  | Meaning                                                            |
+| ------------------------ | ------------------------------------------------------------------ |
+| `switch`                 | The treatment is better enough to choose.                          |
+| `hold`                   | The control remains the better choice.                             |
+| `drop_from_shortlist`    | The treatment is worse enough to remove.                           |
+| `rerun_more_n`           | The result is underpowered; collect more paired tasks.             |
+| `hedge_on_cost`          | Quality is not clearly different, so cost should drive the choice. |
+| `inconclusive_no_action` | The audit does not support a change.                               |
 
-- **Verdict:** `hedge_on_cost` — The bootstrap CI for the delta crosses zero (no quality decision is available), but the cost gap is material (≥10% of the cheaper arm's cost). The decision pivots on cost preference rather than measured quality. Action: pick the cheaper arm unless the (statistically indistinguishable) quality difference matters to your use case.
-- **Claim status:** inconclusive
-- **Why:** delta +1.82 pp with bootstrap CI [-7.27 pp, +10.91 pp] over 165 paired tasks; treatment is 2.20x the control's cost
-- **What would change it:** ~1351 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
-- **Reviewer pushback:** 5 residual risks inherited from scouting
+## When to use it
 
-### Robustness review
+Use `eval-audit` when you have:
 
-| Dimension | Result | Notes |
-|---|---|---|
-| Multiple-comparison correction | survives | verdict unchanged at α∈{0.01, 0.10} and with correction=none |
-| Errored-row policy | survives | verdict unchanged when errored rows excluded |
-| Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
-| Target MDE | does not survive | CI half-width 9.09 pp > MDE 3.00 pp; under-resolved |
-| Cost provenance | survives | reconciled |
+- two or more agents
+- the same tasks for each agent
+- one harness or scaffold
+- task-level outcomes
+- a declared comparison you want to defend
 
-See [reports/exhibit-a/report.md](reports/exhibit-a/report.md) for the full report (Study, Provenance, Per-agent summary, Claims, Verdict sensitivity, Cost-quality view, Residual risks, Reproducibility footer).
+Do not use it for:
 
-## Why this exists
+- model-only claims across different harnesses
+- leaderboard ranking
+- composite scores
+- latency or lower-is-better outcomes
+- partial-credit outcomes
+- benchmark execution
 
-Most benchmark write-ups stop at point estimates and pairwise comparisons.
-That is enough for a blog post; it is not enough for a model-selection
-decision you have to defend. The four common failure modes:
-
-- pairwise comparisons reported without multiple-comparison correction
-- point estimates without paired-task uncertainty
-- cost treated as metadata or footnote, not as a first-class output
-- verdicts that quietly assume the analyst's α / errored-row policy / correction is the only reasonable one
-
-`eval-audit` is a small methodology toolkit for the better default:
-*declare the claim, declare the analysis plan, analyze task-level data,
-report only what survives uncertainty, correction, cost, and sensitivity
-checks.*
-
-## How it works
-
-**Inputs.** A `StudySpec.yaml` declaring the claim, treatment/control
-arms, outcome, α, target MDE, correction method, and cost view —
-committed before outcomes are seen. Plus a canonical `RunRecord.parquet`
-of task-level paired observations.
-
-**Analysis.** Wilson intervals on per-arm success rates; paired-task
-cluster bootstrap on deltas (task is the unit, not row); paired t-test
-p-values; Holm-Bonferroni for declared confirmatory families,
-Benjamini-Hochberg for exploratory families; Pareto frontier over
-success-rate × total-cost; errored rows count as failures in the
-headline denominator with `n_errored` surfaced separately; cost
-provenance as a first-class field (`reconciled` if per-task cost
-reconstruction matches reported totals, `as_reported_only` with a
-visible report caveat if it does not).
-
-**Outputs.** Deterministic markdown report with nine sections: Audit
-Summary (verdict + rationale + what would change it), Study, Provenance,
-Per-agent summary, Claims (with target MDE context), Verdict Sensitivity
-(perturbations across α / errored-row policy / correction / cost
-threshold), Robustness Review (survives / does-not-survive / caveat per
-dimension), Cost-quality view (Pareto frontier + dominance), Residual
-risks (inherited from scouting), and Reproducibility footer.
-Snapshot-tested for byte-identity under fixed clock + git commit +
-fixture sha + bootstrap seed.
-
-**Refusals.** Cross-harness comparisons rejected at the schema gate.
-Unsupported outcomes rejected. Unsupported correction methods rejected.
-The methodology breaks if these slip through, so they don't.
-
-**Adapters that ship today.** HAL GAIA, HAL TAU-bench Airline, a
-synthetic known-truth fixture for stats-engine validation, and a
-generic BYO loader for any canonical `RunRecord.parquet`.
-
-## Demo reports
-
-### Exhibit A: GAIA HAL Generalist
-
-[reports/exhibit-a/report.md](reports/exhibit-a/report.md) reanalyzes Claude
-3.7 Sonnet vs o4-mini High on 165 paired GAIA validation tasks under the same
-HAL Generalist harness.
-
-Headline: Claude is +1.82 pp on success rate but costs 2.2x more. The paired
-bootstrap CI crosses zero, Holm-Bonferroni adjusted p = 0.7021, and the
-decision impact is:
-
-```text
-hedge_on_cost
-```
-
-That is the point of the project: a plausible leaderboard claim becomes a
-bounded, decision-relevant statement.
-
-### Exhibit B: TAU-bench Airline Tool Calling
-
-[reports/exhibit-b/report.md](reports/exhibit-b/report.md) reanalyzes three
-agents on TAU-bench Airline under the Tool Calling harness. It exercises the
-`as_reported_only` cost-provenance path: per-task token reconstruction does not
-reconcile to HAL's reported totals, so the report surfaces the caveat instead
-of pretending the cost basis is cleaner than it is.
-
-### Cross-harness confound
-
-[reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md)
-documents the strongest scouting finding: Claude 3.7 Sonnet scores 56% under
-HAL Generalist and 44% under Tool Calling on TAU-bench Airline. The same model
-on the same benchmark shifts by 12 pp across scaffolds, which is exactly why
-benchmark rows should not be read as pure model effects.
-
-### SWE-bench Verified: OpenHands public-submission audit
-
-[reports/swe-bench-verified-openhands/report.md](reports/swe-bench-verified-openhands/report.md)
-is a **public-submission re-analysis** on the SWE-bench Verified 500-task
-universe, comparing two public OpenHands submissions:
-`20251127_openhands_claude-opus-4-5` (388/500 resolved) vs
-`20250807_openhands_gpt5` (359/500 resolved). The paired bootstrap finds a
-+5.8 pp delta with CI [+2.8 pp, +8.8 pp] and adjusted p ≈ 0.0002, supporting
-a `switch` verdict on quality.
-
-This is the first exhibit to exercise the `cost_not_available` provenance
-path: the upstream OpenHands artifacts expose no stable token, usage, or
-cost fields, so the report **suppresses** every cost-derived view rather
-than smuggle in zeros. Per-agent cost columns, the Cost-quality view, and
-`hedge_on_cost` decisions are all unavailable for this study by design. A
-reader sees the absence, not a misleading low-cost number.
-
-The two submissions also differ in OpenHands runtime commit and
-`max_iterations` budget (500 vs 100), so this is framed as
-"OpenHands + Opus 4.5 submission vs OpenHands + GPT-5 submission," not a
-model-only effect. The fixture under
-[examples/swe-bench-verified-openhands/](examples/swe-bench-verified-openhands/)
-is regenerated from public artifacts via
-`uv run python tools/regenerate_swe_bench_verified.py`.
-
-## Controlled original-evidence audit
-
-Exhibits A and B above are reanalyses of *public* HAL run records — useful for
-showing what an audit looks like, but limited by what someone else already
-shipped. The next category is different: a small, predeclared, *original* run
-that we own end-to-end.
-
-### Exhibit C: HumanEval (Claude Haiku 4.5 vs Claude Sonnet 4.6)
-
-[reports/exhibit-c/report.md](reports/exhibit-c/report.md) is a
-**controlled original-evidence** audit, not a reanalysis. The run design was
-locked in [scouting/exhibit-c-decision.md](scouting/exhibit-c-decision.md)
-and [scouting/exhibit-c/run-plan.md](scouting/exhibit-c/run-plan.md) before
-any model call was made: 30 HumanEval tasks (sampled with seed=42),
-`eval-audit/exhibit-c-direct-v1` thin direct-completion harness with no
-tools, two reruns per (agent, task) at temperature=0, errored-row policy
-inherited from v0.
-
-Headline: Sonnet 60/60 (100%) vs Haiku 53/60 (88.3%) → +11.67 pp with
-bootstrap CI [+1.67 pp, +23.33 pp]. Adjusted p = 0.0504 (just barely above
-α=0.05) and the verdict is:
-
-```text
-inconclusive_no_action
-```
-
-The decision impact is honest about the resolution: a 30-task run can place
-the effect's CI but not separate it from noise at the declared MDE. The
-report's Verdict Sensitivity section shows the verdict flips to `switch` at
-α=0.10, which is the kind of caveat an audit should make visible rather than
-bury.
-
-This is the only exhibit in the repo built from runs we authored ourselves,
-and it is deliberately small. `eval-audit` is still not a benchmark runner;
-Exhibit C is a single declared claim under one locked harness, committed
-end-to-end so the methodology loop can be inspected from raw API responses
-through to the rendered verdict.
-
-## Example reports
-
-The five committed reports exercise different decision verbs, evidence
-modes, and provenance paths.
-
-- [reports/exhibit-a/report.md](reports/exhibit-a/report.md) — verdict `hedge_on_cost`. Single-claim within-harness reanalysis (HAL Generalist on GAIA) with `reconciled` cost provenance.
-- [reports/exhibit-b/report.md](reports/exhibit-b/report.md) — three pairwise claims producing two `hedge_on_cost` verdicts and one `drop_from_shortlist`. Exercises the `as_reported_only` cost-provenance path.
-- [reports/exhibit-c/report.md](reports/exhibit-c/report.md) — verdict `inconclusive_no_action`. Controlled original-evidence audit on HumanEval (Haiku 4.5 vs Sonnet 4.6) with `reconciled` cost provenance and a predeclared run plan.
-- [reports/swe-bench-verified-openhands/report.md](reports/swe-bench-verified-openhands/report.md) — verdict `switch` on a 500-task SWE-bench Verified public-submission re-analysis. Exercises the `cost_not_available` provenance path: cost columns and Pareto are suppressed because the upstream artifacts expose no honest cost.
-- [reports/byo-minimal/report.md](reports/byo-minimal/report.md) — synthetic worked example producing a `switch` verdict. Demonstrates the bring-your-own-data path end-to-end.
-
-## Decision pattern gallery
-
-The reports above cover three of the six decision verdicts on real or BYO data. The decision pattern gallery is a **synthetic** worked example that fills in the rest. It is not benchmark evidence — it exists only to demonstrate how each verdict renders end-to-end so a reader can see the verdict language alongside a real audit report.
-
-The gallery covers `hold`, `rerun_more_n`, and `inconclusive_no_action`.
-
-- [reports/decision-gallery/report.md](reports/decision-gallery/report.md) — rendered audit covering all three claims in one report.
-- [examples/decision-gallery/README.md](examples/decision-gallery/README.md) — worked walkthrough explaining each claim's calibration and which decision rule it triggers.
-
-## Bring your own data
-
-`eval-audit` works on any task-level eval data shaped to the canonical
-`RunRecord` contract. The fastest way in:
-
-```bash
-eval-audit init my-study               # scaffold ./my-study/{study.yaml,runs.parquet,make_runs.py,README.md}
-# edit my-study/make_runs.py with your data, then:
-python my-study/make_runs.py           # regenerate runs.parquet from inline data
-eval-audit validate my-study/runs.parquet my-study/study.yaml
-eval-audit analyze  my-study/study.yaml --runs my-study/runs.parquet
-```
-
-The scaffold round-trips out-of-the-box — `validate` and `analyze` succeed on
-the toy data immediately after `init`, so you have a working example to
-edit. See
-[`examples/byo-minimal/README.md`](examples/byo-minimal/README.md) for the
-worked walkthrough,
-[`agents/docs/INPUT_CONTRACT.md`](agents/docs/INPUT_CONTRACT.md) for the
-formal field-by-field `RunRecord` reference, and
-[`agents/docs/STUDY_SCHEMA.md`](agents/docs/STUDY_SCHEMA.md) for the
-formal field-by-field `StudySpec` reference.
+Those may be useful, but they are outside the current contract.
 
 ## Install
 
-`eval-audit` ships as a CLI tool. The fastest way in:
+With `uv`:
 
 ```bash
 uv tool install eval-audit
 ```
 
-Or, with `pipx`:
+Or with `pipx`:
 
 ```bash
 pipx install eval-audit
 ```
 
-Both install paths put the `eval-audit` binary on your `PATH` and resolve
-the version from package metadata, so `eval-audit --version` works without
-a source checkout. See [CHANGELOG.md](CHANGELOG.md) for what's in the
-current release.
-
-## First audit in five minutes
-
-From a fresh `uv tool install`, take a new BYO study from scaffold to
-rendered audit report:
+Check the installed version:
 
 ```bash
-# 1. Install (one-time).
-uv tool install eval-audit
-
-# 2. Scaffold a new BYO study with toy data and study spec.
-eval-audit init my-first-audit
-cd my-first-audit
-
-# 3. Pre-flight check: validate the runs parquet and study spec together.
-eval-audit validate runs.parquet study.yaml
-
-# 4. Run the analysis (writes reports/my-first-audit/analysis.json).
-eval-audit analyze study.yaml --runs runs.parquet
-
-# 5. Render the audit report.
-#    --skip-validation bypasses the synthetic-validation pytest gate, which
-#    is a development-time guardrail not bundled with the published wheel.
-eval-audit report study.yaml --runs runs.parquet --skip-validation
+eval-audit --version
 ```
 
-The rendered report lands at `reports/my-first-audit/report.md`. Open it
-to see the full nine sections — Audit Summary, Study, Provenance,
-Per-agent summary, Claims, Robustness Review, Cost-quality view, Residual
-risks, and Reproducibility footer — produced from the toy 2-agent 10-task
-fixture. Edit `make_runs.py` (or replace `runs.parquet` with your own
-canonical RunRecord parquet) to point the same audit machinery at your
-data; see [`agents/docs/INPUT_CONTRACT.md`](agents/docs/INPUT_CONTRACT.md)
-for the field-by-field `RunRecord` reference.
+## Demo reports
+
+The committed reports show the supported evidence shapes.
+
+They are not leaderboard rows. Each report is tied to a declared study, a
+fixture, and a reproducible analysis path.
+
+## Example reports
+
+| Report                                                                             | Shows                                                                                                          |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [GAIA HAL Generalist](reports/gaia-hal-generalist/report.md)                       | `hedge_on_cost` on GAIA under one HAL harness.                                                                 |
+| [TAU-bench Airline Tool Calling](reports/tau-bench-airline-tool-calling/report.md) | Multiple claims, including `hedge_on_cost` and `drop_from_shortlist`, with `as_reported_only` cost provenance. |
+| [HumanEval Direct Completion](reports/humaneval-direct-completion/report.md)       | Controlled original-evidence audit on HumanEval.                                                               |
+| [SWE-bench Verified OpenHands](reports/swe-bench-verified-openhands/report.md)     | `switch` with `cost_not_available` suppression.                                                                |
+| [Terminal-Bench 2.0 Mux](reports/terminal-bench-2-mux/report.md)                   | Public Mux submissions on Terminal-Bench 2.0 with `cost_not_available` suppression.                            |
+| [BYO minimal](reports/byo-minimal/report.md)                                       | Small synthetic bring-your-own-data example with a `switch` verdict.                                           |
+
+The cross-harness note is separate because it is a warning, not an audit:
+[reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md)
+
+## Decision pattern gallery
+
+The decision gallery is synthetic. It is not benchmark evidence.
+
+It exists so readers can see how these verdicts render in a full report:
+
+- `hold`
+- `rerun_more_n`
+- `inconclusive_no_action`
+
+Files:
+
+- [reports/decision-gallery/report.md](reports/decision-gallery/report.md)
+- [examples/decision-gallery/README.md](examples/decision-gallery/README.md)
+
+## Bring your own data
+
+The recommended path is:
+
+```bash
+eval-audit init my-study
+python my-study/make_runs.py
+eval-audit validate my-study/runs.parquet my-study/study.yaml
+eval-audit analyze my-study/study.yaml --runs my-study/runs.parquet
+eval-audit report my-study/study.yaml --runs my-study/runs.parquet --skip-validation
+```
+
+Then edit:
+
+- `my-study/make_runs.py` so it writes your real task-level records
+- `my-study/study.yaml` so the agents and claims match your data
+
+References:
+
+- [examples/byo-minimal/README.md](examples/byo-minimal/README.md) — worked BYO example
+- [agents/docs/INPUT_CONTRACT.md](agents/docs/INPUT_CONTRACT.md) — `runs.parquet` field reference
+- [agents/docs/STUDY_SCHEMA.md](agents/docs/STUDY_SCHEMA.md) — `study.yaml` field reference
 
 ## Quickstart
 
-For contributors and anyone working from a source checkout. Install
-development dependencies:
+Scaffold a small bring-your-own-data audit:
+
+```bash
+eval-audit init my-first-audit
+cd my-first-audit
+```
+
+The scaffold includes:
+
+- `study.yaml` — the declared study and claim
+- `runs.parquet` — task-level run records
+- `make_runs.py` — the script that regenerates `runs.parquet`
+- `README.md` — notes for the scaffolded example
+
+Validate the inputs:
+
+```bash
+eval-audit validate runs.parquet study.yaml
+```
+
+Run the analysis:
+
+```bash
+eval-audit analyze study.yaml --runs runs.parquet
+```
+
+Render the report:
+
+```bash
+eval-audit report study.yaml --runs runs.parquet --skip-validation
+```
+
+The report is written to:
+
+```text
+reports/my-first-audit/report.md
+```
+
+`--skip-validation` is used here because the packaged CLI does not include the
+repo's synthetic-validation test suite. For publishable evidence, work from a
+source checkout and run the full checks.
+
+## The two inputs
+
+`eval-audit` always needs a study spec and task-level runs.
+
+### `study.yaml`
+
+The study spec declares:
+
+- the benchmark or task family
+- the harness
+- the agents
+- the primary outcome
+- the comparison claims
+- the inference settings
+- the cost view
+
+Reference: [agents/docs/STUDY_SCHEMA.md](agents/docs/STUDY_SCHEMA.md)
+
+### `runs.parquet`
+
+The run data contains one row per agent-task observation.
+
+Important fields include:
+
+- `agent_id`
+- `model_id`
+- `harness`
+- `run_id`
+- `task_id`
+- `success`
+- `outcome_status`
+- token counts
+- cost fields
+- `cost_provenance`
+
+Reference: [agents/docs/INPUT_CONTRACT.md](agents/docs/INPUT_CONTRACT.md)
+
+## Current contract
+
+The supported outcome is:
+
+- `success_rate`
+- `higher_is_better`
+
+The supported comparison shape is:
+
+- paired task-level comparisons
+- treatment and control run under the same harness
+- task identity matched by `task_id`
+
+The supported inference path includes:
+
+- Wilson intervals for per-agent success rates
+- paired bootstrap intervals for treatment-control deltas
+- paired p-values
+- declared multiple-comparison correction
+- target-MDE resolution checks
+
+The supported cost path includes:
+
+- Pareto cost-quality view
+- cost per success when cost data supports it
+- explicit cost provenance
+- suppression of cost views when cost is not honestly available
+
+Cross-harness comparisons are rejected. Unsupported outcomes are rejected.
+The tool should fail loudly rather than turn unsupported evidence into a
+clean-looking report.
+
+## Cost provenance
+
+Cost is part of the audit, not a footnote.
+
+`cost_provenance` tells the report how much to trust the cost data:
+
+| Value                | Meaning                                                             |
+| -------------------- | ------------------------------------------------------------------- |
+| `reconciled`         | Per-task reconstructed cost matches reported totals closely enough. |
+| `as_reported_only`   | Only run-level reported totals are usable.                          |
+| `partial`            | Cost is incomplete and reported as a caveat.                        |
+| `cost_not_available` | No honest cost data exists; cost columns and Pareto are suppressed. |
+
+The report should show uncertainty in cost provenance as plainly as uncertainty
+in quality.
+
+## Work from source
+
+Install development dependencies:
 
 ```bash
 uv sync --extra dev
@@ -316,105 +276,79 @@ uv sync --extra dev
 Validate a study spec:
 
 ```bash
-uv run eval-audit spec validate studies/exhibit-a.yaml
+uv run eval-audit spec validate studies/gaia-hal-generalist.yaml
 ```
 
-Render a study-spec document:
+Render a study spec:
 
 ```bash
-uv run eval-audit spec render studies/exhibit-a.yaml --out /tmp/exhibit-a-spec.md
+uv run eval-audit spec render studies/gaia-hal-generalist.yaml --out /tmp/gaia-hal-generalist-spec.md
 ```
 
-Run analysis:
+Analyze a committed study:
 
 ```bash
-uv run eval-audit analyze studies/exhibit-a.yaml
-uv run eval-audit analyze studies/exhibit-b.yaml
+uv run eval-audit analyze studies/gaia-hal-generalist.yaml
 ```
 
-Render reports:
+Render a committed report:
 
 ```bash
-uv run eval-audit report studies/exhibit-a.yaml
-uv run eval-audit report studies/exhibit-b.yaml
+uv run eval-audit report studies/gaia-hal-generalist.yaml
 ```
 
-Reproduce Exhibit C (controlled original-evidence audit) from the committed
-canonical fixture — no API keys needed, the runs.parquet is committed:
-
-```bash
-uv run eval-audit spec validate studies/exhibit-c.yaml
-uv run eval-audit validate examples/exhibit-c/runs.parquet studies/exhibit-c.yaml
-uv run eval-audit analyze studies/exhibit-c.yaml --runs examples/exhibit-c/runs.parquet --bootstrap-iterations 8000 --bootstrap-seed 42
-uv run eval-audit report  studies/exhibit-c.yaml --runs examples/exhibit-c/runs.parquet --bootstrap-iterations 8000 --bootstrap-seed 42
-```
-
-To regenerate Exhibit C from scratch (calls the Anthropic API; needs
-`ANTHROPIC_API_KEY` in `.env.local`; estimated cost <\$1), see
-[scouting/exhibit-c/README.md](scouting/exhibit-c/README.md).
-
-Run the full local check:
+Run the local checks:
 
 ```bash
 make check
 ```
 
-## Current v1 scope
-
-`eval-audit` deliberately supports a narrow, honest contract: `success_rate` /
-`higher_is_better` outcomes, task-level paired comparisons within one harness,
-frequentist intervals and corrections, deterministic markdown reports. The
-schema rejects anything outside this scope rather than silently coercing it.
-See [Future work](#future-work) for the deferred extensions.
-
 ## Repository map
 
 ```text
 eval_audit/
-  schema/      StudySpec and RunRecord models
-  ingest/      benchmark fixture adapters
-  stats/       intervals, bootstrap, correction, analysis, Pareto
-  report/      markdown report rendering and decision rules
-  spec/        study-spec rendering
+  schema/      StudySpec and RunRecord validation
+  ingest/      public-data fixture adapters
+  stats/       intervals, bootstrap, correction, analysis, Pareto frontier
+  report/      markdown rendering, decision rules, sensitivity tables
+  spec/        deterministic study-spec rendering
   cli.py       Typer CLI
 
-studies/       declared study specs
-reports/       rendered demo reports and notes
-scouting/      fixture provenance and candidate analysis
-tests/         unit, property, fixture, snapshot, and validation tests
+studies/       declared study YAML files
+reports/       committed reports and analysis JSON
+scouting/      fixture provenance, candidate inventories, decisions
+examples/      BYO and fixture examples
+tests/         schema, ingest, stats, report, CLI, snapshot, validation tests
 ```
 
-## Development
+## Development commands
 
 ```bash
-make test     # uv run pytest
-make lint     # uv run ruff check .
-make check    # both, the canonical local gate
+make test
+make lint
+make check
 ```
 
-CI runs `make check` on every push and pull request, on any branch.
+Snapshot updates are explicit:
 
-## What is intentionally not here
+```bash
+UPDATE_SNAPSHOTS=1 uv run pytest tests/report/test_snapshot.py
+```
 
-- No benchmark runner.
-- No leaderboard.
-- No composite score with hidden weights.
-- No model-based trace classifier.
-- No cross-harness causal attribution.
-- No Bayesian/hierarchical model yet.
+Only update snapshots when a rendered report change is intentional and the diff
+has been reviewed.
 
-Those are useful directions, but the current project is about making a small
-number of benchmark claims defensible end to end.
+## Project boundary
 
-## Future work
+`eval-audit` is a methodology toolkit for auditable model-selection decisions.
 
-Deferred until a concrete consumer asks (or a methodology need forces it):
+It is not:
 
-- broaden supported outcomes beyond `success_rate` / `higher_is_better` —
-  first candidates are `latency_s` and `cost_usd` as `lower_is_better`
-- HTML / PDF report output (markdown stays canonical)
-- more public-data adapters where fixture provenance is solid
-- a second controlled exhibit on a different task source
+- a benchmark runner
+- a leaderboard
+- a tracing system
+- a composite-score factory
+- a causal model of scaffolds
 
-See [CHANGELOG.md](CHANGELOG.md) for what shipped, and the demo reports
-above for the current rendered output.
+That boundary is deliberate. A smaller tool that refuses unsupported claims is
+more useful than a broader tool that makes weak evidence look precise.

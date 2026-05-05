@@ -67,13 +67,13 @@ def test_project_readme__example_reports_section_indexes_three_reports(
     section = project_readme[examples_idx:next_idx]
 
     # Three committed reports, each as a markdown link.
-    assert "reports/exhibit-a/report.md" in section
-    assert "reports/exhibit-b/report.md" in section
+    assert "reports/gaia-hal-generalist/report.md" in section
+    assert "reports/tau-bench-airline-tool-calling/report.md" in section
     assert "reports/byo-minimal/report.md" in section
 
     # Verdict tokens named literally for each report.
-    assert "hedge_on_cost" in section  # exhibit-a (also exhibit-b ×2)
-    assert "drop_from_shortlist" in section  # exhibit-b
+    assert "hedge_on_cost" in section  # gaia-hal-generalist (also tau-bench-airline-tool-calling ×2)
+    assert "drop_from_shortlist" in section  # tau-bench-airline-tool-calling
     assert "switch" in section  # byo-minimal
 
 

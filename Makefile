@@ -14,7 +14,7 @@ check:
 	uv run ruff check .
 
 analyze:
-	uv run eval-audit analyze studies/exhibit-a.yaml
+	uv run eval-audit analyze studies/gaia-hal-generalist.yaml
 
 report:
-	uv run eval-audit report studies/exhibit-a.yaml
+	uv run eval-audit report studies/gaia-hal-generalist.yaml

@@ -27,7 +27,7 @@
 
 > ⚠️ Cost provenance: cost_not_available
 
-The upstream artifacts for this study expose no stable token, usage, or cost fields. Per-task cost cannot be reconstructed from token breakdowns × pinned provider prices, and no per-run reported total is available. Rather than smuggle in zeros, this report **suppresses** every cost-derived view: per-agent `total_cost_usd` and `cost_per_success_usd` columns are omitted from the Per-agent summary, the Cost-quality view (Pareto frontier) is suppressed, and `decision_impact` cannot return `hedge_on_cost` for any claim in this study.
+The upstream artifacts for this study do not expose complete, stable cost fields. Per-task cost cannot be reconstructed with the report's pinned price policy, and no complete per-run reported total is available. Rather than smuggle in zeros, this report **suppresses** every cost-derived view: per-agent `total_cost_usd` and `cost_per_success_usd` columns are omitted from the Per-agent summary, the Cost-quality view (Pareto frontier) is suppressed, and `decision_impact` cannot return `hedge_on_cost` for any claim in this study.
 
 **Cost-suppressed agents:**
 

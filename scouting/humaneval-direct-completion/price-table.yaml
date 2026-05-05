@@ -1,0 +1,23 @@
+# Anthropic Messages API price table for HumanEval Direct Completion cost reconstruction.
+#
+# Locked: 2026-05-03 (price-table date — used for `reconstructed_per_task_cost_usd`).
+# All rates in USD per 1M tokens. Cache-read / cache-write rates are not used
+# by HumanEval Direct Completion's harness (no prompt caching).
+
+date: "2026-05-03"
+source: "https://www.anthropic.com/pricing#api"
+
+models:
+  claude-haiku-4-5-20251001:
+    input_per_mtok: 0.80
+    output_per_mtok: 4.00
+  claude-sonnet-4-6:
+    input_per_mtok: 3.00
+    output_per_mtok: 15.00
+
+# reconciliation_tolerance_usd is unused in v0: the Anthropic Messages API
+# does not expose an independent provider-side run total, so HumanEval Direct Completion rows
+# carry cost_provenance="partial" and no reconciliation tolerance is applied.
+# Retained for forward compatibility with a future provider that exposes a
+# billing total (see scouting/humaneval-direct-completion/normalize.py module docstring).
+reconciliation_tolerance_usd: 0.005

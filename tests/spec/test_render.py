@@ -6,14 +6,14 @@ from pathlib import Path
 
 
 def test_render__produces_all_required_sections(repo_root: Path) -> None:
-    """WHEN render_study_spec(study) is called for the Exhibit A study,
+    """WHEN render_study_spec(study) is called for the GAIA HAL Generalist study,
     THEN the returned string contains all seven section headings in order,
     agents are listed verbatim, and the primary claim text appears once.
     """
     from eval_audit.schema import StudySpec
     from eval_audit.spec import render_study_spec
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
     text = render_study_spec(study)
 
     expected_headings = [
@@ -49,7 +49,7 @@ def test_render__is_byte_identical_across_runs(repo_root: Path) -> None:
     from eval_audit.schema import StudySpec
     from eval_audit.spec import render_study_spec
 
-    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
     a = render_study_spec(study)
     b = render_study_spec(study)
     assert hashlib.sha256(a.encode()).hexdigest() == hashlib.sha256(b.encode()).hexdigest()
@@ -62,9 +62,9 @@ def test_render__null_target_mde_renders_none_declared(repo_root: Path, tmp_path
     from eval_audit.schema import StudySpec
     from eval_audit.spec import render_study_spec
 
-    src = (repo_root / "studies" / "exhibit-a.yaml").read_text()
+    src = (repo_root / "studies" / "gaia-hal-generalist.yaml").read_text()
     src = src.replace("target_mde: 0.03", "target_mde: null")
-    study_path = tmp_path / "exhibit-a-no-mde.yaml"
+    study_path = tmp_path / "gaia-hal-generalist-no-mde.yaml"
     study_path.write_text(src)
 
     study = StudySpec.from_yaml(study_path)

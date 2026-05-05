@@ -14,14 +14,14 @@ def runner() -> CliRunner:
 
 
 def test_cli_spec_validate__exits_zero_on_valid_file(runner: CliRunner, repo_root: Path) -> None:
-    """WHEN `eval-audit spec validate studies/exhibit-a.yaml` is invoked,
+    """WHEN `eval-audit spec validate studies/gaia-hal-generalist.yaml` is invoked,
     THEN exit code is 0 and stdout contains a single-line success message naming the study id.
     """
     from eval_audit.cli import app
 
-    result = runner.invoke(app, ["spec", "validate", str(repo_root / "studies" / "exhibit-a.yaml")])
+    result = runner.invoke(app, ["spec", "validate", str(repo_root / "studies" / "gaia-hal-generalist.yaml")])
     assert result.exit_code == 0, result.output
-    assert "exhibit-a" in result.output
+    assert "gaia-hal-generalist" in result.output
     assert "OK" in result.output
 
 
@@ -58,7 +58,7 @@ def test_cli_spec_render__writes_deterministic_markdown(
             app,
             [
                 "spec", "render",
-                str(repo_root / "studies" / "exhibit-a.yaml"),
+                str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
                 "--out", str(out),
                 "--format", "markdown",
             ],
@@ -84,7 +84,7 @@ def test_cli_spec_render__rejects_unsupported_format(
         app,
         [
             "spec", "render",
-            str(repo_root / "studies" / "exhibit-a.yaml"),
+            str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
             "--out", str(out),
             "--format", "html",
         ],

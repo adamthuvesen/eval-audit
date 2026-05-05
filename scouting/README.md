@@ -1,6 +1,6 @@
 # scouting/
 
-Scouting workspace for Exhibit A and Exhibit B fixture selection.
+Scouting workspace for GAIA HAL Generalist and TAU-bench Airline Tool Calling fixture selection.
 
 Outputs in this tree are the durable, machine-readable handoff from scouting to reanalysis: column inventories, sampled fixtures, cost reconciliation, and provenance.
 
@@ -9,7 +9,7 @@ Outputs in this tree are the durable, machine-readable handoff from scouting to 
 ```text
 scouting/
   README.md                    # this file
-  exhibit-a-decision.md        # the locked Exhibit A choice (written last)
+  gaia-hal-generalist-decision.md        # the locked GAIA HAL Generalist choice (written last)
   candidates/
     tau-bench/
       columns.json             # raw column inventory
@@ -45,13 +45,13 @@ If, during scouting, BrowseComp's public artifact turns out to expose only aggre
 
 ## Conventions
 
-- Outputs in `candidates/<candidate>/` and `synthetic/` are the contract. Treat them as immutable once `exhibit-a-decision.md` is written.
+- Outputs in `candidates/<candidate>/` and `synthetic/` are the contract. Treat them as immutable once `gaia-hal-generalist-decision.md` is written.
 - `provenance.json` is the regeneration recipe. If you can't re-fetch and re-sample from `provenance.json` alone, the file is incomplete.
 - Parquet preferred over CSV for samples (smaller, faster, schema-preserving). CSV permitted only if Parquet is impractical for a specific source.
 - Sample files capped at 5 MB. Larger samples must be downsampled with a recorded seed.
 
 ## Read also
 
-- [scouting/exhibit-a-decision.md](exhibit-a-decision.md)
-- [scouting/tau-bench-decision.md](tau-bench-decision.md)
+- [scouting/gaia-hal-generalist-decision.md](gaia-hal-generalist-decision.md)
+- [scouting/tau-bench-airline-tool-calling-decision.md](tau-bench-airline-tool-calling-decision.md)
 - [reports/cross-harness-confound/notes.md](../reports/cross-harness-confound/notes.md)

@@ -7,25 +7,25 @@ from pathlib import Path
 import pytest
 
 
-def test_study_spec__loading_the_exhibit_a_study_spec_succeeds(repo_root: Path) -> None:
-    """WHEN StudySpec.from_yaml("studies/exhibit-a.yaml") is called and the file
+def test_study_spec__loading_the_gaia_hal_generalist_study_spec_succeeds(repo_root: Path) -> None:
+    """WHEN StudySpec.from_yaml("studies/gaia-hal-generalist.yaml") is called and the file
     declares the GAIA Claude-3.7 vs o4-mini-high claim,
     THEN a StudySpec instance is returned with claims[0].treatment == 'gaia_hg_claude37'
     and claims[0].control == 'gaia_hg_o4mini_high'.
     """
     from eval_audit.schema import StudySpec
 
-    spec = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    spec = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
 
     assert spec.schema_version == 1
-    assert spec.id == "exhibit-a"
+    assert spec.id == "gaia-hal-generalist"
     assert spec.benchmark == "gaia"
     assert spec.harness == "hal_generalist_agent"
     assert spec.analysis_mode == "declared_reanalysis"
     assert spec.inference.correction_method == "holm_bonferroni"
     assert spec.inference.alpha == 0.05
     # Long-form agent IDs verbatim from the locked GAIA column mapping
-    # (scouting/exhibit-a-decision.md). RunRecord.agent_id is a pass-through.
+    # (scouting/gaia-hal-generalist-decision.md). RunRecord.agent_id is a pass-through.
     assert spec.claims[0].treatment == "HAL Generalist Agent (claude-3-7-sonnet-20250219)"
     assert spec.claims[0].control == "HAL Generalist Agent (o4-mini-2025-04-16 high)"
     assert spec.claims[0].outcome == "success_rate"

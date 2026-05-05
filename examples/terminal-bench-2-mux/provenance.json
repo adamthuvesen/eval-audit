@@ -1,0 +1,59 @@
+{
+  "agents": {
+    "Mux__Claude-Opus-4.6": {
+      "metadata_sha256": "83672b082f306f08a162aa9ac502b05127ae43c2db7df5dc49f5eaa2e1729303",
+      "metadata_url": "https://huggingface.co/datasets/harborframework/terminal-bench-2-leaderboard/resolve/main/submissions/terminal-bench/2.0/Mux__Claude-Opus-4.6/metadata.yaml",
+      "official_accuracy": "66.5%",
+      "official_accuracy_ci": "\u00b12.5",
+      "result_json_count": 445,
+      "result_manifest_sha256": "c04fa8deed7aba1477382d13ec15ebba005d5e0baade0fb83429ba258b3ff752",
+      "role": "control",
+      "run_ids": [
+        "2026-02-09__01-47-04",
+        "2026-02-09__01-47-09",
+        "2026-02-10__00-43-32",
+        "2026-02-10__02-03-21",
+        "2026-02-10__02-43-25"
+      ],
+      "task_count_per_run": 89
+    },
+    "Mux__GPT-5.3-Codex": {
+      "metadata_sha256": "f47bb1db02abf88c8d8f3aebddafbcaa5a2c358530d49c53b3f2973ef670e373",
+      "metadata_url": "https://huggingface.co/datasets/harborframework/terminal-bench-2-leaderboard/resolve/main/submissions/terminal-bench/2.0/Mux__GPT-5.3-Codex/metadata.yaml",
+      "official_accuracy": "74.6%",
+      "official_accuracy_ci": "\u00b12.5",
+      "result_json_count": 445,
+      "result_manifest_sha256": "fc63c35e232468de3766fde7e06a8e8bde6ceae33cc5a233aa997428ca158921",
+      "role": "treatment",
+      "run_ids": [
+        "2026-02-11__13-01-28",
+        "2026-02-11__15-49-49",
+        "2026-02-11__17-02-37",
+        "2026-02-12__09-49-12",
+        "2026-02-12__13-28-42"
+      ],
+      "task_count_per_run": 89
+    }
+  },
+  "cost_provenance": "cost_not_available",
+  "cost_provenance_reason": "The selected public result.json artifacts expose token counts but agent_result.cost_usd is incomplete across the selected submissions. The fixture keeps canonical cost fields null and suppresses cost-derived report views.",
+  "fetched_at_utc": "2026-05-04T04:51:34Z",
+  "retrieved_at": "2026-05-04T04:51:34Z",
+  "scouting_decision": "scouting/terminal-bench-2-mux-decision.md",
+  "source_url": "https://www.tbench.ai/leaderboard/terminal-bench/2.0",
+  "sources": [
+    {
+      "purpose": "Terminal-Bench 2.0 official leaderboard rows",
+      "url": "https://www.tbench.ai/leaderboard/terminal-bench/2.0"
+    },
+    {
+      "purpose": "Terminal-Bench 2.0 public leaderboard result.json artifacts",
+      "url": "https://huggingface.co/datasets/harborframework/terminal-bench-2-leaderboard"
+    }
+  ],
+  "task_universe": {
+    "runs_per_agent": 5,
+    "task_count": 89,
+    "task_key": "task_name"
+  }
+}

@@ -32,7 +32,7 @@ The public result artifacts pass the task-level evidence gate:
   resolves 359/500, but the paired discordants are 45 Opus-only solves vs 16
   GPT-5-only solves.
 
-Do **not** present this as a fully cost-aware `eval-audit` exhibit yet. The
+Do **not** present this as a fully cost-aware `eval-audit` audit yet. The
 sampled trajectories and reports did not expose stable token/cost fields, and
 the current v0 schema does not have an honest `cost_not_available` provenance
 mode. A full report needs either:
@@ -200,5 +200,5 @@ aws s3 ls s3://swe-bench-submissions/verified/20251127_openhands_claude-opus-4-5
 
 The next implementation step should be a narrow SWE-bench Verified adapter and
 fixture generator only if the report can honestly handle absent costs. If the
-v0 report must remain cost-aware for every exhibit, pause here and add an
+v0 report must remain cost-aware for every audit, pause here and add an
 explicit `cost_not_available`/success-only report path first.
