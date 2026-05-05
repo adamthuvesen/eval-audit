@@ -123,9 +123,11 @@ The scaffold round-trips out-of-the-box — `validate` and `analyze` succeed on
 the toy data immediately after `init`, so you have a working example to
 edit. See
 [`examples/byo-minimal/README.md`](examples/byo-minimal/README.md) for the
-worked walkthrough and
+worked walkthrough,
 [`agents/docs/INPUT_CONTRACT.md`](agents/docs/INPUT_CONTRACT.md) for the
-formal field-by-field reference.
+formal field-by-field `RunRecord` reference, and
+[`agents/docs/STUDY_SCHEMA.md`](agents/docs/STUDY_SCHEMA.md) for the
+formal field-by-field `StudySpec` reference.
 
 ## Quickstart
 

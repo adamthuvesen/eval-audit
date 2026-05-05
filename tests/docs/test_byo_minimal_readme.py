@@ -58,6 +58,7 @@ def test_project_readme__byo_section_links_input_contract_and_example(
     next_idx = readme.index("## Quickstart")
     section = readme[byo_idx:next_idx]
     assert "agents/docs/INPUT_CONTRACT.md" in section
+    assert "agents/docs/STUDY_SCHEMA.md" in section
     assert "examples/byo-minimal/README.md" in section
 
 

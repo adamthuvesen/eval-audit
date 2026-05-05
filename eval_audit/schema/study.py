@@ -69,6 +69,7 @@ class StudySpec(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    schema_version: int = 1
     id: str
     benchmark: str
     analysis_mode: Literal["preregistered", "declared_reanalysis", "exploratory"]
@@ -84,6 +85,12 @@ class StudySpec(BaseModel):
     @model_validator(mode="after")
     def _validate_claim_family_and_v0_scope(self) -> StudySpec:
         errors: list[str] = []
+
+        if self.schema_version != 1:
+            errors.append(
+                f"schema_version must be 1 (got {self.schema_version}); this version of "
+                f"eval-audit only supports schema_version=1"
+            )
 
         if not self.agents:
             errors.append("agents must contain at least one entry")
