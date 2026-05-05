@@ -2,20 +2,36 @@
 
 [![CI](https://github.com/adamthuvesen/eval-audit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/adamthuvesen/eval-audit/actions/workflows/ci.yml)
 
-**Verdict-grade evals for agent benchmarks.**
+**A model-selection audit toolkit for agent benchmarks.**
 
-`eval-audit` turns benchmark claims into auditable decisions. Instead of stopping at
-a leaderboard rank, it asks:
+You read "Model X beats Model Y by 2 pp on benchmark Z." Should you switch
+your default? `eval-audit` answers that with one of six verdicts —
+`switch`, `hold`, `drop_from_shortlist`, `rerun_more_n`, `hedge_on_cost`,
+`inconclusive_no_action` — each backed by paired-task bootstrap CIs,
+multiple-comparison correction, Pareto cost-quality dominance, and a
+robustness review that perturbs the inference choices to see whether the
+verdict survives.
 
-- What claim is being tested?
-- What analysis plan was declared?
-- Does the effect survive uncertainty and multiple-comparison correction?
-- Does the answer change when cost or errored-row policy changes?
-- What should a model selector actually do?
+Concrete: Exhibit A reanalyzes Claude 3.7 Sonnet vs o4-mini High on 165
+paired GAIA tasks under one harness. Claude is +1.82 pp on success rate
+but costs 2.2× more, the paired bootstrap CI crosses zero, and the
+verdict is:
 
-The report output is intentionally action-shaped: `switch`, `hold`,
-`drop_from_shortlist`, `rerun_more_n`, `hedge_on_cost`, or
-`inconclusive_no_action`.
+```text
+hedge_on_cost
+```
+
+A plausible leaderboard claim becomes a bounded, decision-relevant
+statement. Three more rendered audits below cover the other verdict
+shapes.
+
+```bash
+uv tool install eval-audit
+eval-audit init my-first-audit && cd my-first-audit
+eval-audit report study.yaml --runs runs.parquet --skip-validation
+```
+
+**Install** · [Five-minute walk-through](#first-audit-in-five-minutes) · [Browse rendered audits](#example-reports) · [CHANGELOG](CHANGELOG.md)
 
 ## What you'll see
 
@@ -45,33 +61,54 @@ See [reports/exhibit-a/report.md](reports/exhibit-a/report.md) for the full repo
 
 ## Why this exists
 
-Agent benchmark reporting often looks like a scoreboard: point estimates, vague
-run policies, uncorrected pairwise comparisons, and cost treated as metadata.
-That is too weak for model-selection decisions.
+Most benchmark write-ups stop at point estimates and pairwise comparisons.
+That is enough for a blog post; it is not enough for a model-selection
+decision you have to defend. The four common failure modes:
 
-`eval-audit` is a small methodology toolkit for a better default:
+- pairwise comparisons reported without multiple-comparison correction
+- point estimates without paired-task uncertainty
+- cost treated as metadata or footnote, not as a first-class output
+- verdicts that quietly assume the analyst's α / errored-row policy / correction is the only reasonable one
 
-> Declare the claim, declare the analysis plan, analyze task-level data, and
-> report only what survives uncertainty, correction, cost, and sensitivity
-> checks.
+`eval-audit` is a small methodology toolkit for the better default:
+*declare the claim, declare the analysis plan, analyze task-level data,
+report only what survives uncertainty, correction, cost, and sensitivity
+checks.*
 
-## What ships
+## How it works
 
-- Pydantic/YAML study specs with strict v0 validation.
-- Canonical task-level `RunRecord` validation.
-- Public-data ingest adapters for:
-  - HAL GAIA
-  - HAL TAU-bench Airline
-  - a synthetic known-truth fixture
-- Paired-task cluster bootstrap for success-rate deltas.
-- Wilson intervals for binary success rates.
-- Holm-Bonferroni and Benjamini-Hochberg correction.
-- Cost-quality Pareto frontier.
-- Cost provenance handling:
-  - `reconciled` when per-task reconstruction matches reported totals
-  - `as_reported_only` with a visible report caveat when it does not
-- Deterministic markdown reports with verdict sensitivity tables.
-- CI for tests and linting.
+**Inputs.** A `StudySpec.yaml` declaring the claim, treatment/control
+arms, outcome, α, target MDE, correction method, and cost view —
+committed before outcomes are seen. Plus a canonical `RunRecord.parquet`
+of task-level paired observations.
+
+**Analysis.** Wilson intervals on per-arm success rates; paired-task
+cluster bootstrap on deltas (task is the unit, not row); paired t-test
+p-values; Holm-Bonferroni for declared confirmatory families,
+Benjamini-Hochberg for exploratory families; Pareto frontier over
+success-rate × total-cost; errored rows count as failures in the
+headline denominator with `n_errored` surfaced separately; cost
+provenance as a first-class field (`reconciled` if per-task cost
+reconstruction matches reported totals, `as_reported_only` with a
+visible report caveat if it does not).
+
+**Outputs.** Deterministic markdown report with nine sections: Audit
+Summary (verdict + rationale + what would change it), Study, Provenance,
+Per-agent summary, Claims (with target MDE context), Verdict Sensitivity
+(perturbations across α / errored-row policy / correction / cost
+threshold), Robustness Review (survives / does-not-survive / caveat per
+dimension), Cost-quality view (Pareto frontier + dominance), Residual
+risks (inherited from scouting), and Reproducibility footer.
+Snapshot-tested for byte-identity under fixed clock + git commit +
+fixture sha + bootstrap seed.
+
+**Refusals.** Cross-harness comparisons rejected at the schema gate.
+Unsupported outcomes rejected. Unsupported correction methods rejected.
+The methodology breaks if these slip through, so they don't.
+
+**Adapters that ship today.** HAL GAIA, HAL TAU-bench Airline, a
+synthetic known-truth fixture for stats-engine validation, and a
+generic BYO loader for any canonical `RunRecord.parquet`.
 
 ## Demo reports
 
@@ -296,41 +333,13 @@ Run the full local check:
 make check
 ```
 
-## Current v0 scope
+## Current v1 scope
 
-`eval-audit` deliberately supports a narrow, honest v0 contract:
-
-- primary outcome: `success_rate`
-- direction: `higher_is_better`
-- task-level paired comparisons within one harness
-- frequentist intervals/corrections
-- markdown reports
-
-The schema now rejects unsupported outcomes instead of accepting declarations
-that the engine would silently analyze as success rate. Broader outcomes such
-as latency, cost, partial credit, or lower-is-better metrics should be added
-only with metric-specific inference and report semantics.
-
-## Methodology
-
-For success-rate studies, `eval-audit` uses:
-
-- audit summary front-loaded as the first section: verdict, claim status, why,
-  what would change it, reviewer pushback
-- resolution planning: target_mde + bootstrap CI half-width → required N
-  estimate (variance-fixed scaling)
-- robustness review: per-claim survives/does-not-survive/caveat table across
-  multiple-comparison correction, errored-row policy, cost-threshold
-  sensitivity, target MDE, and cost provenance
-- errored rows counted as failures in the headline denominator, with
-  `n_errored` still surfaced separately
-- paired-task cluster bootstrap for delta uncertainty
-- paired task-level p-values
-- Holm-Bonferroni for declared confirmatory claim families
-- Benjamini-Hochberg for exploratory claim families
-- Pareto frontier over success rate and total cost
-- verdict sensitivity over alpha, correction method, errored-row policy, and
-  cost-gap threshold
+`eval-audit` deliberately supports a narrow, honest contract: `success_rate` /
+`higher_is_better` outcomes, task-level paired comparisons within one harness,
+frequentist intervals and corrections, deterministic markdown reports. The
+schema rejects anything outside this scope rather than silently coercing it.
+See [Future work](#future-work) for the deferred extensions.
 
 ## Repository map
 
@@ -352,12 +361,12 @@ tests/         unit, property, fixture, snapshot, and validation tests
 ## Development
 
 ```bash
-make test
-make lint
-make check
+make test     # uv run pytest
+make lint     # uv run ruff check .
+make check    # both, the canonical local gate
 ```
 
-CI runs pytest and ruff on pushes and PRs to `main`.
+CI runs `make check` on every push and pull request, on any branch.
 
 ## What is intentionally not here
 
@@ -373,12 +382,13 @@ number of benchmark claims defensible end to end.
 
 ## Future work
 
-Methodological extensions worth taking on, in rough priority order:
+Deferred until a concrete consumer asks (or a methodology need forces it):
 
-- richer outcome support beyond binary success rate
-- run-to-run replication support when benchmark traces expose seeds
-- HTML/PDF report output
-- more public benchmark adapters after the first two examples prove the shape
+- broaden supported outcomes beyond `success_rate` / `higher_is_better` —
+  first candidates are `latency_s` and `cost_usd` as `lower_is_better`
+- HTML / PDF report output (markdown stays canonical)
+- more public-data adapters where fixture provenance is solid
+- a second controlled exhibit on a different task source
 
-v1 shipped the audit-summary header, resolution planning, and robustness
-review sections; see the demo reports above for the rendered output.
+See [CHANGELOG.md](CHANGELOG.md) for what shipped, and the demo reports
+above for the current rendered output.
