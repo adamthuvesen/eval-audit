@@ -1,8 +1,8 @@
-"""rigor CLI — minimal entry points to reproduce the Exhibit A reanalysis.
+"""eval-audit CLI — minimal entry points to reproduce the Exhibit A reanalysis.
 
 Commands:
-  rigor analyze STUDY_YAML            # write reports/<id>/analysis.json
-  rigor report  STUDY_YAML            # validate then write reports/<id>/report.md
+  eval-audit analyze STUDY_YAML            # write reports/<id>/analysis.json
+  eval-audit report  STUDY_YAML            # validate then write reports/<id>/report.md
 """
 
 from __future__ import annotations
@@ -17,13 +17,13 @@ from pathlib import Path
 
 import typer
 
-from rigor.ingest.hal_gaia import HalGaiaAdapter
-from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
-from rigor.ingest.synthetic import SyntheticAdapter
-from rigor.report.markdown import render_report_to
-from rigor.schema import StudySpec
-from rigor.spec import render_study_spec
-from rigor.stats import analyze
+from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
+from eval_audit.ingest.synthetic import SyntheticAdapter
+from eval_audit.report.markdown import render_report_to
+from eval_audit.schema import StudySpec
+from eval_audit.spec import render_study_spec
+from eval_audit.stats import analyze
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 spec_app = typer.Typer(no_args_is_help=True, help="Validate and render StudySpec files.")

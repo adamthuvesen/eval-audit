@@ -14,7 +14,7 @@ def _stub_claim_result(
     treatment_dominated: bool = False,
     direction_matches_claim: bool = True,
 ):
-    from rigor.report.decisions import ClaimContext
+    from eval_audit.report.decisions import ClaimContext
 
     return ClaimContext(
         rejects_null=rejects,
@@ -33,7 +33,7 @@ def test_decision_impact__inconclusive_with_cost_gap_maps_to_hedge_on_cost() -> 
     Claude is 2.2x more expensive than o4-mini,
     THEN the report's claim row has decision_impact == 'hedge_on_cost'.
     """
-    from rigor.report.decisions import decision_impact
+    from eval_audit.report.decisions import decision_impact
 
     ctx = _stub_claim_result(
         rejects=False,
@@ -49,7 +49,7 @@ def test_decision_impact__inconclusive_with_cost_gap_maps_to_hedge_on_cost() -> 
 
 def test_decision_impact__rejects_table_branches() -> None:
     """Each branch of the rule table maps to its declared label."""
-    from rigor.report.decisions import decision_impact
+    from eval_audit.report.decisions import decision_impact
 
     # Pareto-dominated treatment -> drop_from_shortlist (highest priority).
     assert decision_impact(_stub_claim_result(treatment_dominated=True, rejects=True)) == "drop_from_shortlist"
@@ -80,7 +80,7 @@ def test_decision_impact__cost_gap_threshold_kwarg_perturbs_verdict() -> None:
     THEN the verdict resolves to rerun_more_n under the default 0.10 threshold
     AND to hedge_on_cost under a perturbed 0.05 threshold.
     """
-    from rigor.report.decisions import decision_impact
+    from eval_audit.report.decisions import decision_impact
 
     ctx = _stub_claim_result(
         rejects=False,
@@ -106,8 +106,8 @@ def test_decision_impact__unknown_values_are_forbidden() -> None:
     """
     import pytest
 
-    from rigor.report import ReportContractError
-    from rigor.report.markdown import render_claim_row
+    from eval_audit.report import ReportContractError
+    from eval_audit.report.markdown import render_claim_row
 
     # Forge an analysis result with a bogus decision_impact and confirm rendering rejects it.
     bad_row = {

@@ -19,7 +19,7 @@ def test_bootstrap__identical_arms_produce_ci_containing_zero() -> None:
     """WHEN the bootstrap is run with both arms equal to the same per-task success vector,
     THEN the returned CI contains 0.0.
     """
-    from rigor.stats import paired_task_bootstrap
+    from eval_audit.stats import paired_task_bootstrap
 
     arm = _arm("a", 0.6)
     same = arm.with_columns(pl.lit("b").alias("agent_id"))
@@ -36,7 +36,7 @@ def test_bootstrap__mismatched_task_sets_raise() -> None:
     """
     import pytest
 
-    from rigor.stats import paired_task_bootstrap
+    from eval_audit.stats import paired_task_bootstrap
 
     arm_a = _arm("a", 0.6, n_tasks=30)
     arm_b = pl.DataFrame(
@@ -59,7 +59,7 @@ def test_bootstrap__missing_outcome_column_raises() -> None:
     """
     import pytest
 
-    from rigor.stats import paired_task_bootstrap
+    from eval_audit.stats import paired_task_bootstrap
 
     frame = pl.DataFrame(
         {

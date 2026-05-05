@@ -15,7 +15,7 @@ from pathlib import Path
 
 import polars as pl
 
-from rigor.ingest.base import IngestContractError, validate_run_records
+from eval_audit.ingest.base import IngestContractError, validate_run_records
 
 # Locked column mapping for scouting/candidates/tau-bench/sample.parquet.
 # raw_name -> semantic_role for the tau-bench per_task table. The

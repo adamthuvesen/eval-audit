@@ -31,7 +31,7 @@ def _row(agent_id: str, task_id: str, harness: str) -> dict:
 
 
 def _stub_study(treatment: str, control: str, harness: str):
-    from rigor.schema import StudySpec
+    from eval_audit.schema import StudySpec
 
     return StudySpec(
         id="stub",
@@ -76,7 +76,7 @@ def test_analyze__mixed_harness_comparison_is_rejected() -> None:
     """
     import pytest
 
-    from rigor.stats import CrossHarnessComparisonError, analyze
+    from eval_audit.stats import CrossHarnessComparisonError, analyze
 
     rows = [
         _row("agent_t", "t01", "hal_generalist_agent"),
@@ -103,10 +103,10 @@ def test_analyze__benjamini_hochberg_dispatches_to_bh(monkeypatch) -> None:
 
     from pytest import approx
 
-    from rigor.schema import Claim, Inference
-    from rigor.stats import analyze
+    from eval_audit.schema import Claim, Inference
+    from eval_audit.stats import analyze
 
-    analyze_module = importlib.import_module("rigor.stats.analyze")
+    analyze_module = importlib.import_module("eval_audit.stats.analyze")
     raw_p_values = iter([0.001, 0.02, 0.04, 0.20])
 
     def fake_p_value(_treatment_rows, _control_rows) -> float:
@@ -179,7 +179,7 @@ def test_analyze__unsupported_outcome_fails_loudly() -> None:
     """
     import pytest
 
-    from rigor.stats import analyze
+    from eval_audit.stats import analyze
 
     study = _stub_study("agent_t", "agent_c", "hal_generalist_agent")
     bad_primary = study.primary_outcome.model_copy(update={"name": "latency_s"})

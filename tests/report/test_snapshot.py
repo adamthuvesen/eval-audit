@@ -25,10 +25,10 @@ FIXED_FIXTURE_SHA = "0" * 64
 
 
 def _render_exhibit_a(repo_root: Path) -> str:
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
-    from rigor.report.markdown import render_report
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.report.markdown import render_report
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
     adapter = HalGaiaAdapter()
@@ -48,10 +48,10 @@ def _render_exhibit_a(repo_root: Path) -> str:
 
 
 def _render_exhibit_b(repo_root: Path) -> str:
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
-    from rigor.report.markdown import render_report
-    from rigor.schema import StudySpec
-    from rigor.stats import analyze
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.report.markdown import render_report
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
 
     study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-b.yaml")
     adapter = HalTauBenchAdapter()

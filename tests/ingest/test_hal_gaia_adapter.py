@@ -18,7 +18,7 @@ def test_hal_gaia__cross_harness_rows_are_tagged_with_locked_harness(gaia_dir: P
     """WHEN the adapter loads the GAIA fixture,
     THEN every returned row has harness == 'hal_generalist_agent'.
     """
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 
     adapter = HalGaiaAdapter()
     frame = adapter.load(gaia_dir)
@@ -33,8 +33,8 @@ def test_hal_gaia__locked_mapping_drift_fails_ingest(gaia_dir: Path, tmp_path: P
     """
     import shutil
 
-    from rigor.ingest import IngestContractError
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.ingest import IngestContractError
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 
     shadow = tmp_path / "gaia"
     shutil.copytree(gaia_dir, shadow)
@@ -56,7 +56,7 @@ def test_hal_gaia__reconstructed_sum_matches_reported_run_total(gaia_dir: Path) 
     THEN the cost-sum check passes for both runs without raising
     (per-run abs((sum_recon - reported) / reported) < 0.01).
     """
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 
     adapter = HalGaiaAdapter()
     frame = adapter.load(gaia_dir)
@@ -83,8 +83,8 @@ def test_hal_gaia__unknown_model_fails_loud(gaia_dir: Path, tmp_path: Path) -> N
     """
     import shutil
 
-    from rigor.ingest import IngestContractError
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.ingest import IngestContractError
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 
     shadow = tmp_path / "gaia"
     shutil.copytree(gaia_dir, shadow)
@@ -115,8 +115,8 @@ def test_hal_gaia__rows_record_price_table_pin_date(gaia_dir: Path) -> None:
     THEN every row's rerun_metadata includes price_table_pinned_at matching
     _prices.PRICE_TABLE_PINNED_AT.
     """
-    from rigor.ingest._prices import PRICE_TABLE_PINNED_AT
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.ingest._prices import PRICE_TABLE_PINNED_AT
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 
     adapter = HalGaiaAdapter()
     frame = adapter.load(gaia_dir)
@@ -131,7 +131,7 @@ def test_hal_gaia__adapter_reads_provenance_from_scouting_fixture(gaia_dir: Path
     THEN every row's cost_provenance matches the outcome field in
     scouting/candidates/gaia/cost-reconciliation.json.
     """
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 
     cost_recon = json.loads((gaia_dir / "cost-reconciliation.json").read_text())
     expected_outcome = cost_recon["outcome"]
@@ -146,7 +146,7 @@ def test_hal_gaia__loaded_fixture_passes_adapter_validation(gaia_dir: Path) -> N
     """WHEN the committed GAIA fixture is loaded,
     THEN the returned frame passes full RunRecord row validation.
     """
-    from rigor.ingest.hal_gaia import HalGaiaAdapter
+    from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 
     adapter = HalGaiaAdapter()
     frame = adapter.load(gaia_dir)

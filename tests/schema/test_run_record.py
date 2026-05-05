@@ -35,7 +35,7 @@ def test_run_record__valid_gaia_row_constructs() -> None:
     required fields populated, THEN the model instance is created with no validation
     error and all listed fields are accessible.
     """
-    from rigor.schema import RunRecord
+    from eval_audit.schema import RunRecord
 
     record = RunRecord(**_gaia_row_kwargs())
 
@@ -52,7 +52,7 @@ def test_run_record__errored_task_is_preserved_not_dropped() -> None:
     """WHEN a row has outcome_status='errored' and success=None,
     THEN the model accepts it without raising, and success remains None.
     """
-    from rigor.schema import RunRecord
+    from eval_audit.schema import RunRecord
 
     kwargs = _gaia_row_kwargs()
     kwargs["outcome_status"] = "errored"
@@ -73,7 +73,7 @@ def test_run_record__reconciled_cost_provenance_demands_reconstructed_value() ->
     import pytest
     from pydantic import ValidationError
 
-    from rigor.schema import RunRecord
+    from eval_audit.schema import RunRecord
 
     kwargs = _gaia_row_kwargs()
     kwargs["reconstructed_per_task_cost_usd"] = None
@@ -93,7 +93,7 @@ def test_run_record__provenance_enum_rejects_unknown_values() -> None:
     import pytest
     from pydantic import ValidationError
 
-    from rigor.schema import RunRecord
+    from eval_audit.schema import RunRecord
 
     kwargs = _gaia_row_kwargs()
     kwargs["cost_provenance"] = "totally_made_up"

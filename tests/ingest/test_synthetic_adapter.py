@@ -10,8 +10,8 @@ def test_synthetic_adapter__loads_into_canonical_schema(scouting_dir: Path) -> N
     THEN the returned frame has every RunRecord field as a column, with
     harness == 'synthetic' for every row and a row count equal to agents x tasks x seeds.
     """
-    from rigor.ingest.synthetic import SyntheticAdapter
-    from rigor.schema import RunRecord
+    from eval_audit.ingest.synthetic import SyntheticAdapter
+    from eval_audit.schema import RunRecord
 
     adapter = SyntheticAdapter()
     frame = adapter.load(scouting_dir / "synthetic")
@@ -31,8 +31,8 @@ def test_adapter__validate_raises_on_column_drift(scouting_dir: Path) -> None:
     import polars as pl
     import pytest
 
-    from rigor.ingest import IngestContractError
-    from rigor.ingest.synthetic import SyntheticAdapter
+    from eval_audit.ingest import IngestContractError
+    from eval_audit.ingest.synthetic import SyntheticAdapter
 
     adapter = SyntheticAdapter()
     frame = adapter.load(scouting_dir / "synthetic").drop("cost_provenance")
@@ -52,8 +52,8 @@ def test_adapter__validate_raises_on_invalid_outcome_status(scouting_dir: Path) 
     import polars as pl
     import pytest
 
-    from rigor.ingest import IngestContractError
-    from rigor.ingest.synthetic import SyntheticAdapter
+    from eval_audit.ingest import IngestContractError
+    from eval_audit.ingest.synthetic import SyntheticAdapter
 
     adapter = SyntheticAdapter()
     frame = (
@@ -81,8 +81,8 @@ def test_adapter__validate_raises_on_graded_row_without_success(scouting_dir: Pa
     import polars as pl
     import pytest
 
-    from rigor.ingest import IngestContractError
-    from rigor.ingest.synthetic import SyntheticAdapter
+    from eval_audit.ingest import IngestContractError
+    from eval_audit.ingest.synthetic import SyntheticAdapter
 
     adapter = SyntheticAdapter()
     frame = (

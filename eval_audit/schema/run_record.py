@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from rigor.schema.enums import CostProvenance, OutcomeStatus
+from eval_audit.schema.enums import CostProvenance, OutcomeStatus
 
 
 class RunRecord(BaseModel):

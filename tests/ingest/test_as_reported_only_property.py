@@ -9,9 +9,9 @@ import polars as pl
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from rigor.report.markdown import render_report
-from rigor.schema import RunRecord, StudySpec
-from rigor.stats import analyze
+from eval_audit.report.markdown import render_report
+from eval_audit.schema import RunRecord, StudySpec
+from eval_audit.stats import analyze
 
 _FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
 _TAUBENCH_DIR = Path(__file__).resolve().parents[2] / "scouting" / "candidates" / "tau-bench"
@@ -72,7 +72,7 @@ def test_as_reported_only__renderer_emits_caveat_block_and_omits_price_pin_metad
     """The TAU-bench fixture's renderer output must contain the caveat sub-block
     and must NOT include any price_table_pinned_at key in any row's rerun_metadata.
     """
-    from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
+    from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 
     runs = HalTauBenchAdapter().load(_TAUBENCH_DIR)
 

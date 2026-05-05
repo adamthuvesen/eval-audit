@@ -9,16 +9,16 @@ from pathlib import Path
 
 import polars as pl
 
-from rigor.ingest._prices import PRICE_TABLE_PINNED_AT
-from rigor.report import ReportContractError
-from rigor.report.decisions import (
+from eval_audit.ingest._prices import PRICE_TABLE_PINNED_AT
+from eval_audit.report import ReportContractError
+from eval_audit.report.decisions import (
     DECISION_IMPACT_VOCAB,
     ClaimContext,
     decision_impact,
     direction_matches_claim,
 )
-from rigor.schema import StudySpec
-from rigor.stats import AnalysisResult, analyze
+from eval_audit.schema import StudySpec
+from eval_audit.stats import AnalysisResult, analyze
 
 _STATUS_VOCAB = {"supported", "unsupported", "inconclusive"}
 
@@ -150,7 +150,7 @@ def render_report(
     _validate_report_outcome(study)
     decision_md, decision_md_label = _resolve_decision_doc(repo_root, study.benchmark)
     # `study.benchmark` ("tau_bench") may differ from the on-disk fixture directory
-    # name ("tau-bench"); the override mirrors the one in rigor.cli.
+    # name ("tau-bench"); the override mirrors the one in eval_audit.cli.
     _benchmark_dir_override = {"tau_bench": "tau-bench"}
     benchmark_dir = _benchmark_dir_override.get(study.benchmark, study.benchmark)
     cost_recon = repo_root / "scouting" / "candidates" / benchmark_dir / "cost-reconciliation.json"
@@ -315,7 +315,7 @@ def render_report(
         parts.append("")
 
     # Verdict sensitivity sub-block (one per claim).
-    from rigor.report.sensitivity import compute_sensitivity_rows
+    from eval_audit.report.sensitivity import compute_sensitivity_rows
 
     for c in result.claims:
         rows = compute_sensitivity_rows(

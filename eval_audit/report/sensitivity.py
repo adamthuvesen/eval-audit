@@ -21,12 +21,12 @@ from dataclasses import dataclass
 
 import polars as pl
 
-from rigor.report.decisions import ClaimContext, decision_impact, direction_matches_claim
-from rigor.schema import StudySpec
-from rigor.stats import AnalysisResult, ClaimResult
-from rigor.stats.bootstrap import paired_task_bootstrap
-from rigor.stats.intervals import wilson_interval
-from rigor.stats.pareto import pareto_frontier
+from eval_audit.report.decisions import ClaimContext, decision_impact, direction_matches_claim
+from eval_audit.schema import StudySpec
+from eval_audit.stats import AnalysisResult, ClaimResult
+from eval_audit.stats.bootstrap import paired_task_bootstrap
+from eval_audit.stats.intervals import wilson_interval
+from eval_audit.stats.pareto import pareto_frontier
 
 
 @dataclass(frozen=True)

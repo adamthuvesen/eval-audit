@@ -5,7 +5,7 @@ from __future__ import annotations
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from rigor.stats import benjamini_hochberg, holm_bonferroni
+from eval_audit.stats import benjamini_hochberg, holm_bonferroni
 
 _SETTINGS = settings(max_examples=100, deadline=2_000)
 

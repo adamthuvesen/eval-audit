@@ -13,7 +13,7 @@ def test_study_spec__loading_the_exhibit_a_study_spec_succeeds(repo_root: Path) 
     THEN a StudySpec instance is returned with claims[0].treatment == 'gaia_hg_claude37'
     and claims[0].control == 'gaia_hg_o4mini_high'.
     """
-    from rigor.schema import StudySpec
+    from eval_audit.schema import StudySpec
 
     spec = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
 
@@ -36,7 +36,7 @@ def test_study_spec__multiple_validation_errors_are_surfaced_together(tmp_path: 
     """
     from pydantic import ValidationError
 
-    from rigor.schema import StudySpec
+    from eval_audit.schema import StudySpec
 
     bad_yaml = """\
 id: broken-study
@@ -86,7 +86,7 @@ def test_study_spec__invalid_invariants_fail_validation_together(tmp_path: Path)
     """
     from pydantic import ValidationError
 
-    from rigor.schema import StudySpec
+    from eval_audit.schema import StudySpec
 
     bad_yaml = """\
 id: broken-study
@@ -139,7 +139,7 @@ def test_study_spec__claim_family_invariants_fail_validation(tmp_path: Path) -> 
     """
     from pydantic import ValidationError
 
-    from rigor.schema import StudySpec
+    from eval_audit.schema import StudySpec
 
     bad_yaml = """\
 id: broken-claims

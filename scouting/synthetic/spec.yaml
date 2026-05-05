@@ -21,7 +21,7 @@
 #     "primary" model per agent.
 
 study:
-  id: rigor-v0-synthetic-known-truth
+  id: eval-audit-v0-synthetic-known-truth
   description: Synthesised known-truth dataset for stats-engine validation.
 
 design:

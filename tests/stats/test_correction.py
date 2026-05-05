@@ -7,7 +7,7 @@ def test_holm__family_of_one_collapses_to_identity() -> None:
     """WHEN the procedure is applied to a single (claim_id, raw_p=0.04) at alpha=0.05,
     THEN the adjusted p equals the raw p and reject == True.
     """
-    from rigor.stats import holm_bonferroni
+    from eval_audit.stats import holm_bonferroni
 
     result = holm_bonferroni([("c1", 0.04)], alpha=0.05)
     assert len(result) == 1
@@ -22,7 +22,7 @@ def test_holm__step_down_monotonicity_holds() -> None:
     """WHEN the procedure is applied to claims with raw p [0.01, 0.04, 0.03] at alpha=0.05,
     THEN the adjusted p-values are monotonically non-decreasing in raw-p rank.
     """
-    from rigor.stats import holm_bonferroni
+    from eval_audit.stats import holm_bonferroni
 
     result = holm_bonferroni(
         [("a", 0.01), ("b", 0.04), ("c", 0.03)],
@@ -39,7 +39,7 @@ def test_bh__known_family_matches_reference_values() -> None:
     """
     from pytest import approx
 
-    from rigor.stats import benjamini_hochberg
+    from eval_audit.stats import benjamini_hochberg
 
     result = benjamini_hochberg(
         [("a", 0.001), ("b", 0.02), ("c", 0.04), ("d", 0.20)],
@@ -57,7 +57,7 @@ def test_bh__returns_results_in_original_order() -> None:
     """WHEN raw p-values are provided out of rank order,
     THEN returned tuples preserve the caller's original order.
     """
-    from rigor.stats import benjamini_hochberg
+    from eval_audit.stats import benjamini_hochberg
 
     claims = [("late", 0.20), ("early", 0.001), ("middle", 0.02)]
     result = benjamini_hochberg(claims, alpha=0.05)

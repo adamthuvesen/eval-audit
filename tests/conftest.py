@@ -1,4 +1,4 @@
-"""Shared pytest fixtures and helpers for rigor tests."""
+"""Shared pytest fixtures and helpers for eval-audit tests."""
 
 from __future__ import annotations
 

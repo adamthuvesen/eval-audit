@@ -1,14 +1,14 @@
 """Ingest adapters that produce canonical RunRecord frames."""
 
-from rigor.ingest.base import (
+from eval_audit.ingest.base import (
     IngestAdapter,
     IngestContractError,
     assert_canonical_schema,
     validate_run_records,
 )
-from rigor.ingest.hal_gaia import HalGaiaAdapter
-from rigor.ingest.hal_tau_bench import HalTauBenchAdapter
-from rigor.ingest.synthetic import SyntheticAdapter
+from eval_audit.ingest.hal_gaia import HalGaiaAdapter
+from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
+from eval_audit.ingest.synthetic import SyntheticAdapter
 
 __all__ = [
     "HalGaiaAdapter",

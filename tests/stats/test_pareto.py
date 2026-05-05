@@ -13,8 +13,8 @@ def test_pareto__synthetic_dataset_frontier_matches_truth(scouting_dir: Path) ->
     THEN the returned set equals {agent_a_strong, agent_b_strong_close, agent_c_mid}
     and excludes agent_d_weak, matching scouting/synthetic/truth.json.
     """
-    from rigor.ingest.synthetic import SyntheticAdapter
-    from rigor.stats import pareto_frontier
+    from eval_audit.ingest.synthetic import SyntheticAdapter
+    from eval_audit.stats import pareto_frontier
 
     adapter = SyntheticAdapter()
     frame = adapter.load(scouting_dir / "synthetic")

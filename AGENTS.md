@@ -6,7 +6,7 @@ The closest `AGENTS.md` or `CLAUDE.md` wins.
 
 ## What This Repo Is
 
-`rigor` is a small Python methodology toolkit for turning agent benchmark
+`eval-audit` is a small Python methodology toolkit for turning agent benchmark
 claims into auditable model-selection decisions.
 
 It is not a benchmark runner, leaderboard, tracing system, composite-score
@@ -59,7 +59,7 @@ Before claiming a change is done:
 ## Repo Map
 
 ```text
-rigor/
+eval_audit/
   schema/      StudySpec and RunRecord validation
   ingest/      public-data fixture adapters
   stats/       intervals, bootstrap, correction, analysis, Pareto frontier
@@ -87,10 +87,10 @@ make check
 Useful targeted commands:
 
 ```bash
-uv run rigor spec validate studies/exhibit-a.yaml
-uv run rigor spec render studies/exhibit-a.yaml --out /tmp/exhibit-a-spec.md
-uv run rigor analyze studies/exhibit-a.yaml
-uv run rigor report studies/exhibit-a.yaml
+uv run eval-audit spec validate studies/exhibit-a.yaml
+uv run eval-audit spec render studies/exhibit-a.yaml --out /tmp/exhibit-a-spec.md
+uv run eval-audit analyze studies/exhibit-a.yaml
+uv run eval-audit report studies/exhibit-a.yaml
 uv run pytest tests/report/test_snapshot.py
 uv run pytest -m synthetic_validation tests/synthetic_validation
 ```

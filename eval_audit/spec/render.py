@@ -1,6 +1,6 @@
 """Deterministic markdown renderer for a StudySpec.
 
-Distinct from `rigor.report.markdown` (which renders an *analysis result*).
+Distinct from `eval_audit.report.markdown` (which renders an *analysis result*).
 This renderer presents the *plan* — what will be analyzed, against what
 agents, with what inference settings — so an analyst can sanity-check a
 study before running it.
@@ -8,7 +8,7 @@ study before running it.
 
 from __future__ import annotations
 
-from rigor.schema import StudySpec
+from eval_audit.schema import StudySpec
 
 
 def render_study_spec(study: StudySpec) -> str:
