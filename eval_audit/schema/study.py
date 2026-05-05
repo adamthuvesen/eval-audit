@@ -8,6 +8,12 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, model_validator
 
+_SUPPORTED_V0_COST_METRICS = {
+    "reconstructed_per_task_cost_usd",
+    "reported_run_total_cost_usd",
+    "cost_per_success_usd",
+}
+
 
 class PrimaryOutcome(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -96,6 +102,20 @@ class StudySpec(BaseModel):
             errors.append(
                 "inference.target_mde must be positive when declared "
                 f"(got {self.inference.target_mde})"
+            )
+        if self.cost.primary_view != "pareto_frontier":
+            errors.append(
+                "cost.primary_view must be 'pareto_frontier' in v0 "
+                f"(got {self.cost.primary_view!r})"
+            )
+        unsupported_cost_metrics = [
+            metric for metric in self.cost.metrics if metric not in _SUPPORTED_V0_COST_METRICS
+        ]
+        if unsupported_cost_metrics:
+            errors.append(
+                "cost.metrics contains unsupported v0 metric(s): "
+                f"{sorted(unsupported_cost_metrics)}; supported metrics are "
+                f"{sorted(_SUPPORTED_V0_COST_METRICS)}"
             )
 
         if self.primary_outcome.name != "success_rate":

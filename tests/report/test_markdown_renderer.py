@@ -180,6 +180,59 @@ def test_report__cross_harness_study_produces_no_report_file(repo_root: Path, tm
     assert not out_path.exists(), "report file was written despite cross-harness rejection"
 
 
+def test_report__incomplete_reconstructed_cost_produces_no_report_file(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    """WHEN a claimed agent has mixed null/non-null reconstructed costs,
+    THEN render_report_to propagates the analysis error and writes no report.
+    """
+    from eval_audit.report.markdown import render_report_to
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import CostProvenanceError
+
+    study = StudySpec.from_yaml(repo_root / "studies" / "exhibit-a.yaml")
+    treatment = study.claims[0].treatment
+    control = study.claims[0].control
+
+    def row(agent_id: str, task_id: str, success: bool, cost: float | None) -> dict:
+        return {
+            "agent_id": agent_id, "model_id": agent_id, "harness": study.harness,
+            "run_id": f"r-{agent_id}", "task_id": task_id, "task_category": None,
+            "seed": None, "success": success, "partial_credit": success,
+            "outcome_status": "graded", "tokens_in": 1, "tokens_out": 1,
+            "tokens_in_by_model": {"m": 1}, "tokens_out_by_model": {"m": 1},
+            "latency_s": 1.0, "timestamp": None,
+            "reconstructed_per_task_cost_usd": cost,
+            "reported_run_total_cost_usd": 1.0,
+            "cost_provenance": "partial" if cost is None else "reconciled",
+            "rerun_metadata": {},
+        }
+
+    runs = pl.DataFrame(
+        [
+            row(treatment, "t1", True, 0.10),
+            row(treatment, "t2", False, None),
+            row(control, "t1", False, 0.05),
+            row(control, "t2", False, 0.05),
+        ],
+        strict=False,
+    )
+    out_path = tmp_path / "report.md"
+
+    with pytest.raises(CostProvenanceError):
+        render_report_to(
+            out_path,
+            study,
+            runs,
+            clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
+            git_commit="deadbeef",
+            fixture_sha256="0" * 64,
+            repo_root=repo_root,
+        )
+
+    assert not out_path.exists(), "report file was written despite incomplete cost data"
+
+
 def test_report__unsupported_lower_is_better_study_is_not_rendered(
     exhibit_a_inputs, repo_root: Path
 ) -> None:

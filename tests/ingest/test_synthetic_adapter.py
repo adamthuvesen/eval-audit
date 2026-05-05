@@ -24,6 +24,29 @@ def test_synthetic_adapter__loads_into_canonical_schema(scouting_dir: Path) -> N
     assert (frame["harness"] == "synthetic").all()
 
 
+def test_synthetic_adapter__missing_spec_fails_with_ingest_error(
+    scouting_dir: Path, tmp_path: Path
+) -> None:
+    """WHEN runs.parquet is present without spec.yaml,
+    THEN load() raises IngestContractError naming the missing file.
+    """
+    import shutil
+
+    import pytest
+
+    from eval_audit.ingest import IngestContractError
+    from eval_audit.ingest.synthetic import SyntheticAdapter
+
+    shadow = tmp_path / "synthetic"
+    shadow.mkdir()
+    shutil.copy2(scouting_dir / "synthetic" / "runs.parquet", shadow / "runs.parquet")
+
+    with pytest.raises(IngestContractError) as exc_info:
+        SyntheticAdapter().load(shadow)
+
+    assert "spec.yaml" in str(exc_info.value)
+
+
 def test_adapter__validate_raises_on_column_drift(scouting_dir: Path) -> None:
     """WHEN validate() is called on a frame that is missing the cost_provenance column,
     THEN an IngestContractError is raised whose message names the missing column.

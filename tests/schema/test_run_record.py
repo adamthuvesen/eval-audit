@@ -65,6 +65,30 @@ def test_run_record__errored_task_is_preserved_not_dropped() -> None:
     assert record.success is None
 
 
+def test_run_record__errored_task_cannot_carry_success_or_partial_credit() -> None:
+    """WHEN an errored row carries success or partial_credit,
+    THEN validation fails before analysis can treat that row inconsistently.
+    """
+    import pytest
+    from pydantic import ValidationError
+
+    from eval_audit.schema import RunRecord
+
+    for field, value in (("success", True), ("partial_credit", 1.0)):
+        kwargs = _gaia_row_kwargs()
+        kwargs["outcome_status"] = "errored"
+        kwargs["success"] = None
+        kwargs["partial_credit"] = None
+        kwargs[field] = value
+
+        with pytest.raises(ValidationError) as exc_info:
+            RunRecord(**kwargs)
+
+        msg = str(exc_info.value)
+        assert "errored" in msg
+        assert field in msg
+
+
 def test_run_record__reconciled_cost_provenance_demands_reconstructed_value() -> None:
     """WHEN construction is attempted with cost_provenance='reconciled' and
     reconstructed_per_task_cost_usd=None, THEN validation fails with an error
@@ -84,6 +108,34 @@ def test_run_record__reconciled_cost_provenance_demands_reconstructed_value() ->
     msg = str(exc_info.value)
     assert "reconciled" in msg
     assert "reconstructed_per_task_cost_usd" in msg
+
+
+def test_run_record__negative_numeric_fields_fail_validation() -> None:
+    """WHEN numeric counts, costs, or latency are negative,
+    THEN validation fails with an error naming the invalid field.
+    """
+    import pytest
+    from pydantic import ValidationError
+
+    from eval_audit.schema import RunRecord
+
+    cases = [
+        ("tokens_in", -1),
+        ("tokens_out", -1),
+        ("tokens_in_by_model", {"claude-3-7-sonnet": -1}),
+        ("tokens_out_by_model", {"claude-3-7-sonnet": -1}),
+        ("latency_s", -0.1),
+        ("reconstructed_per_task_cost_usd", -0.01),
+        ("reported_run_total_cost_usd", -1.0),
+    ]
+    for field, value in cases:
+        kwargs = _gaia_row_kwargs()
+        kwargs[field] = value
+
+        with pytest.raises(ValidationError) as exc_info:
+            RunRecord(**kwargs)
+
+        assert field in str(exc_info.value)
 
 
 def test_run_record__provenance_enum_rejects_unknown_values() -> None:

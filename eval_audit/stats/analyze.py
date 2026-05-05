@@ -22,6 +22,10 @@ class UnsupportedOutcomeError(ValueError):
     """Raised when analyze() receives an outcome declaration outside v0 support."""
 
 
+class CostProvenanceError(ValueError):
+    """Raised when cost provenance is too incomplete for decision reporting."""
+
+
 @dataclass(frozen=True)
 class AgentSummary:
     agent_id: str
@@ -70,14 +74,9 @@ def _paired_task_p_value(
     when present), then run a paired t-test on the per-task differences. This respects
     within-task clustering, which a naive 2-proportion z-test would ignore.
     """
-    a_means = (
-        treatment_rows.group_by("task_id")
-        .agg(pl.col("success").cast(pl.Float64).fill_null(0.0).mean().alias("_a"))
-    )
-    b_means = (
-        control_rows.group_by("task_id")
-        .agg(pl.col("success").cast(pl.Float64).fill_null(0.0).mean().alias("_b"))
-    )
+    success_expr = _success_rate_numeric_expr()
+    a_means = treatment_rows.group_by("task_id").agg(success_expr.mean().alias("_a"))
+    b_means = control_rows.group_by("task_id").agg(success_expr.mean().alias("_b"))
     paired = a_means.join(b_means, on="task_id", how="inner")
     if paired.height < 2:
         return 1.0
@@ -111,19 +110,36 @@ def _validate_supported_outcome(study: StudySpec) -> str:
     return "success"
 
 
+def _success_rate_numeric_expr() -> pl.Expr:
+    """Numeric success-rate outcome with errored rows forced to failure."""
+    return (
+        pl.when(
+            (pl.col("outcome_status") == "graded")
+            & pl.col("success").fill_null(False).cast(pl.Boolean)
+        )
+        .then(1.0)
+        .otherwise(0.0)
+    )
+
+
 def _check_harness_consistency(
     study: StudySpec,
     runs: pl.DataFrame,
 ) -> None:
     for claim in study.claims:
+        harness_by_agent: dict[str, str] = {}
         for agent_id in (claim.treatment, claim.control):
-            harnesses = (
-                runs.filter(pl.col("agent_id") == agent_id)["harness"].unique().to_list()
-            )
+            rows = runs.filter(pl.col("agent_id") == agent_id)
+            if rows.height == 0:
+                raise CrossHarnessComparisonError(
+                    f"agent_id={agent_id!r} has no rows in loaded runs"
+                )
+            harnesses = rows["harness"].unique().to_list()
             if len(harnesses) > 1:
                 raise CrossHarnessComparisonError(
                     f"agent_id={agent_id!r} has rows under multiple harnesses {sorted(harnesses)}"
                 )
+            harness_by_agent[agent_id] = harnesses[0]
 
         treatment_harness_set = set(
             runs.filter(pl.col("agent_id") == claim.treatment)["harness"].to_list()
@@ -137,6 +153,12 @@ def _check_harness_consistency(
                 f"treatment={claim.treatment!r} runs under harness={sorted(treatment_harness_set)}, "
                 f"control={claim.control!r} runs under harness={sorted(control_harness_set)}"
             )
+        for agent_id, observed_harness in harness_by_agent.items():
+            if observed_harness != study.harness:
+                raise CrossHarnessComparisonError(
+                    f"agent_id={agent_id!r} runs under harness={observed_harness!r}, "
+                    f"but study.harness={study.harness!r}"
+                )
 
 
 def _agent_summary(
@@ -149,7 +171,11 @@ def _agent_summary(
     n_graded = graded.height
     n_errored = errored.height
     n_total = n_graded + n_errored
-    successes = int(graded["success"].cast(pl.Int64).sum()) if n_graded else 0
+    successes = (
+        int(graded.select(_success_rate_numeric_expr().sum().alias("_successes"))["_successes"][0])
+        if n_graded
+        else 0
+    )
     if n_total > 0:
         point, lo, hi = wilson_interval(successes, n_total, alpha)
     else:
@@ -158,9 +184,22 @@ def _agent_summary(
     # so the reconstructed total covers graded rows only — which is the correct
     # numerator. For as_reported_only studies, reconstructed sums to 0 across the
     # frame; the renderer falls back to reported_run_total_cost_usd in that path.
-    if rows["reconstructed_per_task_cost_usd"].null_count() == rows.height:
+    reconstructed_null_count = rows["reconstructed_per_task_cost_usd"].null_count()
+    if 0 < reconstructed_null_count < rows.height:
+        provenance = sorted(set(rows["cost_provenance"].to_list()))
+        raise CostProvenanceError(
+            f"agent_id={agent_id!r} has incomplete reconstructed cost data "
+            f"({reconstructed_null_count}/{rows.height} null reconstructed_per_task_cost_usd; "
+            f"cost_provenance={provenance})"
+        )
+    if reconstructed_null_count == rows.height:
         # No reconstructed cost available (as_reported_only path): fall back to
         # the per-(agent, run) reported run total so cost_per_success has a value.
+        if rows["reported_run_total_cost_usd"].null_count() > 0:
+            raise CostProvenanceError(
+                f"agent_id={agent_id!r} has no reconstructed cost and missing "
+                "reported_run_total_cost_usd values"
+            )
         per_run = (
             rows.group_by("run_id")
             .agg(pl.col("reported_run_total_cost_usd").first().alias("_r"))

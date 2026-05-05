@@ -20,9 +20,13 @@ class SyntheticAdapter:
         source_path = Path(source_path)
         runs_path = source_path / "runs.parquet"
         spec_path = source_path / "spec.yaml"
+        if not spec_path.exists():
+            raise IngestContractError(
+                f"synthetic adapter requires {spec_path.name} next to {runs_path.name}"
+            )
         raw = pl.read_parquet(runs_path)
 
-        spec = yaml.safe_load(spec_path.read_text()) if spec_path.exists() else {}
+        spec = yaml.safe_load(spec_path.read_text())
         spec_id = spec.get("study", {}).get("id", "synthetic")
         retrieved_at = datetime.fromtimestamp(spec_path.stat().st_mtime, UTC).isoformat()
 

@@ -148,7 +148,7 @@ def analyze_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
     out_dir: Path = typer.Option(Path("reports"), "--out-dir"),
     repo_root: Path | None = typer.Option(None, "--repo-root"),
-    bootstrap_iterations: int = typer.Option(10_000, "--bootstrap-iterations"),
+    bootstrap_iterations: int = typer.Option(10_000, "--bootstrap-iterations", min=1),
     bootstrap_seed: int = typer.Option(42, "--bootstrap-seed"),
 ) -> None:
     """Run analysis end-to-end and write `reports/<id>/analysis.json`."""
@@ -174,7 +174,7 @@ def report_cmd(
     out_dir: Path = typer.Option(Path("reports"), "--out-dir"),
     repo_root: Path | None = typer.Option(None, "--repo-root"),
     skip_validation: bool = typer.Option(False, "--skip-validation"),
-    bootstrap_iterations: int = typer.Option(10_000, "--bootstrap-iterations"),
+    bootstrap_iterations: int = typer.Option(10_000, "--bootstrap-iterations", min=1),
     bootstrap_seed: int = typer.Option(42, "--bootstrap-seed"),
 ) -> None:
     """Run validation gate, then write `reports/<id>/report.md`."""

@@ -187,3 +187,105 @@ claims:
     msg = str(exc_info.value)
     for expected in ("duplicate", "unknown", "b", "treatment", "control", "partial_credit"):
         assert expected in msg
+
+
+def test_study_spec__unsupported_cost_view_fails_validation(tmp_path: Path) -> None:
+    """WHEN a study declares summary_table as cost.primary_view,
+    THEN validation fails because v0 only implements the Pareto cost view.
+    """
+    from pydantic import ValidationError
+
+    from eval_audit.schema import StudySpec
+
+    bad_yaml = """\
+id: bad-cost-view
+benchmark: gaia
+analysis_mode: declared_reanalysis
+data_observation: summary_seen
+harness: hal_generalist_agent
+primary_outcome:
+  name: success_rate
+  unit: task
+  direction: higher_is_better
+agents:
+  - id: a
+  - id: b
+design:
+  task_sampling: fixed_public_validation_set
+  run_strategy: observed_public_runs
+  observed_runs_per_agent: 1
+  rerun_policy: recommend_if_decision_sensitive
+inference:
+  alpha: 0.05
+  correction_method: holm_bonferroni
+  comparison_family: declared_claims
+cost:
+  metrics: ["cost_per_success_usd"]
+  primary_view: summary_table
+claims:
+  - id: c
+    text: a beats b
+    treatment: a
+    control: b
+    outcome: success_rate
+"""
+    bad_path = tmp_path / "bad-cost-view.yaml"
+    bad_path.write_text(bad_yaml)
+
+    with pytest.raises(ValidationError) as exc_info:
+        StudySpec.from_yaml(bad_path)
+
+    msg = str(exc_info.value)
+    assert "primary_view" in msg
+    assert "pareto_frontier" in msg
+
+
+def test_study_spec__unsupported_cost_metric_fails_validation(tmp_path: Path) -> None:
+    """WHEN a study declares a metric the v0 report ignores,
+    THEN validation fails instead of accepting a misleading declaration.
+    """
+    from pydantic import ValidationError
+
+    from eval_audit.schema import StudySpec
+
+    bad_yaml = """\
+id: bad-cost-metric
+benchmark: gaia
+analysis_mode: declared_reanalysis
+data_observation: summary_seen
+harness: hal_generalist_agent
+primary_outcome:
+  name: success_rate
+  unit: task
+  direction: higher_is_better
+agents:
+  - id: a
+  - id: b
+design:
+  task_sampling: fixed_public_validation_set
+  run_strategy: observed_public_runs
+  observed_runs_per_agent: 1
+  rerun_policy: recommend_if_decision_sensitive
+inference:
+  alpha: 0.05
+  correction_method: holm_bonferroni
+  comparison_family: declared_claims
+cost:
+  metrics: ["latency_s"]
+  primary_view: pareto_frontier
+claims:
+  - id: c
+    text: a beats b
+    treatment: a
+    control: b
+    outcome: success_rate
+"""
+    bad_path = tmp_path / "bad-cost-metric.yaml"
+    bad_path.write_text(bad_yaml)
+
+    with pytest.raises(ValidationError) as exc_info:
+        StudySpec.from_yaml(bad_path)
+
+    msg = str(exc_info.value)
+    assert "latency_s" in msg
+    assert "cost.metrics" in msg
