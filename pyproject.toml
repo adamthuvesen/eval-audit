@@ -1,11 +1,32 @@
 [project]
 name = "eval-audit"
-version = "0.1.0"
-description = "Study-specification, reanalysis, and reporting toolkit for agent benchmarks."
+version = "1.0.0"
+description = "Turn agent benchmark claims into auditable model-selection decisions: declared studies, paired analysis, cost-aware reports."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "eval-audit contributors" }]
+keywords = [
+    "evaluation",
+    "benchmarking",
+    "audit",
+    "statistics",
+    "methodology",
+    "reproducibility",
+    "agent-evaluation",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Quality Assurance",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
 dependencies = [
     "pydantic>=2.7",
     "polars>=1.0",
@@ -14,6 +35,12 @@ dependencies = [
     "pyyaml>=6.0",
     "typer>=0.12",
 ]
+
+[project.urls]
+Homepage = "https://github.com/adamthuvesen/eval-audit"
+Repository = "https://github.com/adamthuvesen/eval-audit"
+Issues = "https://github.com/adamthuvesen/eval-audit/issues"
+Changelog = "https://github.com/adamthuvesen/eval-audit/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -34,6 +61,15 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["eval_audit"]
+
+# Ship the BYO template files inside the wheel so `eval-audit init` works
+# under `uv tool install` / `pipx install`, where the source-checkout
+# `examples/byo-minimal/` directory is not present. The runtime resolver in
+# `eval_audit/cli_templates.py::template_dir` looks here first, then falls
+# back to the source-checkout location for editable installs.
+[tool.hatch.build.targets.wheel.force-include]
+"examples/byo-minimal/study.yaml" = "eval_audit/_templates/byo-minimal/study.yaml"
+"examples/byo-minimal/make_runs.py" = "eval_audit/_templates/byo-minimal/make_runs.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
