@@ -98,4 +98,4 @@ All agents are on the frontier; no dominance to report.
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `8ef4ee7b3cb884ec7f86d6d8df6f0e091b54cd634a994da6ef9239fbb64014e4`
+- **check_sha256:** `dcf7f94aaf178c8c184aa85128c8553d227dc14cecc15aabd6f6372f02b467f8`

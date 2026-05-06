@@ -115,4 +115,4 @@ _Cost-quality view suppressed: cost provenance is `cost_not_available`. See the 
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `3fbb9f54c864772bfdfa99737bc231ba195d4ff856a341892d2149e9f3ba0d5d`
+- **check_sha256:** `0790885e4607c1a43f0d2cdd5933585804881d20f35f85d5d286d8fda3be13ce`

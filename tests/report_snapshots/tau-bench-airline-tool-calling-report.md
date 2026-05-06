@@ -178,4 +178,4 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `c8f3227aec77024c5e09373696de2e086a46bb046277d7ffed5626db2b55244e`
+- **check_sha256:** `6e6185c7d654d247eb492eeb4ef0c11d819489da49c99efdb1718d133ebf4681`
