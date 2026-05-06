@@ -76,7 +76,9 @@ _(no scouting decision document at scouting/byo-minimal-decision.md; residual ri
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-03T10:29:41.438392+00:00`
-- **git_commit:** `fb4668d`
+- **rendered_at:** `2026-05-06T17:20:27.498028+00:00`
+- **git_commit:** `cebaf8b`
 - **fixture_sha256:** `687cf4d211662ca65fbbfbdcfdab5349cad2b33b99d02fd8d412645798038c41`
 - **bootstrap_seed:** `42`
+- **evidence_readiness:** `ready_with_warnings`
+- **check_sha256:** `ec6de688d1c12944152a1c6f97d0216e2af1dce0e167fd973f7cd26d9fc695e9`

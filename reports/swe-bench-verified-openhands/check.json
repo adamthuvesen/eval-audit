@@ -1,0 +1,110 @@
+{
+  "checks": [
+    {
+      "details": {},
+      "id": "study_loads",
+      "message": "study YAML loaded",
+      "severity": "error",
+      "status": "pass"
+    },
+    {
+      "details": {
+        "rows": 1000
+      },
+      "id": "runs_load",
+      "message": "runs parquet loaded",
+      "severity": "error",
+      "status": "pass"
+    },
+    {
+      "details": {
+        "claims": [
+          "opus45_vs_gpt5_submission"
+        ]
+      },
+      "id": "claim_agents_present",
+      "message": "all claimed agents have rows",
+      "severity": "error",
+      "status": "pass"
+    },
+    {
+      "details": {
+        "study_harness": "swe-bench-verified/openhands-public-submission-v1"
+      },
+      "id": "claimed_rows_match_study_harness",
+      "message": "claimed rows match study.harness",
+      "severity": "error",
+      "status": "pass"
+    },
+    {
+      "details": {
+        "claims": [
+          "opus45_vs_gpt5_submission"
+        ],
+        "control_task_counts": [
+          500
+        ],
+        "missing_control_task_counts": [
+          0
+        ],
+        "missing_treatment_task_counts": [
+          0
+        ],
+        "paired_task_counts": [
+          500
+        ],
+        "treatment_task_counts": [
+          500
+        ]
+      },
+      "id": "paired_tasks_complete",
+      "message": "declared claims have complete paired task observations",
+      "severity": "error",
+      "status": "pass"
+    },
+    {
+      "details": {
+        "direction": "higher_is_better",
+        "outcome": "success_rate"
+      },
+      "id": "outcome_supported",
+      "message": "v0 outcome contract is supported",
+      "severity": "error",
+      "status": "pass"
+    },
+    {
+      "details": {
+        "cost_provenance": [
+          "cost_not_available"
+        ],
+        "warnings": [
+          "cost provenance is cost_not_available; cost-derived views will be suppressed"
+        ]
+      },
+      "id": "cost_provenance_explicit",
+      "message": "cost provenance is cost_not_available; cost-derived views will be suppressed",
+      "severity": "warning",
+      "status": "fail"
+    },
+    {
+      "details": {
+        "target_mde": 0.05
+      },
+      "id": "target_mde_declared",
+      "message": "inference.target_mde is declared",
+      "severity": "warning",
+      "status": "pass"
+    },
+    {
+      "details": {
+        "path": "scouting/swe-bench-verified-openhands-decision.md"
+      },
+      "id": "residual_risks_source",
+      "message": "residual-risk/scouting decision document found",
+      "severity": "info",
+      "status": "pass"
+    }
+  ],
+  "status": "ready_with_warnings",
+  "study_id": "swe-bench-verified-openhands"
+}

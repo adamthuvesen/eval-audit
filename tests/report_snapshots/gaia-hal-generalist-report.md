@@ -2,8 +2,8 @@
 
 - **Verdict:** `hedge_on_cost` — The bootstrap CI for the delta crosses zero (no quality decision is available), but the cost gap is material (≥10% of the cheaper arm's cost). The decision pivots on cost preference rather than measured quality. Action: pick the cheaper arm unless the (statistically indistinguishable) quality difference matters to your use case.
 - **Claim status:** inconclusive
-- **Why:** delta +1.82 pp with bootstrap CI [-7.88 pp, +10.91 pp] over 165 paired tasks; treatment is 2.20x the control's cost
-- **What would change it:** ~1453 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
+- **Why:** delta +1.82 pp with bootstrap CI [-7.27 pp, +10.91 pp] over 165 paired tasks; treatment is 2.20x the control's cost
+- **What would change it:** ~1351 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
 - **Reviewer pushback:** 5 residual risks inherited from scouting
 
 ## Study
@@ -38,7 +38,7 @@
 
 **MDE context**
 
-- `claude37_vs_o4mini_high_on_gaia`: bootstrap CI half-width = 9.39 pp vs target_mde = 3.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
+- `claude37_vs_o4mini_high_on_gaia`: bootstrap CI half-width = 9.09 pp vs target_mde = 3.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
 
 **Verdict sensitivity** — `claude37_vs_o4mini_high_on_gaia`
 
@@ -59,7 +59,7 @@
 | Multiple-comparison correction | survives | verdict unchanged at α∈{0.01, 0.10} and with correction=none |
 | Errored-row policy | survives | verdict unchanged when errored rows excluded |
 | Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
-| Target MDE | does not survive | CI half-width 9.39 pp > MDE 3.00 pp; under-resolved |
+| Target MDE | does not survive | CI half-width 9.09 pp > MDE 3.00 pp; under-resolved |
 | Cost provenance | survives | reconciled |
 
 ## Cost-quality view
@@ -90,3 +90,5 @@ All agents are on the frontier; no dominance to report.
 - **git_commit:** `snapshot`
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
+- **evidence_readiness:** `ready`
+- **check_sha256:** `aa77e3f2e694bfb465dbd77e817c5c87cf32075b61ee27fb9b0d416ee12749b5`

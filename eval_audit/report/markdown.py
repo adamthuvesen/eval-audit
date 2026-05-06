@@ -20,6 +20,7 @@ from eval_audit.report.decisions import (
 from eval_audit.report.sensitivity import claim_context_for_result, compute_sensitivity_rows
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import CostProvenance
+from eval_audit.scouting_paths import resolve_decision_doc
 from eval_audit.stats import AnalysisResult, analyze
 
 _STATUS_VOCAB = {"supported", "unsupported", "inconclusive"}
@@ -546,16 +547,6 @@ def _validate_report_outcome(study: StudySpec) -> None:
             )
 
 
-# Aliases for the residual-risks decision-document path. The renderer resolves
-# `scouting/<benchmark>-decision.md` by default; the aliases preserve GAIA HAL Generalist's
-# historical filename and translate `tau_bench` -> `tau-bench` to match the
-# scouting fixture's hyphenated directory convention.
-_DECISION_DOC_ALIAS = {
-    "gaia": "gaia-hal-generalist-decision.md",
-    "tau_bench": "tau-bench-airline-tool-calling-decision.md",
-}
-
-
 def _dominant_cost_provenance(runs: pl.DataFrame) -> str:
     """Most-frequent ``cost_provenance`` value in the runs frame.
 
@@ -670,27 +661,6 @@ def _render_provenance_controlled_evidence(
     return parts
 
 
-def _resolve_decision_doc(
-    repo_root: Path, benchmark: str, study_id: str
-) -> tuple[Path, str]:
-    """Return (path, relative_label) for the per-study scouting decision doc.
-
-    Resolution order: benchmark alias → ``<benchmark>-decision.md`` if it
-    exists → ``<study_id>-decision.md``. The third fallback supports
-    controlled-evidence exhibits whose decision doc is keyed by the study id
-    (e.g. HumanEval Direct Completion uses ``scouting/humaneval-direct-completion-decision.md``) rather than by
-    a public-benchmark name.
-    """
-    if benchmark in _DECISION_DOC_ALIAS:
-        filename = _DECISION_DOC_ALIAS[benchmark]
-        return repo_root / "scouting" / filename, f"scouting/{filename}"
-    by_benchmark = repo_root / "scouting" / f"{benchmark}-decision.md"
-    if by_benchmark.exists():
-        return by_benchmark, f"scouting/{benchmark}-decision.md"
-    by_study = repo_root / "scouting" / f"{study_id}-decision.md"
-    return by_study, f"scouting/{study_id}-decision.md"
-
-
 def _extract_residual_risks(decision_md_path: Path, relative_label: str) -> str:
     """Extract the bulleted residual-risks list from the resolved scouting decision doc.
 
@@ -752,6 +722,8 @@ def render_report(
     repo_root: Path,
     bootstrap_iterations: int = 10_000,
     bootstrap_seed: int = 42,
+    evidence_readiness: str = "ready",
+    check_sha256: str = "0" * 64,
 ) -> str:
     """Render a deterministic markdown report for one declared-claim reanalysis.
 
@@ -761,7 +733,7 @@ def render_report(
     baseline's iteration count and seed.
     """
     _validate_report_outcome(study)
-    decision_md, decision_md_label = _resolve_decision_doc(
+    decision_md, decision_md_label = resolve_decision_doc(
         repo_root, study.benchmark, study.id
     )
     benchmark_dir = benchmark_dir_name(study.benchmark)
@@ -1038,6 +1010,8 @@ def render_report(
     parts.append(f"- **git_commit:** `{git_commit}`")
     parts.append(f"- **fixture_sha256:** `{fixture_sha256}`")
     parts.append(f"- **bootstrap_seed:** `{result.bootstrap_seed}`")
+    parts.append(f"- **evidence_readiness:** `{evidence_readiness}`")
+    parts.append(f"- **check_sha256:** `{check_sha256}`")
     parts.append("")
 
     return "\n".join(parts)
@@ -1054,6 +1028,8 @@ def render_report_to(
     repo_root: Path,
     bootstrap_iterations: int = 10_000,
     bootstrap_seed: int = 42,
+    evidence_readiness: str = "ready",
+    check_sha256: str = "0" * 64,
 ) -> Path:
     """Run analyze() then render to disk. CrossHarnessComparisonError propagates
     BEFORE any file is written.
@@ -1074,6 +1050,8 @@ def render_report_to(
         repo_root=repo_root,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
+        evidence_readiness=evidence_readiness,
+        check_sha256=check_sha256,
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text)

@@ -12,12 +12,14 @@ import hashlib
 import importlib.metadata
 import json
 import subprocess
+import sys
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
 
+from eval_audit.checks import check_evidence, check_paths, render_readiness_text
 from eval_audit.cli_templates import SLUG_RE, ScaffoldError, scaffold_byo_study
 from eval_audit.fixtures import benchmark_dir_name
 from eval_audit.ingest import IngestContractError
@@ -201,7 +203,21 @@ def _run_synthetic_validation_gate(repo_root: Path) -> bool:
         str(repo_root / "tests" / "synthetic_validation"),
     ]
     typer.echo("running synthetic-validation gate (pytest -m synthetic_validation)...")
-    result = subprocess.run(cmd, cwd=str(repo_root), capture_output=True, text=True)
+    try:
+        result = subprocess.run(cmd, cwd=str(repo_root), capture_output=True, text=True)
+    except FileNotFoundError:
+        fallback = [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-m",
+            "synthetic_validation",
+            str(repo_root / "tests" / "synthetic_validation"),
+        ]
+        result = subprocess.run(
+            fallback, cwd=str(repo_root), capture_output=True, text=True
+        )
     typer.echo(result.stdout)
     if result.stderr:
         typer.echo(result.stderr, err=True)
@@ -282,8 +298,30 @@ def report_cmd(
 
     study = StudySpec.from_yaml(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
+    readiness = check_evidence(study, runs_frame, repo_root=root)
+    if readiness.status == "not_ready":
+        failed = [
+            check.id
+            for check in readiness.checks
+            if check.severity == "error" and check.status == "fail"
+        ]
+        runs_arg = runs if runs is not None else _fixture_source(study, root).parquet_path
+        check_out_path = out_dir / study.id / "check.json"
+        typer.echo(
+            "evidence readiness check FAILED; refusing to write report "
+            f"(failed gates: {', '.join(failed)})\n"
+            "For the full readiness JSON, run:\n"
+            f"  eval-audit check {study_yaml} --runs {runs_arg} --out {check_out_path}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
 
     target_dir = out_dir / study.id
+    target_dir.mkdir(parents=True, exist_ok=True)
+    check_json = readiness.to_json_bytes()
+    check_path = target_dir / "check.json"
+    check_path.write_bytes(check_json)
+    check_sha256 = hashlib.sha256(check_json).hexdigest()
     target = target_dir / "report.md"
     render_report_to(
         target,
@@ -295,7 +333,10 @@ def report_cmd(
         repo_root=root,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
+        evidence_readiness=readiness.status,
+        check_sha256=check_sha256,
     )
+    typer.echo(f"wrote {check_path}")
     typer.echo(f"wrote {target}")
 
 
@@ -336,6 +377,44 @@ def init_cmd(
         raise typer.Exit(code=1) from exc
 
     typer.echo(f"created {target.resolve()}")
+
+
+@app.command(name="check")
+def check_cmd(
+    study_yaml: Path = typer.Argument(..., help="Path to a StudySpec YAML file."),
+    runs: Path = typer.Option(
+        ...,
+        "--runs",
+        help="Path to a canonical RunRecord-shaped parquet.",
+    ),
+    repo_root: Path | None = typer.Option(None, "--repo-root"),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print deterministic readiness JSON instead of human text.",
+    ),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Optional destination for deterministic readiness JSON.",
+    ),
+) -> None:
+    """Audit-readiness gate for a declared comparison."""
+    root = _resolve_repo_root(repo_root)
+    readiness = check_paths(study_yaml, runs, repo_root=root)
+    json_bytes = readiness.to_json_bytes()
+
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(json_bytes)
+
+    if json_output:
+        typer.echo(json_bytes.decode(), nl=False)
+    else:
+        typer.echo(render_readiness_text(readiness), nl=False)
+
+    if readiness.status == "not_ready":
+        raise typer.Exit(code=1)
 
 
 @app.command(name="validate")

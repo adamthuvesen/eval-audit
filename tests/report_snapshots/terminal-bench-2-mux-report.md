@@ -2,8 +2,8 @@
 
 - **Verdict:** `switch` — Treatment beat control significantly (the adjusted p-value rejects the null at the declared α) and in the direction the claim predicts. The data supports the claim. Action: switch the default selection to the treatment, subject to cost acceptance.
 - **Claim status:** supported
-- **Why:** delta +8.09 pp with bootstrap CI [+2.70 pp, +13.94 pp] over 89 paired tasks; cost provenance is `cost_not_available`; no cost ratio is reported
-- **What would change it:** ~24 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
+- **Why:** delta +8.09 pp with bootstrap CI [+2.47 pp, +13.93 pp] over 89 paired tasks; cost provenance is `cost_not_available`; no cost ratio is reported
+- **What would change it:** ~28 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
 - **Reviewer pushback:** cost provenance is cost_not_available, 5 residual risks inherited from scouting
 
 ## Study
@@ -53,7 +53,7 @@ _Cost columns suppressed: cost provenance is `cost_not_available`._
 
 **MDE context**
 
-- `mux_gpt53_codex_vs_opus46_submission`: bootstrap CI half-width = 5.62 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
+- `mux_gpt53_codex_vs_opus46_submission`: bootstrap CI half-width = 5.73 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
 
 **Verdict sensitivity** — `mux_gpt53_codex_vs_opus46_submission`
 
@@ -74,7 +74,7 @@ _Cost columns suppressed: cost provenance is `cost_not_available`._
 | Multiple-comparison correction | survives | verdict unchanged at α∈{0.01, 0.10} and with correction=none |
 | Errored-row policy | survives | verdict unchanged when errored rows excluded |
 | Cost-threshold sensitivity | n/a | cost-gap threshold not applicable; cost provenance is cost_not_available |
-| Target MDE | does not survive | CI half-width 5.62 pp > MDE 5.00 pp; under-resolved |
+| Target MDE | does not survive | CI half-width 5.73 pp > MDE 5.00 pp; under-resolved |
 | Cost provenance | does not survive | cost_not_available — Pareto and cost-per-success suppressed; see Cost provenance caveat |
 
 ## Cost-quality view
@@ -114,3 +114,5 @@ _Cost-quality view suppressed: cost provenance is `cost_not_available`. See the 
 - **git_commit:** `snapshot`
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
+- **evidence_readiness:** `ready_with_warnings`
+- **check_sha256:** `3fbb9f54c864772bfdfa99737bc231ba195d4ff856a341892d2149e9f3ba0d5d`

@@ -5,7 +5,7 @@
 - **Verdict:** `hold` — Treatment differs from control significantly, but in the OPPOSITE direction of the claim. The data falsifies the claim's stated direction rather than confirming it. Action: hold the current selection; this evidence does not warrant a switch.
 - **Claim status:** unsupported
 - **Why:** delta -70.00 pp with bootstrap CI [-100.00 pp, -40.00 pp] over 10 paired tasks; treatment is 0.40x the control's cost
-- **What would change it:** ~351 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
+- **What would change it:** ~350 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
 - **Reviewer pushback:** none flagged at this stage
 
 ### Claim `rerun_more_n_pattern`
@@ -152,3 +152,5 @@ _(no scouting decision document at scouting/decision-gallery-decision.md; residu
 - **git_commit:** `snapshot`
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
+- **evidence_readiness:** `ready_with_warnings`
+- **check_sha256:** `4685a7e2d07fb260c576f7748bfd1fcb9cb454a63e09aff846f240d87bd15a22`

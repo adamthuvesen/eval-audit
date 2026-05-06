@@ -12,8 +12,8 @@
 
 - **Verdict:** `hedge_on_cost` — The bootstrap CI for the delta crosses zero (no quality decision is available), but the cost gap is material (≥10% of the cheaper arm's cost). The decision pivots on cost preference rather than measured quality. Action: pick the cheaper arm unless the (statistically indistinguishable) quality difference matters to your use case.
 - **Claim status:** inconclusive
-- **Why:** delta +2.00 pp with bootstrap CI [-14.00 pp, +18.00 pp] over 50 paired tasks; treatment is 0.26x the control's cost
-- **What would change it:** ~462 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
+- **Why:** delta +2.00 pp with bootstrap CI [-12.05 pp, +18.00 pp] over 50 paired tasks; treatment is 0.26x the control's cost
+- **What would change it:** ~402 more paired tasks would tighten the CI to ≤ MDE (estimated, variance-fixed scaling)
 - **Reviewer pushback:** errored rows present (3 across 1 agent), cost provenance is as_reported_only, 6 residual risks inherited from scouting
 
 ### Claim `claude_vs_o3`
@@ -76,7 +76,7 @@ HAL's reported run-total cost is used directly because per-task cost reconstruct
 **MDE context**
 
 - `o4mini_vs_claude`: bootstrap CI half-width = 17.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
-- `o4mini_vs_o3`: bootstrap CI half-width = 16.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
+- `o4mini_vs_o3`: bootstrap CI half-width = 15.02 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
 - `claude_vs_o3`: bootstrap CI half-width = 16.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
 
 **Verdict sensitivity** — `o4mini_vs_claude`
@@ -134,7 +134,7 @@ HAL's reported run-total cost is used directly because per-task cost reconstruct
 | Multiple-comparison correction | survives | verdict unchanged at α∈{0.01, 0.10} and with correction=none |
 | Errored-row policy | survives | verdict unchanged when errored rows excluded |
 | Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
-| Target MDE | does not survive | CI half-width 16.00 pp > MDE 5.00 pp; under-resolved |
+| Target MDE | does not survive | CI half-width 15.02 pp > MDE 5.00 pp; under-resolved |
 | Cost provenance | caveat | as_reported_only |
 
 ### Claim `claude_vs_o3`
@@ -177,3 +177,5 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 - **git_commit:** `snapshot`
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
+- **evidence_readiness:** `ready_with_warnings`
+- **check_sha256:** `c8f3227aec77024c5e09373696de2e086a46bb046277d7ffed5626db2b55244e`
