@@ -96,4 +96,20 @@ def test_project_readme__byo_section_shows_canonical_cli_snippet(
     section = project_readme[byo_idx:next_idx]
     assert "eval-audit init" in section
     assert "eval-audit validate" in section
+    assert "eval-audit check" in section
     assert "eval-audit analyze" in section
+    assert section.index("eval-audit validate") < section.index("eval-audit check")
+    assert section.index("eval-audit check") < section.index("eval-audit report")
+
+
+def test_project_readme__distinguishes_validate_from_check(
+    project_readme: str,
+) -> None:
+    normalized = " ".join(project_readme.split())
+    assert "`validate` checks the input schemas" in normalized
+    assert "`check` evaluates whether the declared comparison is audit-ready" in normalized
+
+
+def test_byo_minimal_readme__runs_check_before_report(byo_readme: str) -> None:
+    assert "eval-audit check" in byo_readme
+    assert byo_readme.index("eval-audit check") < byo_readme.index("eval-audit report")

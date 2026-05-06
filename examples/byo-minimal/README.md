@@ -43,6 +43,7 @@ dimensions.
 
    ```bash
    eval-audit validate runs.parquet study.yaml
+   eval-audit check study.yaml --runs runs.parquet
    eval-audit analyze study.yaml --runs runs.parquet
    eval-audit report  study.yaml --runs runs.parquet --skip-validation
    ```

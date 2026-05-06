@@ -173,7 +173,9 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-04T04:24:32.406077+00:00`
-- **git_commit:** `072e906`
+- **rendered_at:** `2026-05-06T17:20:12.506464+00:00`
+- **git_commit:** `cebaf8b`
 - **fixture_sha256:** `3d8a0434b5ce3eb32735a767758a9c0281148a25e2956dad7d8c886416ffa7b3`
 - **bootstrap_seed:** `42`
+- **evidence_readiness:** `ready_with_warnings`
+- **check_sha256:** `c8f3227aec77024c5e09373696de2e086a46bb046277d7ffed5626db2b55244e`

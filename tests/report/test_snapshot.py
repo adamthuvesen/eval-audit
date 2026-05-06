@@ -28,7 +28,7 @@ FIXED_GIT_COMMIT = "snapshot"
 FIXED_FIXTURE_SHA = "0" * 64
 
 
-def _render_gaia_hal_generalist(repo_root: Path) -> str:
+def _render_gaia_hal_generalist(repo_root: Path, readiness_kwargs) -> str:
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.report.markdown import render_report
     from eval_audit.schema import StudySpec
@@ -37,7 +37,7 @@ def _render_gaia_hal_generalist(repo_root: Path) -> str:
     study = StudySpec.from_yaml(repo_root / "studies" / "gaia-hal-generalist.yaml")
     adapter = HalGaiaAdapter()
     runs = adapter.load(repo_root / "scouting" / "candidates" / "gaia")
-    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+    result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
     return render_report(
         result,
         study,
@@ -46,12 +46,13 @@ def _render_gaia_hal_generalist(repo_root: Path) -> str:
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
-        bootstrap_iterations=2_000,
+        bootstrap_iterations=10_000,
         bootstrap_seed=42,
+        **readiness_kwargs(study, runs, repo_root),
     )
 
 
-def _render_tau_bench_airline_tool_calling(repo_root: Path) -> str:
+def _render_tau_bench_airline_tool_calling(repo_root: Path, readiness_kwargs) -> str:
     from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
     from eval_audit.report.markdown import render_report
     from eval_audit.schema import StudySpec
@@ -60,7 +61,7 @@ def _render_tau_bench_airline_tool_calling(repo_root: Path) -> str:
     study = StudySpec.from_yaml(repo_root / "studies" / "tau-bench-airline-tool-calling.yaml")
     adapter = HalTauBenchAdapter()
     runs = adapter.load(repo_root / "scouting" / "candidates" / "tau-bench")
-    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+    result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
     return render_report(
         result,
         study,
@@ -69,8 +70,9 @@ def _render_tau_bench_airline_tool_calling(repo_root: Path) -> str:
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
-        bootstrap_iterations=2_000,
+        bootstrap_iterations=10_000,
         bootstrap_seed=42,
+        **readiness_kwargs(study, runs, repo_root),
     )
 
 
@@ -95,7 +97,7 @@ def _check_snapshot(snapshot_path: Path, rendered: str, label: str) -> None:
     )
 
 
-def _render_humaneval_direct_completion(repo_root: Path) -> str:
+def _render_humaneval_direct_completion(repo_root: Path, readiness_kwargs) -> str:
     """Render HumanEval Direct Completion — controlled original-evidence audit on HumanEval.
 
     Uses the generic BYO loader against the committed canonical parquet at
@@ -110,7 +112,7 @@ def _render_humaneval_direct_completion(repo_root: Path) -> str:
 
     study = StudySpec.from_yaml(repo_root / "studies" / "humaneval-direct-completion.yaml")
     runs = load_run_records(repo_root / "examples" / "humaneval-direct-completion" / "runs.parquet")
-    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+    result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
     return render_report(
         result,
         study,
@@ -119,12 +121,13 @@ def _render_humaneval_direct_completion(repo_root: Path) -> str:
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
-        bootstrap_iterations=2_000,
+        bootstrap_iterations=10_000,
         bootstrap_seed=42,
+        **readiness_kwargs(study, runs, repo_root),
     )
 
 
-def _render_decision_gallery(repo_root: Path) -> str:
+def _render_decision_gallery(repo_root: Path, readiness_kwargs) -> str:
     from eval_audit.ingest.generic import load_run_records
     from eval_audit.report.markdown import render_report
     from eval_audit.schema import StudySpec
@@ -134,7 +137,7 @@ def _render_decision_gallery(repo_root: Path) -> str:
     runs = load_run_records(
         repo_root / "examples" / "decision-gallery" / "runs.parquet"
     )
-    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+    result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
     return render_report(
         result,
         study,
@@ -143,12 +146,13 @@ def _render_decision_gallery(repo_root: Path) -> str:
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
-        bootstrap_iterations=2_000,
+        bootstrap_iterations=10_000,
         bootstrap_seed=42,
+        **readiness_kwargs(study, runs, repo_root),
     )
 
 
-def _render_swe_bench_verified_openhands(repo_root: Path) -> str:
+def _render_swe_bench_verified_openhands(repo_root: Path, readiness_kwargs) -> str:
     """Render the SWE-bench Verified OpenHands public-submission audit.
 
     The fixture under ``examples/swe-bench-verified-openhands/runs.parquet`` is
@@ -167,7 +171,7 @@ def _render_swe_bench_verified_openhands(repo_root: Path) -> str:
     )
     adapter = SweBenchVerifiedAdapter()
     runs = adapter.load(repo_root / "examples" / "swe-bench-verified-openhands")
-    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+    result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
     return render_report(
         result,
         study,
@@ -176,12 +180,13 @@ def _render_swe_bench_verified_openhands(repo_root: Path) -> str:
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
-        bootstrap_iterations=2_000,
+        bootstrap_iterations=10_000,
         bootstrap_seed=42,
+        **readiness_kwargs(study, runs, repo_root),
     )
 
 
-def _render_terminal_bench_2_mux(repo_root: Path) -> str:
+def _render_terminal_bench_2_mux(repo_root: Path, readiness_kwargs) -> str:
     """Render the Terminal-Bench 2.0 Mux public-submission audit."""
     from eval_audit.ingest.terminal_bench import TerminalBenchMuxAdapter
     from eval_audit.report.markdown import render_report
@@ -191,7 +196,7 @@ def _render_terminal_bench_2_mux(repo_root: Path) -> str:
     study = StudySpec.from_yaml(repo_root / "studies" / "terminal-bench-2-mux.yaml")
     adapter = TerminalBenchMuxAdapter()
     runs = adapter.load(repo_root / "examples" / "terminal-bench-2-mux")
-    result = analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
+    result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
     return render_report(
         result,
         study,
@@ -200,23 +205,30 @@ def _render_terminal_bench_2_mux(repo_root: Path) -> str:
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
-        bootstrap_iterations=2_000,
+        bootstrap_iterations=10_000,
         bootstrap_seed=42,
+        **readiness_kwargs(study, runs, repo_root),
     )
 
 
-def test_report_snapshot__gaia_hal_generalist_matches_committed_snapshot(repo_root: Path) -> None:
-    rendered = _render_gaia_hal_generalist(repo_root)
+def test_report_snapshot__gaia_hal_generalist_matches_committed_snapshot(
+    repo_root: Path, readiness_kwargs
+) -> None:
+    rendered = _render_gaia_hal_generalist(repo_root, readiness_kwargs)
     _check_snapshot(SNAPSHOT_PATH_A, rendered, "GAIA HAL Generalist")
 
 
-def test_report_snapshot__tau_bench_airline_tool_calling_matches_committed_snapshot(repo_root: Path) -> None:
-    rendered = _render_tau_bench_airline_tool_calling(repo_root)
+def test_report_snapshot__tau_bench_airline_tool_calling_matches_committed_snapshot(
+    repo_root: Path, readiness_kwargs
+) -> None:
+    rendered = _render_tau_bench_airline_tool_calling(repo_root, readiness_kwargs)
     _check_snapshot(SNAPSHOT_PATH_B, rendered, "TAU-bench Airline Tool Calling")
 
 
-def test_report_snapshot__humaneval_direct_completion_matches_committed_snapshot(repo_root: Path) -> None:
-    rendered = _render_humaneval_direct_completion(repo_root)
+def test_report_snapshot__humaneval_direct_completion_matches_committed_snapshot(
+    repo_root: Path, readiness_kwargs
+) -> None:
+    rendered = _render_humaneval_direct_completion(repo_root, readiness_kwargs)
     _check_snapshot(SNAPSHOT_PATH_C, rendered, "HumanEval Direct Completion")
 
 
@@ -240,25 +252,25 @@ def test_humaneval_direct_completion_runs_parquet__cost_provenance_is_partial(re
 
 
 def test_report_snapshot__decision_gallery_matches_committed_snapshot(
-    repo_root: Path,
+    repo_root: Path, readiness_kwargs
 ) -> None:
-    rendered = _render_decision_gallery(repo_root)
+    rendered = _render_decision_gallery(repo_root, readiness_kwargs)
     _check_snapshot(SNAPSHOT_PATH_GALLERY, rendered, "Decision pattern gallery")
 
 
 def test_report_snapshot__swe_bench_verified_openhands_matches_committed_snapshot(
-    repo_root: Path,
+    repo_root: Path, readiness_kwargs
 ) -> None:
-    rendered = _render_swe_bench_verified_openhands(repo_root)
+    rendered = _render_swe_bench_verified_openhands(repo_root, readiness_kwargs)
     _check_snapshot(
         SNAPSHOT_PATH_SWE_BENCH, rendered, "SWE-bench Verified OpenHands"
     )
 
 
 def test_report_snapshot__terminal_bench_2_mux_matches_committed_snapshot(
-    repo_root: Path,
+    repo_root: Path, readiness_kwargs
 ) -> None:
-    rendered = _render_terminal_bench_2_mux(repo_root)
+    rendered = _render_terminal_bench_2_mux(repo_root, readiness_kwargs)
     _check_snapshot(
         SNAPSHOT_PATH_TERMINAL_BENCH, rendered, "Terminal-Bench 2.0 Mux"
     )

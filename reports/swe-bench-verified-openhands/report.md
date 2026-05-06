@@ -27,7 +27,7 @@
 
 > ⚠️ Cost provenance: cost_not_available
 
-The upstream artifacts for this study expose no stable token, usage, or cost fields. Per-task cost cannot be reconstructed from token breakdowns × pinned provider prices, and no per-run reported total is available. Rather than smuggle in zeros, this report **suppresses** every cost-derived view: per-agent `total_cost_usd` and `cost_per_success_usd` columns are omitted from the Per-agent summary, the Cost-quality view (Pareto frontier) is suppressed, and `decision_impact` cannot return `hedge_on_cost` for any claim in this study.
+The upstream artifacts for this study do not expose complete, stable cost fields. Per-task cost cannot be reconstructed with the report's pinned price policy, and no complete per-run reported total is available. Rather than smuggle in zeros, this report **suppresses** every cost-derived view: per-agent `total_cost_usd` and `cost_per_success_usd` columns are omitted from the Per-agent summary, the Cost-quality view (Pareto frontier) is suppressed, and `decision_impact` cannot return `hedge_on_cost` for any claim in this study.
 
 **Cost-suppressed agents:**
 
@@ -117,7 +117,9 @@ _Cost-quality view suppressed: cost provenance is `cost_not_available`. See the 
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-03T18:01:09.124711+00:00`
-- **git_commit:** `d6a86dc`
+- **rendered_at:** `2026-05-06T17:20:13.338751+00:00`
+- **git_commit:** `cebaf8b`
 - **fixture_sha256:** `f656cd9fe2257c8cba232f953ae4739a5a7a47f67f011579622b0e9b369e590d`
 - **bootstrap_seed:** `42`
+- **evidence_readiness:** `ready_with_warnings`
+- **check_sha256:** `02a72df17ebe744d39650393d6ea387a627ba4221d5e4148ac9d177d446d0e89`

@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
+import polars as pl
 import pytest
+
+from eval_audit.schema import StudySpec
 
 
 @pytest.fixture(scope="session")
@@ -52,3 +57,26 @@ def _ensure_example_fixtures(repo_root: Path) -> None:
                 f"failed to regenerate {parquet} via {script}:\n"
                 f"stdout: {result.stdout}\nstderr: {result.stderr}"
             )
+
+
+@pytest.fixture
+def readiness_kwargs() -> Callable[[StudySpec, pl.DataFrame, Path], dict[str, str]]:
+    """Build the (`evidence_readiness`, `check_sha256`) kwargs for `render_report`.
+
+    Tests bypass the CLI's `check_paths` and call `check_evidence` directly,
+    so the `study_loads` and `runs_load` checks here have empty `details`
+    rather than the `path` keys a CLI run records on disk. The resulting
+    `check_sha256` is therefore intentionally NOT byte-equal to the digest a
+    user sees in `reports/<id>/check.json`. Snapshot byte-equality is what
+    these tests pin.
+    """
+    from eval_audit.checks import check_evidence
+
+    def _build(study: StudySpec, runs: pl.DataFrame, repo_root: Path) -> dict[str, str]:
+        readiness = check_evidence(study, runs, repo_root=repo_root)
+        return {
+            "evidence_readiness": readiness.status,
+            "check_sha256": hashlib.sha256(readiness.to_json_bytes()).hexdigest(),
+        }
+
+    return _build

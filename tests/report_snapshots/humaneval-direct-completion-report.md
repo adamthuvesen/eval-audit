@@ -97,3 +97,5 @@ All agents are on the frontier; no dominance to report.
 - **git_commit:** `snapshot`
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
+- **evidence_readiness:** `ready_with_warnings`
+- **check_sha256:** `8ef4ee7b3cb884ec7f86d6d8df6f0e091b54cd634a994da6ef9239fbb64014e4`

@@ -110,7 +110,9 @@ _Cost-quality view suppressed: cost provenance is `cost_not_available`. See the 
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-04T04:56:51.275124+00:00`
-- **git_commit:** `072e906`
+- **rendered_at:** `2026-05-06T17:20:14.179178+00:00`
+- **git_commit:** `cebaf8b`
 - **fixture_sha256:** `3e381bed2a70dcf85959142fdb8c379aabf7a206de9034019ad95cc6cc7153ae`
 - **bootstrap_seed:** `42`
+- **evidence_readiness:** `ready_with_warnings`
+- **check_sha256:** `3fbb9f54c864772bfdfa99737bc231ba195d4ff856a341892d2149e9f3ba0d5d`
