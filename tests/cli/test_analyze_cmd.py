@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import click
 import pytest
 from typer.testing import CliRunner
 
@@ -36,7 +37,10 @@ def test_cli_analyze__rejects_zero_bootstrap_iterations(
     )
 
     assert result.exit_code != 0
-    assert "bootstrap-iterations" in result.output
+    plain_output = click.unstyle(result.output)
+    assert "Invalid value" in plain_output
+    assert "bootstrap" in plain_output
+    assert "iterations" in plain_output
     assert not (out_dir / "gaia-hal-generalist" / "analysis.json").exists()
 
 
