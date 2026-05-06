@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import polars as pl
@@ -40,18 +41,26 @@ def test_audit__ready_byo_writes_deterministic_artifacts(
     target_dir = out_dir / "byo-minimal"
     artifacts = {
         name: (target_dir / name).read_bytes()
-        for name in ("check.json", "analysis.json", "report.md")
+        for name in ("check.json", "analysis.json", "report.md", "summary.json")
     }
 
     second = runner.invoke(app, args)
     assert second.exit_code == 0, second.output
     assert artifacts == {
         name: (target_dir / name).read_bytes()
-        for name in ("check.json", "analysis.json", "report.md")
+        for name in ("check.json", "analysis.json", "report.md", "summary.json")
     }
+    summary = json.loads((target_dir / "summary.json").read_text())
+    assert summary["claims"][0]["claim_id"] == "alice_vs_bob"
+    assert summary["claims"][0]["verdict"] == "switch"
+    assert summary["claims"][0]["verdict_explanation"]["first_matching_branch"] == (
+        "rejecting_adjusted_p_value_claim_direction"
+    )
+    assert set(summary["artifact_hashes"]) == {"analysis_json", "check_json", "report_md"}
     assert "study=byo-minimal" in first.output
     assert "readiness=ready_with_warnings" in first.output
     assert str(target_dir / "report.md") in first.output
+    assert str(target_dir / "summary.json") in first.output
     assert "claim alice_vs_bob: switch" in first.output
 
 
@@ -94,6 +103,7 @@ def test_audit__not_ready_stops_before_analysis_and_report(
     assert "Add run rows" in result.output
     assert not (out_dir / "byo-minimal" / "analysis.json").exists()
     assert not (out_dir / "byo-minimal" / "report.md").exists()
+    assert not (out_dir / "byo-minimal" / "summary.json").exists()
 
 
 def test_audit__cross_harness_refusal_does_not_write_report(
@@ -133,6 +143,7 @@ def test_audit__cross_harness_refusal_does_not_write_report(
     assert result.exit_code != 0
     assert "Cross-harness comparisons are not audit-ready" in result.output
     assert not (out_dir / "byo-minimal" / "report.md").exists()
+    assert not (out_dir / "byo-minimal" / "summary.json").exists()
 
 
 def test_audit__html_flag_writes_optional_html(

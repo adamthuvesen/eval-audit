@@ -586,6 +586,19 @@ def test_audit_summary__verdict_line_carries_token_and_rationale(
     assert "pick" in verdict_line.lower() or "cheaper" in verdict_line.lower()
 
 
+def test_claims_section__renders_copyable_summary_and_verdict_explainer(
+    gaia_hal_generalist_inputs, repo_root: Path
+) -> None:
+    study, runs, result = gaia_hal_generalist_inputs
+    text = _render(study, runs, result, repo_root)
+
+    assert "**Copyable summary** — `claude37_vs_o4mini_high_on_gaia`" in text
+    assert "evidence readiness `ready`" in text
+    assert "**Verdict explainer** — `claude37_vs_o4mini_high_on_gaia`" in text
+    assert "uncertainty_with_material_cost_gap" in text
+    assert "material cost-gap threshold=10%" in text
+
+
 def test_audit_summary__verdict_rationale_no_per_claim_numbers() -> None:
     """Rationale text is rule-explanation, not number-citation. Per-claim
     numbers (delta, CI bounds, paired N, cost ratio) live in the **Why**

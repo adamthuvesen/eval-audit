@@ -60,6 +60,39 @@
 | rerun_more_n_pattern | declared_reanalysis | inconclusive | +10.00 pp | +5.00 pp | 0.6783 | rerun_more_n |
 | inconclusive_no_action_pattern | declared_reanalysis | inconclusive | +40.00 pp | +5.00 pp | 0.0736 | inconclusive_no_action |
 
+**Copyable summary** — `hold_pattern`
+
+Claim `hold_pattern` verdict `hold` for `hold_treatment` vs `hold_control`: delta -70.00 pp with bootstrap CI [-100.00 pp, -40.00 pp]; evidence readiness `ready_with_warnings`. Cost note: treatment cost is 0.40x control.
+
+**Verdict explainer** — `hold_pattern`
+
+- **First matching branch:** `rejecting_adjusted_p_value_opposite_direction` → `hold`
+- **Rule path:** The correction-adjusted p-value rejects the null, but the effect direction is opposite the declared claim.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=True; effect direction matches claim=False; quality CI crosses zero=False; cost gap ratio=150.00%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
+**Copyable summary** — `rerun_more_n_pattern`
+
+Claim `rerun_more_n_pattern` verdict `rerun_more_n` for `rerun_treatment` vs `rerun_control`: delta +10.00 pp with bootstrap CI [-30.00 pp, +50.00 pp]; evidence readiness `ready_with_warnings`. Cost note: treatment cost is 0.94x control.
+
+**Verdict explainer** — `rerun_more_n_pattern`
+
+- **First matching branch:** `uncertainty_without_material_cost_gap` → `rerun_more_n`
+- **Rule path:** The quality interval crosses zero and the cost gap is below the material threshold.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=False; effect direction matches claim=True; quality CI crosses zero=True; cost gap ratio=6.67%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
+**Copyable summary** — `inconclusive_no_action_pattern`
+
+Claim `inconclusive_no_action_pattern` verdict `inconclusive_no_action` for `inconc_treatment` vs `inconc_control`: delta +40.00 pp with bootstrap CI [+10.00 pp, +70.00 pp]; evidence readiness `ready_with_warnings`. Cost note: treatment cost is 0.67x control.
+
+**Verdict explainer** — `inconclusive_no_action_pattern`
+
+- **First matching branch:** `fallback_inconclusive` → `inconclusive_no_action`
+- **Rule path:** No dominance, rejection, uncertainty-cost, or under-resolution branch matched.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=False; effect direction matches claim=True; quality CI crosses zero=False; cost gap ratio=50.00%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
 **MDE context**
 
 - `hold_pattern`: bootstrap CI half-width = 30.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.

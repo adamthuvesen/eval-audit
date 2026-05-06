@@ -75,6 +75,97 @@ def test_decision_impact__rejects_table_branches() -> None:
     ) == "hedge_on_cost"
 
 
+def test_explain_decision_impact__covers_controlled_branches() -> None:
+    from eval_audit.report.decisions import explain_decision_impact
+
+    cases = [
+        (
+            _stub_claim_result(treatment_dominated=True, rejects=True),
+            "drop_from_shortlist",
+            "pareto_domination",
+        ),
+        (
+            _stub_claim_result(
+                rejects=True,
+                delta_point=0.05,
+                delta_lo=0.01,
+                delta_hi=0.09,
+                direction_matches_claim=True,
+            ),
+            "switch",
+            "rejecting_adjusted_p_value_claim_direction",
+        ),
+        (
+            _stub_claim_result(
+                rejects=True,
+                delta_point=-0.05,
+                delta_lo=-0.09,
+                delta_hi=-0.01,
+                direction_matches_claim=False,
+            ),
+            "hold",
+            "rejecting_adjusted_p_value_opposite_direction",
+        ),
+        (
+            _stub_claim_result(
+                rejects=False,
+                delta_lo=-0.02,
+                delta_hi=0.02,
+                treatment_cost=200,
+                control_cost=100,
+            ),
+            "hedge_on_cost",
+            "uncertainty_with_material_cost_gap",
+        ),
+        (
+            _stub_claim_result(
+                rejects=False,
+                delta_lo=-0.02,
+                delta_hi=0.02,
+                treatment_cost=101,
+                control_cost=100,
+            ),
+            "rerun_more_n",
+            "uncertainty_without_material_cost_gap",
+        ),
+        (
+            _stub_claim_result(
+                rejects=False,
+                delta_lo=0.01,
+                delta_hi=0.08,
+                treatment_cost=101,
+                control_cost=100,
+            ),
+            "inconclusive_no_action",
+            "fallback_inconclusive",
+        ),
+    ]
+
+    for ctx, verdict, branch in cases:
+        explanation = explain_decision_impact(ctx)
+        assert explanation.verdict == verdict
+        assert explanation.first_matching_branch == branch
+
+
+def test_explain_decision_impact__cost_not_available_suppresses_cost_branch() -> None:
+    from eval_audit.report.decisions import explain_decision_impact
+
+    explanation = explain_decision_impact(
+        _stub_claim_result(
+            rejects=False,
+            delta_lo=-0.02,
+            delta_hi=0.02,
+            treatment_cost=None,
+            control_cost=None,
+        )
+    )
+
+    assert explanation.verdict == "rerun_more_n"
+    assert explanation.conditions["cost_available"] is False
+    assert explanation.suppressed_branches == ["uncertainty_with_material_cost_gap"]
+    assert "cost" in explanation.summary
+
+
 def test_decision_impact__cost_gap_threshold_kwarg_perturbs_verdict() -> None:
     """WHEN a claim has a 7% cost gap and a CI crossing zero,
     THEN the verdict resolves to rerun_more_n under the default 0.10 threshold

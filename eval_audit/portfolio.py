@@ -1,0 +1,198 @@
+"""Audit portfolio/evidence-index rendering from completed summary artifacts."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from eval_audit.report.summary import file_sha256
+
+
+@dataclass(frozen=True)
+class PortfolioRow:
+    study_id: str
+    claim_id: str | None
+    treatment: str | None
+    control: str | None
+    verdict: str | None
+    readiness: str | None
+    delta: float | None
+    ci_low: float | None
+    ci_high: float | None
+    cost_provenance: str | None
+    artifact_status: str
+    report_dir: str
+    note: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "study_id": self.study_id,
+            "claim_id": self.claim_id,
+            "treatment": self.treatment,
+            "control": self.control,
+            "verdict": self.verdict,
+            "readiness": self.readiness,
+            "delta": self.delta,
+            "ci_low": self.ci_low,
+            "ci_high": self.ci_high,
+            "cost_provenance": self.cost_provenance,
+            "artifact_status": self.artifact_status,
+            "report_dir": self.report_dir,
+            "note": self.note,
+        }
+
+
+def _candidate_report_dirs(reports_dir: Path) -> list[Path]:
+    if (reports_dir / "summary.json").exists():
+        return [reports_dir]
+    if not reports_dir.exists() or not reports_dir.is_dir():
+        return []
+    return sorted(path for path in reports_dir.iterdir() if path.is_dir())
+
+
+def _incomplete_row(report_dir: Path, status: str, note: str) -> PortfolioRow:
+    return PortfolioRow(
+        study_id=report_dir.name,
+        claim_id=None,
+        treatment=None,
+        control=None,
+        verdict=None,
+        readiness=None,
+        delta=None,
+        ci_low=None,
+        ci_high=None,
+        cost_provenance=None,
+        artifact_status=status,
+        report_dir=str(report_dir),
+        note=note,
+    )
+
+
+def _staleness_note(report_dir: Path, payload: dict[str, Any]) -> str | None:
+    hashes = payload.get("artifact_hashes")
+    paths = payload.get("artifact_paths")
+    if not isinstance(hashes, dict) or not isinstance(paths, dict):
+        return "summary.json lacks artifact paths or hashes"
+    for path_key, hash_key in (
+        ("check_json", "check_json"),
+        ("analysis_json", "analysis_json"),
+        ("report_md", "report_md"),
+    ):
+        artifact_name = paths.get(path_key)
+        expected_hash = hashes.get(hash_key)
+        if not isinstance(artifact_name, str) or not isinstance(expected_hash, str):
+            return f"summary.json lacks {path_key} hash"
+        artifact = report_dir / artifact_name
+        if not artifact.exists():
+            return f"{artifact_name} is missing"
+        actual_hash = file_sha256(artifact)
+        if actual_hash != expected_hash:
+            return f"{artifact_name} hash differs from summary.json"
+    return None
+
+
+def load_portfolio_rows(reports_dir: Path) -> list[PortfolioRow]:
+    rows: list[PortfolioRow] = []
+    for report_dir in _candidate_report_dirs(reports_dir):
+        summary_path = report_dir / "summary.json"
+        if not summary_path.exists():
+            if any((report_dir / name).exists() for name in ("report.md", "analysis.json", "check.json")):
+                rows.append(
+                    _incomplete_row(
+                        report_dir,
+                        "missing_summary",
+                        "summary.json is missing",
+                    )
+                )
+            continue
+        try:
+            payload = json.loads(summary_path.read_text())
+        except json.JSONDecodeError as exc:
+            rows.append(_incomplete_row(report_dir, "invalid_summary", str(exc)))
+            continue
+        stale_note = _staleness_note(report_dir, payload)
+        if stale_note is not None:
+            rows.append(_incomplete_row(report_dir, "stale_summary", stale_note))
+            continue
+        claims = payload.get("claims")
+        if not isinstance(claims, list) or not claims:
+            rows.append(
+                _incomplete_row(
+                    report_dir,
+                    "invalid_summary",
+                    "summary.json has no claim records",
+                )
+            )
+            continue
+        for claim in claims:
+            rows.append(
+                PortfolioRow(
+                    study_id=str(claim["study_id"]),
+                    claim_id=str(claim["claim_id"]),
+                    treatment=str(claim["treatment"]),
+                    control=str(claim["control"]),
+                    verdict=str(claim["verdict"]),
+                    readiness=str(claim["readiness"]),
+                    delta=float(claim["delta"]),
+                    ci_low=float(claim["ci_low"]),
+                    ci_high=float(claim["ci_high"]),
+                    cost_provenance=str(claim["cost_provenance"]),
+                    artifact_status="complete",
+                    report_dir=str(report_dir),
+                    note=str(claim.get("cost_caveat", "")),
+                )
+            )
+    return sorted(
+        rows,
+        key=lambda row: (
+            row.study_id,
+            row.claim_id or "",
+            row.artifact_status,
+        ),
+    )
+
+
+def portfolio_json_bytes(rows: list[PortfolioRow]) -> bytes:
+    payload = {"schema_version": 1, "rows": [row.as_dict() for row in rows]}
+    return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+
+
+def _format_pp(value: float | None) -> str:
+    return "n/a" if value is None else f"{value * 100:+.2f} pp"
+
+
+def render_portfolio_markdown(rows: list[PortfolioRow], reports_dir: Path) -> str:
+    parts = [
+        "# Audit Portfolio",
+        "",
+        (
+            "Evidence index for declared audits. Rows are only comparable within "
+            "their declared study and harness context; this is not a universal model ordering."
+        ),
+        "",
+        f"- **reports_dir:** `{reports_dir}`",
+        "",
+        "| study_id | claim_id | treatment | control | verdict | readiness | delta | CI | cost_provenance | artifact_status |",
+        "|---|---|---|---|---|---|---:|---|---|---|",
+    ]
+    for row in rows:
+        ci = (
+            "n/a"
+            if row.ci_low is None or row.ci_high is None
+            else f"[{_format_pp(row.ci_low)}, {_format_pp(row.ci_high)}]"
+        )
+        parts.append(
+            f"| {row.study_id} | {row.claim_id or 'n/a'} | {row.treatment or 'n/a'} | "
+            f"{row.control or 'n/a'} | {row.verdict or 'n/a'} | {row.readiness or 'n/a'} | "
+            f"{_format_pp(row.delta)} | {ci} | {row.cost_provenance or 'n/a'} | "
+            f"{row.artifact_status} |"
+        )
+    incomplete = [row for row in rows if row.artifact_status != "complete"]
+    if incomplete:
+        parts.extend(["", "## Incomplete Artifacts", ""])
+        for row in incomplete:
+            parts.append(f"- `{row.report_dir}`: {row.artifact_status} — {row.note}")
+    parts.append("")
+    return "\n".join(parts)
