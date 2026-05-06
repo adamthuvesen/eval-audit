@@ -1,6 +1,6 @@
 # eval-audit
 
-`eval-audit` helps teams decide whether benchmark results are strong enough to change model selection.
+`eval-audit` is a small library for auditing completed benchmark comparisons.
 
 For benchmark results:
 
