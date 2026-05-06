@@ -1,6 +1,6 @@
 # eval-audit
 
-`eval-audit` is a small library for auditing completed benchmark comparisons.
+`eval-audit` is a small python library for auditing completed benchmark comparisons.
 
 For benchmark results:
 
