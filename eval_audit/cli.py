@@ -19,7 +19,15 @@ from pathlib import Path
 
 import typer
 
-from eval_audit.checks import check_evidence, check_paths, render_readiness_text
+from eval_audit.checks import (
+    ReadinessCheck,
+    ReadinessResult,
+    ReadinessStatus,
+    check_evidence,
+    check_loaded_evidence,
+    check_paths,
+    render_readiness_text,
+)
 from eval_audit.cli_templates import SLUG_RE, ScaffoldError, scaffold_byo_study
 from eval_audit.fixtures import benchmark_dir_name
 from eval_audit.ingest import IngestContractError
@@ -29,10 +37,21 @@ from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 from eval_audit.ingest.swe_bench_verified import SweBenchVerifiedAdapter
 from eval_audit.ingest.synthetic import SyntheticAdapter
 from eval_audit.ingest.terminal_bench import TerminalBenchMuxAdapter
-from eval_audit.report.markdown import render_report_to
+from eval_audit.report.decisions import DECISION_IMPACT_VOCAB, decision_impact
+from eval_audit.report.html import render_html_report
+from eval_audit.report.markdown import render_report, render_report_to
+from eval_audit.report.sensitivity import claim_context_for_result
 from eval_audit.schema import StudySpec
 from eval_audit.spec import render_study_spec
-from eval_audit.stats import analyze
+from eval_audit.stats import AnalysisResult, analyze
+
+_DETERMINISTIC_AUDIT_CLOCK = datetime(1970, 1, 1, tzinfo=UTC)
+_READINESS_RANK: dict[ReadinessStatus, int] = {
+    "not_ready": 0,
+    "ready_with_warnings": 1,
+    "ready": 2,
+}
+_SEVERITY_RANK = {"error": 0, "warning": 1, "info": 2}
 
 
 def _version_callback(value: bool) -> None:
@@ -80,7 +99,9 @@ def spec_validate_cmd(
 def spec_render_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
     out: Path = typer.Option(..., "--out", help="Destination markdown file."),
-    fmt: str = typer.Option("markdown", "--format", help="Output format. Only 'markdown' is supported in v0."),
+    fmt: str = typer.Option(
+        "markdown", "--format", help="Output format. Only 'markdown' is supported in v0."
+    ),
 ) -> None:
     """Render STUDY_YAML to a deterministic markdown rendition at --out."""
     if fmt != "markdown":
@@ -96,6 +117,7 @@ def spec_render_cmd(
     out.write_text(render_study_spec(study))
     typer.echo(f"wrote {out}")
 
+
 _ADAPTERS: dict[str, Callable[[], object]] = {
     "gaia": HalGaiaAdapter,
     "synthetic": SyntheticAdapter,
@@ -109,9 +131,7 @@ _ADAPTERS: dict[str, Callable[[], object]] = {
 # their canonical RunRecord parquet inside the repo (see scouting-fixtures
 # capability spec) because the upstream artifacts (e.g. S3-hosted submission
 # logs) are not committed.
-_EXAMPLES_BACKED_BENCHMARKS: frozenset[str] = frozenset(
-    {"swe-bench-verified", "terminal-bench-2"}
-)
+_EXAMPLES_BACKED_BENCHMARKS: frozenset[str] = frozenset({"swe-bench-verified", "terminal-bench-2"})
 
 
 @dataclasses.dataclass(frozen=True)
@@ -140,9 +160,7 @@ def _fixture_source(study: StudySpec, repo_root: Path) -> _FixtureSource:
         source = repo_root / "examples" / study.id
         parquet_name = "runs.parquet"
     else:
-        source = (
-            repo_root / "scouting" / "candidates" / benchmark_dir_name(study.benchmark)
-        )
+        source = repo_root / "scouting" / "candidates" / benchmark_dir_name(study.benchmark)
         parquet_name = "sample.parquet"
     return _FixtureSource(
         adapter_factory=_ADAPTERS[study.benchmark],
@@ -181,9 +199,7 @@ def _git_commit(repo_root: Path) -> str:
         return "unknown"
 
 
-def _fixture_sha256(
-    study: StudySpec, repo_root: Path, runs_override: Path | None = None
-) -> str:
+def _fixture_sha256(study: StudySpec, repo_root: Path, runs_override: Path | None = None) -> str:
     if runs_override is not None:
         path = runs_override
     else:
@@ -198,8 +214,12 @@ def _fixture_sha256(
 def _run_synthetic_validation_gate(repo_root: Path) -> bool:
     """Invoke the synthetic-validation pytest suite. Returns True on pass."""
     cmd = [
-        "uv", "run", "pytest", "-q",
-        "-m", "synthetic_validation",
+        "uv",
+        "run",
+        "pytest",
+        "-q",
+        "-m",
+        "synthetic_validation",
         str(repo_root / "tests" / "synthetic_validation"),
     ]
     typer.echo("running synthetic-validation gate (pytest -m synthetic_validation)...")
@@ -215,9 +235,7 @@ def _run_synthetic_validation_gate(repo_root: Path) -> bool:
             "synthetic_validation",
             str(repo_root / "tests" / "synthetic_validation"),
         ]
-        result = subprocess.run(
-            fallback, cwd=str(repo_root), capture_output=True, text=True
-        )
+        result = subprocess.run(fallback, cwd=str(repo_root), capture_output=True, text=True)
     typer.echo(result.stdout)
     if result.stderr:
         typer.echo(result.stderr, err=True)
@@ -229,6 +247,103 @@ def _serialise_result(result) -> dict:
     if isinstance(out.get("pareto_frontier"), set):
         out["pareto_frontier"] = sorted(out["pareto_frontier"])
     return out
+
+
+def _analysis_json_bytes(result: AnalysisResult) -> bytes:
+    return (json.dumps(_serialise_result(result), indent=2, default=str) + "\n").encode()
+
+
+def _write_analysis_json(result: AnalysisResult, target_dir: Path) -> Path:
+    target = target_dir / "analysis.json"
+    target.write_bytes(_analysis_json_bytes(result))
+    return target
+
+
+def _write_check_json(readiness: ReadinessResult, target_dir: Path) -> tuple[Path, str]:
+    check_json = readiness.to_json_bytes()
+    check_path = target_dir / "check.json"
+    check_path.write_bytes(check_json)
+    return check_path, hashlib.sha256(check_json).hexdigest()
+
+
+def _render_report_text(
+    result: AnalysisResult,
+    study: StudySpec,
+    runs_frame,
+    *,
+    root: Path,
+    runs_path: Path | None,
+    readiness: ReadinessResult,
+    check_sha256: str,
+    bootstrap_iterations: int,
+    bootstrap_seed: int,
+    deterministic_clock: bool = False,
+) -> str:
+    clock = (
+        (lambda: _DETERMINISTIC_AUDIT_CLOCK) if deterministic_clock else (lambda: datetime.now(UTC))
+    )
+    return render_report(
+        result,
+        study,
+        runs_frame,
+        clock=clock,
+        git_commit=_git_commit(root),
+        fixture_sha256=_fixture_sha256(study, root, runs_path),
+        repo_root=root,
+        bootstrap_iterations=bootstrap_iterations,
+        bootstrap_seed=bootstrap_seed,
+        evidence_readiness=readiness.status,
+        check_sha256=check_sha256,
+    )
+
+
+def _write_markdown_report(
+    text: str,
+    target_dir: Path,
+) -> Path:
+    target = target_dir / "report.md"
+    target.write_text(text)
+    return target
+
+
+def _write_html_report(markdown_text: str, study: StudySpec, target_dir: Path) -> Path:
+    target = target_dir / "report.html"
+    target.write_text(render_html_report(markdown_text, title=f"{study.id} audit report"))
+    return target
+
+
+def _claim_verdicts(result: AnalysisResult, study: StudySpec) -> list[dict[str, str]]:
+    verdicts: list[dict[str, str]] = []
+    for claim in result.claims:
+        ctx = claim_context_for_result(claim, result, study)
+        verdicts.append(
+            {
+                "claim_id": claim.claim_id,
+                "verdict": decision_impact(ctx),
+            }
+        )
+    return verdicts
+
+
+def _failed_checks(readiness: ReadinessResult) -> list[ReadinessCheck]:
+    return [check for check in readiness.checks if check.status == "fail"]
+
+
+def _most_important_failed_check(readiness: ReadinessResult) -> ReadinessCheck | None:
+    failed = _failed_checks(readiness)
+    if not failed:
+        return None
+    return min(
+        enumerate(failed),
+        key=lambda item: (_SEVERITY_RANK[item[1].severity], item[0]),
+    )[1]
+
+
+def _readiness_meets_minimum(
+    readiness: ReadinessStatus,
+    minimum: ReadinessStatus,
+) -> bool:
+    return _READINESS_RANK[readiness] >= _READINESS_RANK[minimum]
 
 
 @app.command(name="analyze")
@@ -259,9 +374,225 @@ def analyze_cmd(
     )
     target_dir = out_dir / study.id
     target_dir.mkdir(parents=True, exist_ok=True)
-    target = target_dir / "analysis.json"
-    target.write_text(json.dumps(_serialise_result(result), indent=2, default=str) + "\n")
+    target = _write_analysis_json(result, target_dir)
     typer.echo(f"wrote {target}")
+
+
+@app.command(name="audit")
+def audit_cmd(
+    study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    runs: Path = typer.Option(
+        ...,
+        "--runs",
+        help="Path to a canonical RunRecord-shaped parquet.",
+    ),
+    out_dir: Path = typer.Option(Path("reports"), "--out-dir"),
+    repo_root: Path | None = typer.Option(None, "--repo-root"),
+    bootstrap_iterations: int = typer.Option(10_000, "--bootstrap-iterations", min=1),
+    bootstrap_seed: int = typer.Option(42, "--bootstrap-seed"),
+    html: bool = typer.Option(
+        False,
+        "--html",
+        help="Also write a static convenience HTML report beside report.md.",
+    ),
+) -> None:
+    """Validate, check readiness, analyze, and render deterministic audit artifacts."""
+    root = _resolve_repo_root(repo_root)
+    study = StudySpec.from_yaml(study_yaml)
+    runs_frame = _resolve_runs_frame(study, root, runs)
+    readiness = check_loaded_evidence(
+        study_yaml,
+        runs,
+        study,
+        runs_frame,
+        repo_root=root,
+    )
+    if readiness.status == "not_ready":
+        important = _most_important_failed_check(readiness)
+        failed_ids = ", ".join(check.id for check in _failed_checks(readiness))
+        typer.echo(f"audit failed: study={study.id} readiness={readiness.status}", err=True)
+        if failed_ids:
+            typer.echo(f"failed readiness checks: {failed_ids}", err=True)
+        if important is not None:
+            typer.echo(
+                f"highest-severity fix: {important.id}: {important.fix_suggestion}",
+                err=True,
+            )
+        raise typer.Exit(code=1)
+
+    target_dir = out_dir / study.id
+    target_dir.mkdir(parents=True, exist_ok=True)
+    check_path, check_sha256 = _write_check_json(readiness, target_dir)
+    result = analyze(
+        study,
+        runs_frame,
+        bootstrap_iterations=bootstrap_iterations,
+        bootstrap_seed=bootstrap_seed,
+    )
+    analysis_path = _write_analysis_json(result, target_dir)
+    markdown_text = _render_report_text(
+        result,
+        study,
+        runs_frame,
+        root=root,
+        runs_path=runs,
+        readiness=readiness,
+        check_sha256=check_sha256,
+        bootstrap_iterations=bootstrap_iterations,
+        bootstrap_seed=bootstrap_seed,
+        deterministic_clock=True,
+    )
+    report_path = _write_markdown_report(markdown_text, target_dir)
+    html_path: Path | None = None
+    if html:
+        html_path = _write_html_report(markdown_text, study, target_dir)
+
+    verdicts = _claim_verdicts(result, study)
+    typer.echo(f"audit passed: study={study.id} readiness={readiness.status}")
+    typer.echo(f"wrote {check_path}")
+    typer.echo(f"wrote {analysis_path}")
+    typer.echo(f"wrote {report_path}")
+    if html_path is not None:
+        typer.echo(f"wrote {html_path}")
+    for verdict in verdicts:
+        typer.echo(f"claim {verdict['claim_id']}: {verdict['verdict']}")
+
+
+@app.command(name="gate")
+def gate_cmd(
+    study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    runs: Path = typer.Option(
+        ...,
+        "--runs",
+        help="Path to a canonical RunRecord-shaped parquet.",
+    ),
+    repo_root: Path | None = typer.Option(None, "--repo-root"),
+    min_readiness: str = typer.Option(
+        "ready_with_warnings",
+        "--min-readiness",
+        help="Minimum readiness status: ready_with_warnings or ready.",
+    ),
+    allow_verdict: list[str] | None = typer.Option(
+        None,
+        "--allow-verdict",
+        help="Allowed decision-impact verdict. Repeat to allow multiple verdicts.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print deterministic gate JSON instead of human text.",
+    ),
+    bootstrap_iterations: int = typer.Option(10_000, "--bootstrap-iterations", min=1),
+    bootstrap_seed: int = typer.Option(42, "--bootstrap-seed"),
+) -> None:
+    """CI-friendly gate over evidence readiness and claim verdicts."""
+    if min_readiness not in {"ready", "ready_with_warnings"}:
+        typer.echo(
+            "--min-readiness must be one of: ready, ready_with_warnings",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    requested_verdicts = list(allow_verdict or DECISION_IMPACT_VOCAB)
+    unknown = sorted(set(requested_verdicts) - set(DECISION_IMPACT_VOCAB))
+    if unknown:
+        typer.echo(
+            "unsupported verdict name(s): "
+            f"{', '.join(unknown)}. Controlled vocabulary: "
+            f"{', '.join(DECISION_IMPACT_VOCAB)}",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    allowed_verdicts = [
+        verdict for verdict in DECISION_IMPACT_VOCAB if verdict in set(requested_verdicts)
+    ]
+
+    root = _resolve_repo_root(repo_root)
+    study = StudySpec.from_yaml(study_yaml)
+    runs_frame = _resolve_runs_frame(study, root, runs)
+    readiness = check_loaded_evidence(
+        study_yaml,
+        runs,
+        study,
+        runs_frame,
+        repo_root=root,
+    )
+
+    failures: list[dict[str, object]] = []
+    claims: list[dict[str, str]] = []
+    if readiness.status == "not_ready":
+        for check in _failed_checks(readiness):
+            failures.append(
+                {
+                    "type": "readiness",
+                    "check_id": check.id,
+                    "severity": check.severity,
+                    "message": check.message,
+                    "fix_suggestion": check.fix_suggestion,
+                }
+            )
+    elif not _readiness_meets_minimum(readiness.status, min_readiness):  # type: ignore[arg-type]
+        failures.append(
+            {
+                "type": "readiness",
+                "message": (f"readiness {readiness.status} does not meet minimum {min_readiness}"),
+            }
+        )
+    else:
+        result = analyze(
+            study,
+            runs_frame,
+            bootstrap_iterations=bootstrap_iterations,
+            bootstrap_seed=bootstrap_seed,
+        )
+        claims = _claim_verdicts(result, study)
+        for claim in claims:
+            if claim["verdict"] not in allowed_verdicts:
+                failures.append(
+                    {
+                        "type": "verdict",
+                        "claim_id": claim["claim_id"],
+                        "verdict": claim["verdict"],
+                        "allowed_verdicts": allowed_verdicts,
+                    }
+                )
+
+    status = "pass" if not failures else "fail"
+    payload = {
+        "study_id": study.id,
+        "status": status,
+        "readiness": readiness.status,
+        "allowed_verdicts": allowed_verdicts,
+        "claims": claims,
+        "failures": failures,
+    }
+
+    if json_output:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True) + "\n", nl=False)
+    else:
+        typer.echo(f"gate {status}: study={study.id} readiness={readiness.status}")
+        if claims:
+            for claim in claims:
+                typer.echo(f"claim {claim['claim_id']}: {claim['verdict']}")
+        if failures:
+            for failure in failures:
+                if failure["type"] == "verdict":
+                    typer.echo(
+                        "failure: claim "
+                        f"{failure['claim_id']} verdict {failure['verdict']} "
+                        "not in allowed verdicts "
+                        f"{', '.join(failure['allowed_verdicts'])}"
+                    )
+                elif "check_id" in failure:
+                    typer.echo(
+                        f"failure: {failure['check_id']}: "
+                        f"{failure['message']}; fix: {failure['fix_suggestion']}"
+                    )
+                else:
+                    typer.echo(f"failure: {failure['message']}")
+
+    if failures:
+        raise typer.Exit(code=1)
 
 
 @app.command(name="report")

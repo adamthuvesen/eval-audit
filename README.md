@@ -83,7 +83,38 @@ can see verdict patterns render in a full report: `hold`, `rerun_more_n`, and
 
 ## Bring your own data
 
-The canonical flow is:
+The practical one-command flow is:
+
+```bash
+eval-audit audit my-study/study.yaml --runs my-study/runs.parquet
+```
+
+It writes deterministic audit artifacts under `reports/<study_id>/`:
+
+```text
+check.json
+analysis.json
+report.md
+```
+
+For CI, gate the completed evidence against explicit readiness and verdict
+requirements:
+
+```bash
+eval-audit gate my-study/study.yaml --runs my-study/runs.parquet \
+  --min-readiness ready_with_warnings \
+  --allow-verdict switch \
+  --allow-verdict hold
+```
+
+`report.md` remains the canonical reproducibility artifact. If you want a
+static convenience view for human review, opt in with:
+
+```bash
+eval-audit audit my-study/study.yaml --runs my-study/runs.parquet --html
+```
+
+The separate research-step flow remains supported:
 
 ```bash
 eval-audit init my-study

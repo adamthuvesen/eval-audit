@@ -74,7 +74,18 @@ def test_check__json_output_is_stable_and_has_no_timestamps(
         "residual_risks_source",
     ]
     for check in payload["checks"]:
-        assert set(check) == {"details", "id", "message", "severity", "status"}
+        assert set(check) == {
+            "details",
+            "fix_suggestion",
+            "id",
+            "message",
+            "severity",
+            "status",
+        }
+        if check["status"] == "pass":
+            assert check["fix_suggestion"] is None
+        else:
+            assert check["fix_suggestion"]
 
 
 def test_check__out_writes_json_while_preserving_human_stdout(
@@ -137,6 +148,7 @@ def test_check__fails_when_claimed_agent_is_absent(
     check = _check_by_id(payload, "claim_agents_present")
     assert check["severity"] == "error"
     assert check["status"] == "fail"
+    assert check["fix_suggestion"]
     assert "alice" in str(check["details"])
 
 
@@ -169,6 +181,7 @@ def test_check__fails_when_tasks_are_not_paired(
     assert payload["status"] == "not_ready"
     assert check["severity"] == "error"
     assert check["status"] == "fail"
+    assert "paired task rows" in check["fix_suggestion"]
     assert check["details"]["missing_control_task_counts"] == [1]
 
 
@@ -206,6 +219,7 @@ def test_check__fails_for_cross_harness_claimed_rows(
     assert payload["status"] == "not_ready"
     assert check["severity"] == "error"
     assert check["status"] == "fail"
+    assert "single-harness paired comparison" in check["fix_suggestion"]
     assert "other-harness" in str(check["details"])
 
 
@@ -237,6 +251,7 @@ def test_check__missing_target_mde_is_warning(
     assert payload["status"] == "ready_with_warnings"
     assert check["severity"] == "warning"
     assert check["status"] == "fail"
+    assert "inference.target_mde" in check["fix_suggestion"]
 
 
 def test_check__as_reported_only_cost_provenance_is_warning(
@@ -272,6 +287,7 @@ def test_check__as_reported_only_cost_provenance_is_warning(
     assert check["severity"] == "warning"
     assert check["status"] == "fail"
     assert "as_reported_only" in check["message"]
+    assert "as_reported_only" in check["fix_suggestion"]
 
 
 def test_check__cost_not_available_cost_provenance_is_warning(
@@ -299,6 +315,7 @@ def test_check__cost_not_available_cost_provenance_is_warning(
     assert check["severity"] == "warning"
     assert check["status"] == "fail"
     assert "cost_not_available" in check["message"]
+    assert "cost_not_available" in check["fix_suggestion"]
 
 
 def _check_by_id(payload: dict, check_id: str) -> dict:

@@ -30,6 +30,7 @@ class ReadinessCheck:
     status: CheckStatus
     message: str
     details: dict[str, Json]
+    fix_suggestion: str | None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -38,6 +39,7 @@ class ReadinessCheck:
             "status": self.status,
             "message": self.message,
             "details": self.details,
+            "fix_suggestion": self.fix_suggestion,
         }
 
 
@@ -76,6 +78,8 @@ def render_readiness_text(result: ReadinessResult) -> str:
         lines.append("")
         for check in failed:
             lines.append(f"[{check.severity}] {check.id}: {check.message}")
+            if check.fix_suggestion is not None:
+                lines.append(f"  fix: {check.fix_suggestion}")
     return "\n".join(lines) + "\n"
 
 
@@ -137,6 +141,45 @@ def check_paths(
 
     if study is None or runs is None:
         return _result(study.id if study is not None else None, checks)
+    return check_loaded_evidence(
+        study_yaml,
+        runs_parquet,
+        study,
+        runs,
+        repo_root=repo_root,
+        initial_checks=checks,
+    )
+
+
+def check_loaded_evidence(
+    study_yaml: Path,
+    runs_parquet: Path,
+    study: StudySpec,
+    runs: pl.DataFrame,
+    *,
+    repo_root: Path,
+    initial_checks: list[ReadinessCheck] | None = None,
+) -> ReadinessResult:
+    checks = list(initial_checks or [])
+    if not initial_checks:
+        checks.extend(
+            [
+                _check(
+                    "study_loads",
+                    "error",
+                    "pass",
+                    "study YAML loaded",
+                    {"path": str(study_yaml)},
+                ),
+                _check(
+                    "runs_load",
+                    "error",
+                    "pass",
+                    "runs parquet loaded",
+                    {"path": str(runs_parquet), "rows": runs.height},
+                ),
+            ]
+        )
     return check_evidence(study, runs, repo_root=repo_root, initial_checks=checks)
 
 
@@ -198,9 +241,7 @@ def _claim_agents_present(study: StudySpec, runs: pl.DataFrame) -> ReadinessChec
     )
 
 
-def _claimed_rows_match_study_harness(
-    study: StudySpec, runs: pl.DataFrame
-) -> ReadinessCheck:
+def _claimed_rows_match_study_harness(study: StudySpec, runs: pl.DataFrame) -> ReadinessCheck:
     mismatches: list[str] = []
     for claim in study.claims:
         for role, agent_id in (
@@ -332,10 +373,7 @@ def _cost_provenance_explicit(study: StudySpec, runs: pl.DataFrame) -> Readiness
         if rows.is_empty():
             continue
         agent_values = sorted(str(value) for value in rows["cost_provenance"].unique().to_list())
-        if (
-            CostProvenance.COST_NOT_AVAILABLE.value in agent_values
-            and len(agent_values) > 1
-        ):
+        if CostProvenance.COST_NOT_AVAILABLE.value in agent_values and len(agent_values) > 1:
             errors.append(f"{agent_id}: mixed cost_not_available with {agent_values}")
         if agent_values == [CostProvenance.COST_NOT_AVAILABLE.value]:
             continue
@@ -348,9 +386,10 @@ def _cost_provenance_explicit(study: StudySpec, runs: pl.DataFrame) -> Readiness
                     f"{agent_id}: incomplete reconstructed_per_task_cost_usd "
                     f"({null_reconstructed}/{graded.height} graded rows null)"
                 )
-            elif null_reconstructed == graded.height and rows[
-                "reported_run_total_cost_usd"
-            ].null_count() > 0:
+            elif (
+                null_reconstructed == graded.height
+                and rows["reported_run_total_cost_usd"].null_count() > 0
+            ):
                 errors.append(
                     f"{agent_id}: no reconstructed cost and missing reported_run_total_cost_usd"
                 )
@@ -432,9 +471,7 @@ def _residual_risks_source(study: StudySpec, repo_root: Path) -> ReadinessCheck:
 def _task_set(runs: pl.DataFrame, agent_id: str) -> set[str]:
     return set(
         str(value)
-        for value in runs.filter(pl.col("agent_id") == agent_id)[
-            "task_id"
-        ].unique().to_list()
+        for value in runs.filter(pl.col("agent_id") == agent_id)["task_id"].unique().to_list()
     )
 
 
@@ -445,13 +482,77 @@ def _check(
     message: str,
     details: dict[str, Json],
 ) -> ReadinessCheck:
+    fix_suggestion = None if status == "pass" else _fix_suggestion(check_id, details)
     return ReadinessCheck(
         id=check_id,
         severity=severity,
         status=status,
         message=message,
         details=details,
+        fix_suggestion=fix_suggestion,
     )
+
+
+def _fix_suggestion(check_id: str, details: dict[str, Json]) -> str:
+    if check_id == "study_loads":
+        return (
+            "Fix the study YAML path or schema errors so StudySpec.from_yaml() "
+            "can load the declared audit."
+        )
+    if check_id == "runs_load":
+        return (
+            "Provide a readable canonical RunRecord parquet with the required task-level columns."
+        )
+    if check_id == "claim_agents_present":
+        return (
+            "Add run rows for every treatment and control agent named by each "
+            "claim, or update the study claims to reference agents present in the runs."
+        )
+    if check_id == "claimed_rows_match_study_harness":
+        return (
+            "Cross-harness comparisons are not audit-ready; prepare a single-harness "
+            "paired comparison that matches study.harness, or split the evidence into "
+            "separate declared studies per harness."
+        )
+    if check_id == "paired_tasks_complete":
+        return (
+            "Add the missing paired task rows so each claim has treatment and "
+            "control observations for the same task ids."
+        )
+    if check_id == "outcome_supported":
+        return (
+            "Declare a v0-supported success_rate, higher_is_better outcome for "
+            "the study and every claim, or add metric-specific engine support first."
+        )
+    if check_id == "cost_provenance_explicit":
+        values = details.get("cost_provenance")
+        if isinstance(values, list) and "cost_not_available" in values:
+            return (
+                "Keep cost_not_available only when neither reconstructed per-task "
+                "cost nor reported totals are honestly available, with both cost "
+                "fields null on every row."
+            )
+        if isinstance(values, list) and "as_reported_only" in values:
+            return (
+                "Record the reported run totals and provenance notes that justify "
+                "as_reported_only cost handling, or provide reconciled per-task costs."
+            )
+        return (
+            "Make cost provenance internally consistent: provide complete "
+            "reconstructed per-task costs, complete reported totals, or an explicit "
+            "cost_not_available declaration."
+        )
+    if check_id == "target_mde_declared":
+        return (
+            "Declare inference.target_mde in the study YAML so the report can "
+            "judge whether the paired evidence resolves the practical effect size."
+        )
+    if check_id == "residual_risks_source":
+        return (
+            "Add or restore the scouting decision document that records residual "
+            "risks and provenance notes for this fixture."
+        )
+    return "Repair the failed readiness condition before running analysis or rendering a report."
 
 
 def _result(study_id: str | None, checks: list[ReadinessCheck]) -> ReadinessResult:
@@ -469,8 +570,4 @@ def _count_failed(result: ReadinessResult, severity: CheckSeverity) -> int:
 
 
 def _count_failed_checks(checks: list[ReadinessCheck], severity: CheckSeverity) -> int:
-    return sum(
-        1
-        for check in checks
-        if check.severity == severity and check.status == "fail"
-    )
+    return sum(1 for check in checks if check.severity == severity and check.status == "fail")

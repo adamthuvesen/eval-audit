@@ -153,4 +153,4 @@ _(no scouting decision document at scouting/decision-gallery-decision.md; residu
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `4685a7e2d07fb260c576f7748bfd1fcb9cb454a63e09aff846f240d87bd15a22`
+- **check_sha256:** `0613f03a6e9b895f3f1466e7e6b3aa5b98101a29876853fbe2ecaca466b1ecde`
