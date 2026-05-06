@@ -36,6 +36,17 @@
 |---|---|---|---|---|---|---|
 | claude37_vs_o4mini_high_on_gaia | declared_reanalysis | inconclusive | +1.82 pp | +3.00 pp | 0.7021 | hedge_on_cost |
 
+**Copyable summary** — `claude37_vs_o4mini_high_on_gaia`
+
+Claim `claude37_vs_o4mini_high_on_gaia` verdict `hedge_on_cost` for `HAL Generalist Agent (claude-3-7-sonnet-20250219)` vs `HAL Generalist Agent (o4-mini-2025-04-16 high)`: delta +1.82 pp with bootstrap CI [-7.27 pp, +10.91 pp]; evidence readiness `ready`. Cost note: treatment cost is 2.20x control.
+
+**Verdict explainer** — `claude37_vs_o4mini_high_on_gaia`
+
+- **First matching branch:** `uncertainty_with_material_cost_gap` → `hedge_on_cost`
+- **Rule path:** The quality interval crosses zero and the cost gap meets the material threshold.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=False; effect direction matches claim=True; quality CI crosses zero=True; cost gap ratio=120.03%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
 **MDE context**
 
 - `claude37_vs_o4mini_high_on_gaia`: bootstrap CI half-width = 9.09 pp vs target_mde = 3.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.

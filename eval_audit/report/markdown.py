@@ -16,6 +16,7 @@ from eval_audit.report import ReportContractError
 from eval_audit.report.decisions import (
     DECISION_IMPACT_VOCAB,
     decision_impact,
+    explain_decision_impact,
 )
 from eval_audit.report.sensitivity import claim_context_for_result, compute_sensitivity_rows
 from eval_audit.schema import StudySpec
@@ -201,6 +202,97 @@ def _render_audit_summary_stanza(
         f"- **What would change it:** {_what_would_change_it(target_mde, ci_half_width, n_paired)}",
         f"- **Reviewer pushback:** {pushback}",
     ]
+
+
+def _copyable_claim_summary(
+    *,
+    claim_id: str,
+    treatment: str,
+    control: str,
+    verdict: str,
+    readiness: str,
+    delta: float,
+    ci_low: float,
+    ci_high: float,
+    cost_provenance_class: str,
+    treatment_cost: float | None,
+    control_cost: float | None,
+) -> str:
+    delta_pp = delta * 100
+    ci_low_pp = ci_low * 100
+    ci_high_pp = ci_high * 100
+    if cost_provenance_class == CostProvenance.COST_NOT_AVAILABLE.value:
+        caveat = (
+            " Cost caveat: cost provenance is cost_not_available, so cost-derived "
+            "views and cost-driven verdict branches are suppressed."
+        )
+    elif cost_provenance_class == CostProvenance.AS_REPORTED_ONLY.value:
+        caveat = (
+            " Cost caveat: cost provenance is as_reported_only, so costs come "
+            "from reported totals rather than reconciled per-task reconstruction."
+        )
+    elif treatment_cost is None or control_cost is None:
+        caveat = " Cost caveat: no reliable cost ratio is available."
+    elif control_cost > 0:
+        caveat = f" Cost note: treatment cost is {treatment_cost / control_cost:.2f}x control."
+    else:
+        caveat = " Cost note: control cost is zero, so the cost ratio is undefined."
+
+    return (
+        f"Claim `{claim_id}` verdict `{verdict}` for `{treatment}` vs `{control}`: "
+        f"delta {delta_pp:+.2f} pp with bootstrap CI "
+        f"[{ci_low_pp:+.2f} pp, {ci_high_pp:+.2f} pp]; "
+        f"evidence readiness `{readiness}`.{caveat}"
+    )
+
+
+def _render_verdict_explainer(
+    *,
+    claim,
+    cost_provenance_class: str,
+    evidence_readiness: str,
+    ctx,
+) -> list[str]:
+    explanation = explain_decision_impact(ctx)
+    cost_gap_ratio = explanation.conditions["cost_gap_ratio"]
+    cost_gap_text = "n/a" if cost_gap_ratio is None else f"{cost_gap_ratio:.2%}"
+    suppressed = (
+        ", ".join(explanation.suppressed_branches)
+        if explanation.suppressed_branches
+        else "none"
+    )
+    parts = [
+        f"**Copyable summary** — `{claim.claim_id}`\n",
+        _copyable_claim_summary(
+            claim_id=claim.claim_id,
+            treatment=claim.treatment,
+            control=claim.control,
+            verdict=explanation.verdict,
+            readiness=evidence_readiness,
+            delta=claim.delta_point_estimate,
+            ci_low=claim.delta_ci_low,
+            ci_high=claim.delta_ci_high,
+            cost_provenance_class=cost_provenance_class,
+            treatment_cost=ctx.treatment_cost_usd,
+            control_cost=ctx.control_cost_usd,
+        ),
+        "",
+        f"**Verdict explainer** — `{claim.claim_id}`\n",
+        f"- **First matching branch:** `{explanation.first_matching_branch}` → `{explanation.verdict}`",
+        f"- **Rule path:** {explanation.summary}",
+        (
+            "- **Evaluated conditions:** "
+            f"Pareto dominated={ctx.treatment_is_dominated}; "
+            f"adjusted-p rejection={ctx.rejects_null}; "
+            f"effect direction matches claim={ctx.direction_matches_claim}; "
+            f"quality CI crosses zero={explanation.conditions['ci_crosses_zero']}; "
+            f"cost gap ratio={cost_gap_text}; "
+            f"material cost-gap threshold={explanation.conditions['cost_gap_threshold']:.0%}."
+        ),
+        f"- **Suppressed branches:** {suppressed}.",
+        "",
+    ]
+    return parts
 
 
 _ROBUSTNESS_DIMENSIONS: tuple[str, ...] = (
@@ -921,6 +1013,17 @@ def render_report(
             mde_per_claim.append((c.claim_id, ci_half_width, target_mde))
         parts.append(render_claim_row(row))
     parts.append("")
+
+    for c in result.claims:
+        ctx = claim_context_for_result(c, result, study)
+        parts.extend(
+            _render_verdict_explainer(
+                claim=c,
+                cost_provenance_class=cost_provenance_class,
+                evidence_readiness=evidence_readiness,
+                ctx=ctx,
+            )
+        )
 
     if target_mde is not None and mde_per_claim:
         parts.append("**MDE context**\n")

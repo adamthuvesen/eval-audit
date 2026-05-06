@@ -37,10 +37,16 @@ from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 from eval_audit.ingest.swe_bench_verified import SweBenchVerifiedAdapter
 from eval_audit.ingest.synthetic import SyntheticAdapter
 from eval_audit.ingest.terminal_bench import TerminalBenchMuxAdapter
+from eval_audit.portfolio import (
+    load_portfolio_rows,
+    portfolio_json_bytes,
+    render_portfolio_markdown,
+)
 from eval_audit.report.decisions import DECISION_IMPACT_VOCAB, decision_impact
 from eval_audit.report.html import render_html_report
 from eval_audit.report.markdown import render_report, render_report_to
 from eval_audit.report.sensitivity import claim_context_for_result
+from eval_audit.report.summary import build_audit_summary, summary_json_bytes
 from eval_audit.schema import StudySpec
 from eval_audit.spec import render_study_spec
 from eval_audit.stats import AnalysisResult, analyze
@@ -312,6 +318,37 @@ def _write_html_report(markdown_text: str, study: StudySpec, target_dir: Path) -
     return target
 
 
+def _write_summary_json(
+    *,
+    result: AnalysisResult,
+    study: StudySpec,
+    runs_frame,
+    readiness: ReadinessResult,
+    target_dir: Path,
+    check_path: Path,
+    analysis_path: Path,
+    report_path: Path,
+    html_path: Path | None,
+) -> Path:
+    artifact_paths = {
+        "check_json": check_path,
+        "analysis_json": analysis_path,
+        "report_md": report_path,
+    }
+    if html_path is not None:
+        artifact_paths["report_html"] = html_path
+    payload = build_audit_summary(
+        result=result,
+        study=study,
+        runs=runs_frame,
+        readiness=readiness.status,
+        artifact_paths=artifact_paths,
+    )
+    target = target_dir / "summary.json"
+    target.write_bytes(summary_json_bytes(payload))
+    return target
+
+
 def _claim_verdicts(result: AnalysisResult, study: StudySpec) -> list[dict[str, str]]:
     verdicts: list[dict[str, str]] = []
     for claim in result.claims:
@@ -396,7 +433,7 @@ def audit_cmd(
         help="Also write a static convenience HTML report beside report.md.",
     ),
 ) -> None:
-    """Validate, check readiness, analyze, and render deterministic audit artifacts."""
+    """Validate, check readiness, analyze, and write check.json, analysis.json, report.md, and summary.json."""
     root = _resolve_repo_root(repo_root)
     study = StudySpec.from_yaml(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
@@ -446,6 +483,17 @@ def audit_cmd(
     html_path: Path | None = None
     if html:
         html_path = _write_html_report(markdown_text, study, target_dir)
+    summary_path = _write_summary_json(
+        result=result,
+        study=study,
+        runs_frame=runs_frame,
+        readiness=readiness,
+        target_dir=target_dir,
+        check_path=check_path,
+        analysis_path=analysis_path,
+        report_path=report_path,
+        html_path=html_path,
+    )
 
     verdicts = _claim_verdicts(result, study)
     typer.echo(f"audit passed: study={study.id} readiness={readiness.status}")
@@ -454,6 +502,7 @@ def audit_cmd(
     typer.echo(f"wrote {report_path}")
     if html_path is not None:
         typer.echo(f"wrote {html_path}")
+    typer.echo(f"wrote {summary_path}")
     for verdict in verdicts:
         typer.echo(f"claim {verdict['claim_id']}: {verdict['verdict']}")
 
@@ -593,6 +642,42 @@ def gate_cmd(
 
     if failures:
         raise typer.Exit(code=1)
+
+
+@app.command(name="portfolio")
+def portfolio_cmd(
+    reports_dir: Path = typer.Argument(..., help="Directory containing completed audit reports."),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Destination Markdown evidence-index file.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Print deterministic portfolio JSON instead of Markdown.",
+    ),
+) -> None:
+    """Render an evidence index from completed audit summary.json artifacts."""
+    rows = load_portfolio_rows(reports_dir)
+    if not rows:
+        typer.echo(
+            f"no inspectable audit report directories under {reports_dir}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    if json_output:
+        typer.echo(portfolio_json_bytes(rows).decode(), nl=False)
+        return
+
+    markdown = render_portfolio_markdown(rows, reports_dir)
+    if out is None:
+        typer.echo(markdown, nl=False)
+        return
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(markdown)
+    typer.echo(f"wrote {out}")
 
 
 @app.command(name="report")

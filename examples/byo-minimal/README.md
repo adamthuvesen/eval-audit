@@ -26,9 +26,10 @@ The rendered report at
 with the v1 audit summary: a verdict (`switch`), a claim status
 (`supported`), a one-line "why" with the bootstrap CI and cost ratio, a
 "what would change it" line driven by resolution planning, and a reviewer-
-pushback line. The Robustness Review table later in the report shows whether
-the verdict survives standard reviewer perturbations across five fixed
-dimensions.
+pushback line. The Claims section adds a copyable summary and verdict
+explainer derived from the same decision rules as `decision_impact()`.
+The Robustness Review table later in the report shows whether the verdict
+survives standard reviewer perturbations across five fixed dimensions.
 
 ## Adapting this to your data
 
@@ -42,10 +43,19 @@ dimensions.
 4. **Run the audit:**
 
    ```bash
+   eval-audit audit study.yaml --runs runs.parquet
+   ```
+
+   The audit writes `check.json`, `analysis.json`, `report.md`, and
+   `summary.json` under `reports/<study_id>/`. Use the decomposed
+   `validate`/`check`/`analyze`/`report` commands only when you need to
+   inspect each reproducibility step separately.
+
+   ```bash
    eval-audit validate runs.parquet study.yaml
    eval-audit check study.yaml --runs runs.parquet
    eval-audit analyze study.yaml --runs runs.parquet
-   eval-audit report  study.yaml --runs runs.parquet --skip-validation
+   eval-audit report study.yaml --runs runs.parquet --skip-validation
    ```
 
 For the formal field-by-field `RunRecord` reference (every column, what

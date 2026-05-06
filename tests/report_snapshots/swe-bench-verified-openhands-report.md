@@ -51,6 +51,17 @@ _Cost columns suppressed: cost provenance is `cost_not_available`._
 |---|---|---|---|---|---|---|
 | opus45_vs_gpt5_submission | declared_reanalysis | supported | +5.80 pp | +5.00 pp | 0.0002 | switch |
 
+**Copyable summary** — `opus45_vs_gpt5_submission`
+
+Claim `opus45_vs_gpt5_submission` verdict `switch` for `20251127_openhands_claude-opus-4-5` vs `20250807_openhands_gpt5`: delta +5.80 pp with bootstrap CI [+3.00 pp, +8.80 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is cost_not_available, so cost-derived views and cost-driven verdict branches are suppressed.
+
+**Verdict explainer** — `opus45_vs_gpt5_submission`
+
+- **First matching branch:** `rejecting_adjusted_p_value_claim_direction` → `switch`
+- **Rule path:** The correction-adjusted p-value rejects the null and the effect direction matches the declared claim.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=True; effect direction matches claim=True; quality CI crosses zero=False; cost gap ratio=n/a; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
 **MDE context**
 
 - `opus45_vs_gpt5_submission`: bootstrap CI half-width = 2.90 pp vs target_mde = 5.00 pp — the study has resolution finer than the declared MDE; an effect of this size would be detectable.

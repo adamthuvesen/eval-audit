@@ -51,6 +51,17 @@ _Cost columns suppressed: cost provenance is `cost_not_available`._
 |---|---|---|---|---|---|---|
 | mux_gpt53_codex_vs_opus46_submission | declared_reanalysis | supported | +8.09 pp | +5.00 pp | 0.0057 | switch |
 
+**Copyable summary** — `mux_gpt53_codex_vs_opus46_submission`
+
+Claim `mux_gpt53_codex_vs_opus46_submission` verdict `switch` for `Mux__GPT-5.3-Codex` vs `Mux__Claude-Opus-4.6`: delta +8.09 pp with bootstrap CI [+2.47 pp, +13.93 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is cost_not_available, so cost-derived views and cost-driven verdict branches are suppressed.
+
+**Verdict explainer** — `mux_gpt53_codex_vs_opus46_submission`
+
+- **First matching branch:** `rejecting_adjusted_p_value_claim_direction` → `switch`
+- **Rule path:** The correction-adjusted p-value rejects the null and the effect direction matches the declared claim.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=True; effect direction matches claim=True; quality CI crosses zero=False; cost gap ratio=n/a; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
 **MDE context**
 
 - `mux_gpt53_codex_vs_opus46_submission`: bootstrap CI half-width = 5.73 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.

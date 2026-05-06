@@ -35,12 +35,16 @@ eval-audit --version
 The main artifact is a deterministic Markdown report with:
 
 - verdict and claim status
+- copyable claim summaries and verdict-rule explanations
 - paired uncertainty around the treatment-control effect
 - target-MDE / resolution context
 - cost and cost-provenance caveats
 - robustness review
 - residual risks
 - reproducibility footer with evidence-readiness metadata
+
+Completed audits also write `summary.json`, a deterministic machine-readable
+claim summary used by portfolio/index views.
 
 Each claim receives one decision verb:
 
@@ -55,8 +59,8 @@ Each claim receives one decision verb:
 
 ## Demo reports
 
-Committed reports show the supported evidence shapes. They are not leaderboard
-rows; each is tied to a declared study, fixture, and reproducible analysis path.
+Committed reports show the supported evidence shapes. Each row is tied to a
+declared study, fixture, and reproducible analysis path.
 
 ## Example reports
 
@@ -95,7 +99,15 @@ It writes deterministic audit artifacts under `reports/<study_id>/`:
 check.json
 analysis.json
 report.md
+summary.json
 ```
+
+Each report includes a copyable summary generated from those artifacts, for
+example:
+
+> Claim `alice_vs_bob` verdict `switch` for `alice` vs `bob`: delta +40.00 pp
+> with bootstrap CI [+10.00 pp, +70.00 pp]; evidence readiness
+> `ready_with_warnings`. Cost note: treatment cost is 2.00x control.
 
 For CI, gate the completed evidence against explicit readiness and verdict
 requirements:
@@ -113,6 +125,17 @@ static convenience view for human review, opt in with:
 ```bash
 eval-audit audit my-study/study.yaml --runs my-study/runs.parquet --html
 ```
+
+Review multiple completed audits with an evidence index:
+
+```bash
+eval-audit portfolio reports --out portfolio.md
+eval-audit portfolio reports --json
+```
+
+The portfolio reads existing `summary.json` artifacts. It does not run
+benchmarks or recompute analyses, and rows are declared audits rather than a
+universal model ordering.
 
 The separate research-step flow remains supported:
 
@@ -141,20 +164,19 @@ Create and run a tiny bring-your-own-data audit:
 ```bash
 eval-audit init my-first-audit
 cd my-first-audit
-eval-audit validate runs.parquet study.yaml
-eval-audit check study.yaml --runs runs.parquet
-eval-audit analyze study.yaml --runs runs.parquet
-eval-audit report study.yaml --runs runs.parquet --skip-validation
+eval-audit audit study.yaml --runs runs.parquet
 ```
 
-The report is written to:
+The audit artifacts are written to:
 
 ```text
 reports/my-first-audit/report.md
+reports/my-first-audit/summary.json
 ```
 
-`--skip-validation` is for installed-package demos. For publishable evidence
-from a source checkout, run `make check`.
+For advanced reproducibility, run the separate `validate`, `check`, `analyze`,
+and `report` commands shown above. For publishable evidence from a source
+checkout, run `make check`.
 
 ## Inputs
 
@@ -181,8 +203,10 @@ Useful commands:
 
 ```bash
 uv run eval-audit spec validate studies/gaia-hal-generalist.yaml
+uv run eval-audit audit examples/byo-minimal/study.yaml --runs examples/byo-minimal/runs.parquet
 uv run eval-audit analyze studies/gaia-hal-generalist.yaml
 uv run eval-audit report studies/gaia-hal-generalist.yaml
+uv run eval-audit portfolio reports --out portfolio.md
 ```
 
 Snapshot updates are explicit:

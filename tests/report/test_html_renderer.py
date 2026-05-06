@@ -95,6 +95,17 @@ def test_html_report__preserves_cost_provenance_caveat(repo_root: Path) -> None:
     assert "as_reported_only" in html
 
 
+def test_html_report__preserves_copyable_summary_and_verdict_explainer(repo_root: Path) -> None:
+    from eval_audit.report.html import render_html_report
+
+    markdown = _byo_markdown(repo_root)
+    html = render_html_report(markdown, title="BYO")
+
+    assert "Copyable summary" in html
+    assert "Verdict explainer" in html
+    assert "report.md</code> is the canonical reproducibility artifact" in html
+
+
 def test_html_report__not_written_when_markdown_rendering_refuses(
     repo_root: Path,
     tmp_path: Path,

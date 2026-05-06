@@ -17,6 +17,8 @@ The verdicts already covered by other committed reports (`switch` via BYO minima
 - The gallery study spec is at [`studies/decision-gallery.yaml`](../../studies/decision-gallery.yaml).
 - Run data construction is in [`make_runs.py`](make_runs.py) — each agent's success vector and per-task cost have a comment block naming the targeted verdict and the rule branch it triggers.
 - The rendered audit is at [`reports/decision-gallery/report.md`](../../reports/decision-gallery/report.md).
+- Each claim includes a copyable summary plus a verdict explainer naming the
+  first matching decision-rule branch.
 - Field-level `RunRecord` reference: [`agents/docs/INPUT_CONTRACT.md`](../../agents/docs/INPUT_CONTRACT.md).
 
 ## Regenerating
