@@ -1,12 +1,12 @@
 # eval-audit
 
-`eval-audit` helps teams decide which model to choose from benchmark evidence.
+`eval-audit` helps teams decide whether benchmark results are strong enough to change model selection.
 
-Given a declared claim, paired task-level results, and costs, it asks:
+For benchmark results:
 
-> Is there enough evidence to switch models, keep the current choice, rerun with more data, or conclude that no model-selection change is supported?
+> Model B scored higher than Model A, but is the difference large, reliable, and cost-aware enough to switch?
 
-It does not run benchmarks. It audits benchmark evidence after the runs exist.
+It does not run benchmarks or explain why an agent succeeded or failed. It audits completed benchmark comparisons after the runs exist: declared claims, paired task-level outcomes, uncertainty, costs, and the decision implication.
 
 ## What it produces
 
@@ -100,7 +100,7 @@ The cross-harness note is separate because it is a warning, not an audit:
 
 ## Decision pattern gallery
 
-The decision gallery is synthetic. It is not benchmark evidence.
+The decision gallery is synthetic. It is not real benchmark results.
 
 It exists so readers can see how these verdicts render in a full report:
 
@@ -340,7 +340,8 @@ has been reviewed.
 
 ## Project boundary
 
-`eval-audit` is a methodology toolkit for auditable model-selection decisions.
+`eval-audit` is a methodology toolkit for deciding whether benchmark score
+differences justify switching models.
 
 It is not:
 

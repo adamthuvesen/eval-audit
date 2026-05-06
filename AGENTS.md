@@ -6,13 +6,14 @@ The closest `AGENTS.md` or `CLAUDE.md` wins.
 
 ## What This Repo Is
 
-`eval-audit` is a small Python methodology toolkit for turning agent benchmark
-claims into auditable model-selection decisions.
+`eval-audit` is a small Python methodology toolkit for deciding whether
+benchmark score differences are large, reliable, and cost-aware enough to
+justify switching models.
 
 It is not a benchmark runner, leaderboard, tracing system, composite-score
 factory, or causal model of scaffolds. Its current value is narrower and
-sharper: declared study specs, validated task-level records, paired analysis,
-cost-aware reports, and deterministic evidence artifacts.
+sharper: declared study specs, validated paired task-level records, uncertainty
+analysis, cost-aware reports, and deterministic evidence artifacts.
 
 Keep that shape intact.
 
