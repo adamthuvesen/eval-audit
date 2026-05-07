@@ -31,7 +31,9 @@
 - **harness:** `tau_bench_tool_calling`
 - **analysis_mode:** `declared_reanalysis`
 - **data_observation:** `summary_seen`
-- **claim:** Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and Claude 3.7 Sonnet at 44% (folding errored rows in as failures). This reanalysis evaluates whether that 12 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 1.8x cost gap ($8.38 vs $15.45).
+- **claim `o4mini_vs_claude`:** Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and Claude 3.7 Sonnet at 44% (folding errored rows in as failures). This reanalysis evaluates whether that 12 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 1.8x cost gap ($8.38 vs $15.45).
+- **claim `o4mini_vs_o3`:** Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and o3 Medium at 54%. This reanalysis evaluates whether that 2 percentage point gap supports a model-selection decision once uncertainty and the 3.8x cost gap ($8.38 vs $32.24) are shown.
+- **claim `claude_vs_o3`:** Within TAU-bench Airline under the Tool Calling harness, Claude 3.7 Sonnet is reported at 44% (with 3 of 50 errored rows folded in as failures) and o3 Medium at 54%. This reanalysis evaluates whether that 10 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 2.1x cost gap ($15.45 vs $32.24).
 
 ## Provenance
 
@@ -72,6 +74,39 @@ HAL's reported run-total cost is used directly because per-task cost reconstruct
 | o4mini_vs_claude | declared_reanalysis | inconclusive | +12.00 pp | +5.00 pp | 0.5471 | hedge_on_cost |
 | o4mini_vs_o3 | declared_reanalysis | inconclusive | +2.00 pp | +5.00 pp | 0.7992 | hedge_on_cost |
 | claude_vs_o3 | declared_reanalysis | inconclusive | -10.00 pp | +5.00 pp | 0.5471 | drop_from_shortlist |
+
+**Copyable summary** — `o4mini_vs_claude`
+
+Claim `o4mini_vs_claude` verdict `hedge_on_cost` for `Taubench ToolCalling (o4-mini-2025-04-16 high)` vs `Taubench ToolCalling (claude-3.7-sonnet)`: delta +12.00 pp with bootstrap CI [-6.00 pp, +28.00 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is as_reported_only, so costs come from reported totals rather than reconciled per-task reconstruction.
+
+**Verdict explainer** — `o4mini_vs_claude`
+
+- **First matching branch:** `uncertainty_with_material_cost_gap` → `hedge_on_cost`
+- **Rule path:** The quality interval crosses zero and the cost gap meets the material threshold.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=False; effect direction matches claim=True; quality CI crosses zero=True; cost gap ratio=84.32%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
+**Copyable summary** — `o4mini_vs_o3`
+
+Claim `o4mini_vs_o3` verdict `hedge_on_cost` for `Taubench ToolCalling (o4-mini-2025-04-16 high)` vs `Taubench ToolCalling (o3-2025-04-16)`: delta +2.00 pp with bootstrap CI [-12.05 pp, +18.00 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is as_reported_only, so costs come from reported totals rather than reconciled per-task reconstruction.
+
+**Verdict explainer** — `o4mini_vs_o3`
+
+- **First matching branch:** `uncertainty_with_material_cost_gap` → `hedge_on_cost`
+- **Rule path:** The quality interval crosses zero and the cost gap meets the material threshold.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=False; effect direction matches claim=True; quality CI crosses zero=True; cost gap ratio=284.69%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
+**Copyable summary** — `claude_vs_o3`
+
+Claim `claude_vs_o3` verdict `drop_from_shortlist` for `Taubench ToolCalling (claude-3.7-sonnet)` vs `Taubench ToolCalling (o3-2025-04-16)`: delta -10.00 pp with bootstrap CI [-26.00 pp, +6.00 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is as_reported_only, so costs come from reported totals rather than reconciled per-task reconstruction.
+
+**Verdict explainer** — `claude_vs_o3`
+
+- **First matching branch:** `pareto_domination` → `drop_from_shortlist`
+- **Rule path:** Treatment is Pareto-dominated before statistical or cost-gap branches are considered.
+- **Evaluated conditions:** Pareto dominated=True; adjusted-p rejection=False; effect direction matches claim=False; quality CI crosses zero=True; cost gap ratio=108.70%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
 
 **MDE context**
 
@@ -178,4 +213,4 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `c8f3227aec77024c5e09373696de2e086a46bb046277d7ffed5626db2b55244e`
+- **check_sha256:** `6e6185c7d654d247eb492eeb4ef0c11d819489da49c99efdb1718d133ebf4681`

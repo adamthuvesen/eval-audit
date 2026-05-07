@@ -192,6 +192,7 @@ def _grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dic
                 "returncode": proc.returncode,
                 "stderr_tail": proc.stderr.decode(errors="replace")[-500:],
                 "timeout": False,
+                "grader_crash": False,
             }
         except subprocess.TimeoutExpired:
             return {
@@ -199,13 +200,15 @@ def _grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dic
                 "returncode": None,
                 "stderr_tail": "TIMEOUT",
                 "timeout": True,
+                "grader_crash": False,
             }
-        except Exception as exc:
+        except OSError as exc:
             return {
-                "success": False,
+                "success": None,
                 "returncode": None,
                 "stderr_tail": f"GRADER_CRASH: {type(exc).__name__}: {exc}",
                 "timeout": False,
+                "grader_crash": True,
             }
 
 
@@ -258,16 +261,25 @@ def main() -> None:
                 test=task["test"],
                 entry_point=task["entry_point"],
             )
-            graded = {
-                "outcome_status": "graded",
-                "success": grade["success"],
-                "completion": completion,
-                "grader": grade,
-            }
-            if grade["success"]:
-                n_pass += 1
+            if grade.get("grader_crash"):
+                graded = {
+                    "outcome_status": "errored",
+                    "success": None,
+                    "completion": completion,
+                    "grader": grade,
+                }
+                n_errored += 1
             else:
-                n_fail += 1
+                graded = {
+                    "outcome_status": "graded",
+                    "success": grade["success"],
+                    "completion": completion,
+                    "grader": grade,
+                }
+                if grade["success"]:
+                    n_pass += 1
+                else:
+                    n_fail += 1
 
         graded_path.parent.mkdir(parents=True, exist_ok=True)
         graded_path.write_text(json.dumps({**record, **graded}, indent=2) + "\n")

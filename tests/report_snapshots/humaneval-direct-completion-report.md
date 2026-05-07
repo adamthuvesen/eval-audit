@@ -43,6 +43,17 @@
 |---|---|---|---|---|---|---|
 | sonnet46_vs_haiku45_on_humaneval30 | preregistered | inconclusive | +11.67 pp | +10.00 pp | 0.0504 | inconclusive_no_action |
 
+**Copyable summary** — `sonnet46_vs_haiku45_on_humaneval30`
+
+Claim `sonnet46_vs_haiku45_on_humaneval30` verdict `inconclusive_no_action` for `humaneval-direct-sonnet-4-6` vs `humaneval-direct-haiku-4-5`: delta +11.67 pp with bootstrap CI [+1.67 pp, +23.33 pp]; evidence readiness `ready_with_warnings`. Cost note: treatment cost is 2.00x control.
+
+**Verdict explainer** — `sonnet46_vs_haiku45_on_humaneval30`
+
+- **First matching branch:** `fallback_inconclusive` → `inconclusive_no_action`
+- **Rule path:** No dominance, rejection, uncertainty-cost, or under-resolution branch matched.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=False; effect direction matches claim=True; quality CI crosses zero=False; cost gap ratio=99.78%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
 **MDE context**
 
 - `sonnet46_vs_haiku45_on_humaneval30`: bootstrap CI half-width = 10.83 pp vs target_mde = 10.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
@@ -98,4 +109,4 @@ All agents are on the frontier; no dominance to report.
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `8ef4ee7b3cb884ec7f86d6d8df6f0e091b54cd634a994da6ef9239fbb64014e4`
+- **check_sha256:** `dcf7f94aaf178c8c184aa85128c8553d227dc14cecc15aabd6f6372f02b467f8`
