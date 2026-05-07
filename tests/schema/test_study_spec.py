@@ -180,7 +180,7 @@ data_observation: summary_seen
 harness: hal_generalist_agent
 primary_outcome:
   name: latency_s
-  unit: second
+  unit: task
   direction: lower_is_better
 agents: []
 design:
@@ -215,6 +215,44 @@ claims: []
         "higher_is_better",
     ):
         assert expected in msg
+
+
+def test_study_spec__rejects_non_task_primary_outcome_unit(tmp_path: Path) -> None:
+    """WHEN primary_outcome.unit is not task,
+    THEN validation fails because v0 analysis is task-level only.
+    """
+    from pydantic import ValidationError
+
+    from eval_audit.schema import StudySpec
+
+    path = tmp_path / "bad-unit.yaml"
+    path.write_text(_minimal_valid_study_yaml().replace("unit: task", "unit: request"))
+
+    with pytest.raises(ValidationError) as exc_info:
+        StudySpec.from_yaml(path)
+
+    msg = str(exc_info.value)
+    assert "unit" in msg
+    assert "task" in msg
+
+
+def test_study_spec__rejects_target_mde_above_one(tmp_path: Path) -> None:
+    """WHEN target_mde is above the success-rate delta bound,
+    THEN validation fails before the report can render nonsensical MDE context.
+    """
+    from pydantic import ValidationError
+
+    from eval_audit.schema import StudySpec
+
+    path = tmp_path / "bad-mde.yaml"
+    path.write_text(_minimal_valid_study_yaml().replace("comparison_family: declared_claims", "comparison_family: declared_claims\n  target_mde: 1.50"))
+
+    with pytest.raises(ValidationError) as exc_info:
+        StudySpec.from_yaml(path)
+
+    msg = str(exc_info.value)
+    assert "target_mde" in msg
+    assert "<= 1" in msg
 
 
 def test_study_spec__claim_family_invariants_fail_validation(tmp_path: Path) -> None:
