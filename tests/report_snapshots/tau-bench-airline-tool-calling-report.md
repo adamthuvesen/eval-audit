@@ -31,7 +31,9 @@
 - **harness:** `tau_bench_tool_calling`
 - **analysis_mode:** `declared_reanalysis`
 - **data_observation:** `summary_seen`
-- **claim:** Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and Claude 3.7 Sonnet at 44% (folding errored rows in as failures). This reanalysis evaluates whether that 12 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 1.8x cost gap ($8.38 vs $15.45).
+- **claim `o4mini_vs_claude`:** Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and Claude 3.7 Sonnet at 44% (folding errored rows in as failures). This reanalysis evaluates whether that 12 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 1.8x cost gap ($8.38 vs $15.45).
+- **claim `o4mini_vs_o3`:** Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and o3 Medium at 54%. This reanalysis evaluates whether that 2 percentage point gap supports a model-selection decision once uncertainty and the 3.8x cost gap ($8.38 vs $32.24) are shown.
+- **claim `claude_vs_o3`:** Within TAU-bench Airline under the Tool Calling harness, Claude 3.7 Sonnet is reported at 44% (with 3 of 50 errored rows folded in as failures) and o3 Medium at 54%. This reanalysis evaluates whether that 10 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 2.1x cost gap ($15.45 vs $32.24).
 
 ## Provenance
 

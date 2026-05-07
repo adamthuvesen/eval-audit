@@ -430,7 +430,7 @@ def audit_cmd(
     html: bool = typer.Option(
         False,
         "--html",
-        help="Also write a static convenience HTML report beside report.md.",
+        help="Also write a structured static HTML report beside report.md.",
     ),
 ) -> None:
     """Validate, check readiness, analyze, and write check.json, analysis.json, report.md, and summary.json."""

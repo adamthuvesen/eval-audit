@@ -36,22 +36,22 @@ def _byo_markdown(repo_root: Path) -> str:
     )
 
 
-def test_html_report__contains_markdown_sections_in_order(repo_root: Path) -> None:
+def test_html_report__renders_structured_sections_in_order(repo_root: Path) -> None:
     from eval_audit.report.html import render_html_report
 
     markdown = _byo_markdown(repo_root)
     html = render_html_report(markdown, title="BYO")
 
     expected = [
-        "## Audit Summary",
-        "## Study",
-        "## Provenance",
-        "## Per-agent summary",
-        "## Claims",
-        "## Robustness Review",
-        "## Cost-quality view",
-        "## Residual risks",
-        "## Reproducibility footer",
+        '<section class="report-section section-audit-summary"',
+        '<section class="report-section section-study"',
+        '<section class="report-section section-provenance"',
+        '<section class="report-section section-per-agent-summary"',
+        '<section class="report-section section-claims"',
+        '<section class="report-section section-robustness-review"',
+        '<section class="report-section section-cost-quality-view"',
+        '<section class="report-section section-residual-risks"',
+        '<section class="report-section section-reproducibility-footer"',
     ]
     last = -1
     for section in expected:
@@ -59,8 +59,10 @@ def test_html_report__contains_markdown_sections_in_order(repo_root: Path) -> No
         assert pos != -1, section
         assert pos > last, section
         last = pos
-    assert "`switch`" in html
-    assert "report.md</code> is the canonical reproducibility artifact" in html
+    assert '<span class="verdict-badge verdict-switch">' in html
+    assert "<code>switch</code>" in html
+    assert "<table>" in html
+    assert "report.md</code> remains the canonical reproducibility artifact" in html
 
 
 def test_html_report__output_is_deterministic(repo_root: Path) -> None:
@@ -101,9 +103,29 @@ def test_html_report__preserves_copyable_summary_and_verdict_explainer(repo_root
     markdown = _byo_markdown(repo_root)
     html = render_html_report(markdown, title="BYO")
 
-    assert "Copyable summary" in html
-    assert "Verdict explainer" in html
-    assert "report.md</code> is the canonical reproducibility artifact" in html
+    assert '<article class="claim-card copyable-summary">' in html
+    assert '<article class="claim-card verdict-explainer">' in html
+    assert '<article class="claim-card verdict-sensitivity">' in html
+    assert "report.md</code> remains the canonical reproducibility artifact" in html
+
+
+def test_html_report__preserves_each_multi_claim_audit_summary(repo_root: Path) -> None:
+    from eval_audit.report.html import render_html_report
+
+    markdown = (repo_root / "reports" / "decision-gallery" / "report.md").read_text()
+    html = render_html_report(markdown, title="Decision Gallery")
+    start = html.index('<section class="report-section section-audit-summary"')
+    end = html.index("</section>", start)
+    audit_summary = html[start:end]
+
+    for claim_id in (
+        "hold_pattern",
+        "rerun_more_n_pattern",
+        "inconclusive_no_action_pattern",
+    ):
+        assert f"<code>{claim_id}</code>" in audit_summary
+    for verdict in ("hold", "rerun_more_n", "inconclusive_no_action"):
+        assert f"<code>{verdict}</code>" in audit_summary
 
 
 def test_html_report__not_written_when_markdown_rendering_refuses(

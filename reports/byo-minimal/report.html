@@ -1,4 +1,21 @@
-## Audit Summary
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>byo-minimal audit report</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; font: 16px/1.55 -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; color: #18202a; background: #f8f8f5; }
+    main { max-width: 1040px; margin: 0 auto; padding: 40px 24px 56px; }
+    .canonical-note { margin: 0 0 24px; padding: 12px 14px; border-left: 4px solid #2f6f73; background: #ffffff; }
+    pre { margin: 0; padding: 24px; overflow-x: auto; white-space: pre-wrap; background: #ffffff; border: 1px solid #d9ddd6; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="canonical-note"><code>report.md</code> is the canonical reproducibility artifact. This static HTML is an optional convenience view of the same escaped Markdown report.</p>
+    <pre>## Audit Summary
 
 - **Verdict:** `switch` — Treatment beat control significantly (the adjusted p-value rejects the null at the declared α) and in the direction the claim predicts. The data supports the claim. Action: switch the default selection to the treatment, subject to cost acceptance.
 - **Claim status:** supported
@@ -18,7 +35,7 @@
 ## Provenance
 
 - **source_fixture:** `scouting/candidates/byo-minimal/sample.parquet`
-- **source_url:** 
+- **source_url:**
 - **retrieved_at:** ``
 - **price_table_pinned_at:** `2026-05-02`
 - **cost_provenance:** `n/a`
@@ -59,7 +76,7 @@
 | Multiple-comparison correction | does not survive | verdict flips at α=0.01 |
 | Errored-row policy | survives | verdict unchanged when errored rows excluded |
 | Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
-| Target MDE | does not survive | CI half-width 30.00 pp > MDE 5.00 pp; under-resolved |
+| Target MDE | does not survive | CI half-width 30.00 pp &gt; MDE 5.00 pp; under-resolved |
 | Cost provenance | does not survive | n/a |
 
 ## Cost-quality view
@@ -82,3 +99,7 @@ _(no scouting decision document at scouting/byo-minimal-decision.md; residual ri
 - **bootstrap_seed:** `42`
 - **evidence_readiness:** `ready_with_warnings`
 - **check_sha256:** `f63e3163b161b21ebb29d518d949f380611213638aed6aa73b1bac82ef961e2d`
+</pre>
+  </main>
+</body>
+</html>

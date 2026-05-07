@@ -120,7 +120,7 @@ eval-audit gate my-study/study.yaml --runs my-study/runs.parquet \
 ```
 
 `report.md` remains the canonical reproducibility artifact. If you want a
-static convenience view for human review, opt in with:
+structured static view for human review, opt in with:
 
 ```bash
 eval-audit audit my-study/study.yaml --runs my-study/runs.parquet --html
