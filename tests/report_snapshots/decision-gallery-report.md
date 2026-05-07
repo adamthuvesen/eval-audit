@@ -31,7 +31,9 @@
 - **harness:** `decision-gallery`
 - **analysis_mode:** `declared_reanalysis`
 - **data_observation:** `full_seen`
-- **claim:** Synthetic claim targeting the `hold` verdict. The claim asserts hold_treatment beats hold_control on success_rate. The data is constructed so the paired t-test rejects the null at α=0.05 AND the observed direction is opposite the claim — treatment significantly underperforms control. hold_treatment is cheaper than hold_control so it is not Pareto-dominated, which is what lets the engine reach the `hold` rule branch instead of `drop_from_shortlist`.
+- **claim `hold_pattern`:** Synthetic claim targeting the `hold` verdict. The claim asserts hold_treatment beats hold_control on success_rate. The data is constructed so the paired t-test rejects the null at α=0.05 AND the observed direction is opposite the claim — treatment significantly underperforms control. hold_treatment is cheaper than hold_control so it is not Pareto-dominated, which is what lets the engine reach the `hold` rule branch instead of `drop_from_shortlist`.
+- **claim `rerun_more_n_pattern`:** Synthetic claim targeting the `rerun_more_n` verdict. The claim asserts rerun_treatment beats rerun_control on success_rate. The data is constructed with tied per-arm success rates and per-task differences that span both directions, so the bootstrap CI clearly crosses zero and the paired t-test does not reject. Costs differ by ~6.67% of the cheaper arm — below the 10% material threshold — so the engine reaches `rerun_more_n` rather than `hedge_on_cost`.
+- **claim `inconclusive_no_action_pattern`:** Synthetic claim targeting the `inconclusive_no_action` verdict. The claim asserts inconc_treatment beats inconc_control on success_rate. The data is constructed so the bootstrap CI is entirely positive (no negative per-task differences), but the paired raw p-value is large enough that Holm-Bonferroni correction across the three-claim family pushes the adjusted p above α=0.05. This is the CI vs adjusted-p disagreement case the verdict was designed for; it is naturally rare and the rationale text describes the verdict as a fallback.
 
 ## Provenance
 

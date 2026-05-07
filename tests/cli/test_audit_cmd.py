@@ -176,7 +176,9 @@ def test_audit__html_flag_writes_optional_html(
     html_path = out_dir / "byo-minimal" / "report.html"
     assert html_path.exists()
     assert str(html_path) in result.output
-    assert "report.md</code> is the canonical reproducibility artifact" in html_path.read_text()
+    html = html_path.read_text()
+    assert "report.md</code> remains the canonical reproducibility artifact" in html
+    assert '<span class="verdict-badge verdict-switch">' in html
 
 
 def test_audit__without_html_does_not_write_html(

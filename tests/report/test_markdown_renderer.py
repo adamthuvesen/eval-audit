@@ -38,6 +38,27 @@ def _render(study, runs, result, repo_root: Path) -> str:
     )
 
 
+def _render_decision_gallery(repo_root: Path) -> str:
+    from eval_audit.report.markdown import render_report
+    from eval_audit.schema import StudySpec
+    from eval_audit.stats import analyze
+
+    study = StudySpec.from_yaml(repo_root / "studies" / "decision-gallery.yaml")
+    runs = pl.read_parquet(repo_root / "examples" / "decision-gallery" / "runs.parquet")
+    result = analyze(study, runs, bootstrap_iterations=200, bootstrap_seed=42)
+    return render_report(
+        result,
+        study,
+        runs,
+        clock=lambda: datetime(1970, 1, 1, tzinfo=UTC),
+        git_commit="test",
+        fixture_sha256="0" * 64,
+        repo_root=repo_root,
+        bootstrap_iterations=200,
+        bootstrap_seed=42,
+    )
+
+
 def test_report__all_nine_sections_are_present(gaia_hal_generalist_inputs, repo_root: Path) -> None:
     """WHEN the renderer is run against the GAIA HAL Generalist study and GAIA fixture,
     THEN the resulting markdown contains all nine ## sections in the listed order.
@@ -63,6 +84,19 @@ def test_report__all_nine_sections_are_present(gaia_hal_generalist_inputs, repo_
         assert pos != -1, f"missing section: {section}"
         assert pos > last_pos, f"section out of order: {section}"
         last_pos = pos
+
+
+def test_report__multi_claim_study_section_lists_all_claim_texts(repo_root: Path) -> None:
+    text = _render_decision_gallery(repo_root)
+    study_section = text.split("## Study", 1)[1].split("## Provenance", 1)[0]
+
+    for claim_id in (
+        "hold_pattern",
+        "rerun_more_n_pattern",
+        "inconclusive_no_action_pattern",
+    ):
+        assert f"- **claim `{claim_id}`:**" in study_section
+    assert "- **claim:**" not in study_section
 
 
 def test_report__inherited_residual_risks_are_not_edited(gaia_hal_generalist_inputs, repo_root: Path) -> None:

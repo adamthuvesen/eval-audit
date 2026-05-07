@@ -898,13 +898,16 @@ def render_report(
 
     # 2. Study
     parts.append("## Study\n")
-    primary_claim = study.claims[0]
     parts.append(f"- **id:** `{study.id}`")
     parts.append(f"- **benchmark:** `{study.benchmark}`")
     parts.append(f"- **harness:** `{study.harness}`")
     parts.append(f"- **analysis_mode:** `{study.analysis_mode}`")
     parts.append(f"- **data_observation:** `{study.data_observation}`")
-    parts.append(f"- **claim:** {primary_claim.text}")
+    if len(study.claims) == 1:
+        parts.append(f"- **claim:** {study.claims[0].text}")
+    else:
+        for claim in study.claims:
+            parts.append(f"- **claim `{claim.id}`:** {claim.text}")
     parts.append("")
 
     # 3. Provenance
