@@ -279,8 +279,12 @@ def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessChe
     paired_counts: list[int] = []
     missing_treatment_counts: list[int] = []
     missing_control_counts: list[int] = []
+    duplicate_observation_keys: list[str] = []
+    invalid_run_count_keys: list[str] = []
 
     for claim in study.claims:
+        claim_duplicate_keys: list[str] = []
+        claim_invalid_run_count_keys: list[str] = []
         treatment_tasks = _task_set(runs, claim.treatment)
         control_tasks = _task_set(runs, claim.control)
         paired = treatment_tasks & control_tasks
@@ -293,7 +297,33 @@ def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessChe
         missing_treatment_counts.append(len(missing_treatment))
         missing_control_counts.append(len(missing_control))
 
-        if missing_treatment or missing_control or not paired:
+        for role, agent_id in (
+            ("treatment", claim.treatment),
+            ("control", claim.control),
+        ):
+            rows = runs.filter(pl.col("agent_id") == agent_id)
+            claim_duplicate_keys.extend(
+                _duplicate_observation_keys(claim.id, role, agent_id, rows)
+            )
+            claim_invalid_run_count_keys.extend(
+                _invalid_task_run_count_keys(
+                    claim.id,
+                    role,
+                    agent_id,
+                    rows,
+                    expected_runs=study.design.observed_runs_per_agent,
+                )
+            )
+
+        duplicate_observation_keys.extend(claim_duplicate_keys)
+        invalid_run_count_keys.extend(claim_invalid_run_count_keys)
+        if (
+            missing_treatment
+            or missing_control
+            or not paired
+            or claim_duplicate_keys
+            or claim_invalid_run_count_keys
+        ):
             failures.append(claim.id)
 
     details = {
@@ -304,8 +334,12 @@ def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessChe
         "missing_treatment_task_counts": missing_treatment_counts,
         "missing_control_task_counts": missing_control_counts,
     }
+    if duplicate_observation_keys:
+        details["duplicate_observation_keys"] = sorted(set(duplicate_observation_keys))
+    if invalid_run_count_keys:
+        details["invalid_task_run_counts"] = sorted(set(invalid_run_count_keys))
     if failures:
-        details["failed_claims"] = failures
+        details["failed_claims"] = sorted(set(failures))
         return _check(
             "paired_tasks_complete",
             "error",
@@ -320,6 +354,50 @@ def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessChe
         "declared claims have complete paired task observations",
         details,
     )
+
+
+def _duplicate_observation_keys(
+    claim_id: str,
+    role: str,
+    agent_id: str,
+    rows: pl.DataFrame,
+) -> list[str]:
+    seen: set[tuple[str, str]] = set()
+    duplicates: set[str] = set()
+    for row in rows.select(["task_id", "run_id"]).iter_rows(named=True):
+        task_id = str(row["task_id"])
+        run_id = str(row["run_id"])
+        key = (task_id, run_id)
+        if key in seen:
+            duplicates.add(f"{claim_id}:{role}:{agent_id}:{task_id}:{run_id}")
+            continue
+        seen.add(key)
+    return sorted(duplicates)
+
+
+def _invalid_task_run_count_keys(
+    claim_id: str,
+    role: str,
+    agent_id: str,
+    rows: pl.DataFrame,
+    *,
+    expected_runs: int,
+) -> list[str]:
+    runs_by_task: dict[str, set[str]] = {}
+    for row in rows.select(["task_id", "run_id"]).iter_rows(named=True):
+        task_id = str(row["task_id"])
+        run_id = str(row["run_id"])
+        runs_by_task.setdefault(task_id, set()).add(run_id)
+
+    invalid: list[str] = []
+    for task_id, run_ids in sorted(runs_by_task.items()):
+        observed_runs = len(run_ids)
+        if observed_runs != expected_runs:
+            invalid.append(
+                f"{claim_id}:{role}:{agent_id}:{task_id}:"
+                f"expected={expected_runs}:observed={observed_runs}"
+            )
+    return invalid
 
 
 def _outcome_supported(study: StudySpec) -> ReadinessCheck:
@@ -516,8 +594,9 @@ def _fix_suggestion(check_id: str, details: dict[str, Json]) -> str:
         )
     if check_id == "paired_tasks_complete":
         return (
-            "Add the missing paired task rows so each claim has treatment and "
-            "control observations for the same task ids."
+            "Add the missing paired task rows, remove duplicate task/run rows, "
+            "and make every claimed agent match design.observed_runs_per_agent "
+            "for each task id."
         )
     if check_id == "outcome_supported":
         return (
