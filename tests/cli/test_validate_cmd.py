@@ -96,6 +96,52 @@ def test_validate__bad_study_yaml_exits_nonzero(
     assert result.exit_code != 0
 
 
+def test_validate__rejects_non_task_primary_outcome_unit(
+    runner: CliRunner, repo_root: Path, tmp_path: Path
+) -> None:
+    from eval_audit.cli import app
+
+    src_yaml = (repo_root / "examples" / "byo-minimal" / "study.yaml").read_text()
+    bad_path = tmp_path / "bad-unit.yaml"
+    bad_path.write_text(src_yaml.replace("unit: task", "unit: request"))
+
+    result = runner.invoke(
+        app,
+        [
+            "validate",
+            str(repo_root / "examples" / "byo-minimal" / "runs.parquet"),
+            str(bad_path),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "unit" in result.output
+    assert "task" in result.output
+
+
+def test_validate__rejects_target_mde_above_one(
+    runner: CliRunner, repo_root: Path, tmp_path: Path
+) -> None:
+    from eval_audit.cli import app
+
+    src_yaml = (repo_root / "examples" / "byo-minimal" / "study.yaml").read_text()
+    bad_path = tmp_path / "bad-mde.yaml"
+    bad_path.write_text(src_yaml.replace("target_mde: 0.05", "target_mde: 1.50"))
+
+    result = runner.invoke(
+        app,
+        [
+            "validate",
+            str(repo_root / "examples" / "byo-minimal" / "runs.parquet"),
+            str(bad_path),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "target_mde" in result.output
+    assert "<= 1" in result.output
+
+
 def test_validate__missing_study_path_exits_nonzero(
     runner: CliRunner, repo_root: Path, tmp_path: Path
 ) -> None:

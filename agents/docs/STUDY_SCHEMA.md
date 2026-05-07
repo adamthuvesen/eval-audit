@@ -56,7 +56,7 @@ Every `study.yaml` MUST populate every required field listed below. Optional fie
 
 - **Type:** `PrimaryOutcome` object (required) — see the `## PrimaryOutcome` section below.
 - **Used by analysis:** yes — declares the headline metric and direction.
-- **v0 constraint:** `primary_outcome.name` MUST be `"success_rate"` and `primary_outcome.direction` MUST be `"higher_is_better"`. Other outcome shapes fail validation in v0.
+- **v0 constraint:** `primary_outcome.name` MUST be `"success_rate"`, `primary_outcome.unit` MUST be `"task"`, and `primary_outcome.direction` MUST be `"higher_is_better"`. Other outcome shapes fail validation in v0.
 
 ### agents
 
@@ -99,8 +99,8 @@ The headline metric the study evaluates.
 
 ### unit
 
-- **Type:** `str` (required, non-null)
-- **BYO guidance:** unit of the outcome (e.g., `task`). Declarative only.
+- **Type:** `Literal["task"]` (required)
+- **v0 constraint:** MUST be `"task"` because the engine performs task-level paired analysis.
 
 ### direction
 
@@ -161,7 +161,7 @@ The declared analysis plan.
 
 ### target_mde
 
-- **Type:** `float | None` (optional, MUST be > 0 when declared)
+- **Type:** `float | None` (optional, MUST be > 0 and <= 1 when declared)
 - **BYO guidance:** the smallest effect size the study is powered to detect, in the units of `primary_outcome`. When declared, the Audit Summary's "what would change it" line carries a concrete additional-N estimate; when omitted, the line says no MDE was declared.
 
 ## CostConfig
@@ -212,7 +212,8 @@ One paired-task comparison the audit evaluates.
 
 - `schema_version` MUST be `1` in this version of `eval-audit`.
 - `agents` and `claims` MUST be non-empty.
-- `primary_outcome.name == "success_rate"` and `primary_outcome.direction == "higher_is_better"` in v0.
+- `primary_outcome.name == "success_rate"`, `primary_outcome.unit == "task"`, and `primary_outcome.direction == "higher_is_better"` in v0.
+- `inference.target_mde` MUST be `> 0` and `<= 1` when declared.
 - Every `Claim.outcome` MUST equal `primary_outcome.name`.
 - Every claim's `treatment` and `control` MUST be agent IDs listed in `agents`, and they MUST differ from each other.
 - Claim IDs MUST be unique within a study.

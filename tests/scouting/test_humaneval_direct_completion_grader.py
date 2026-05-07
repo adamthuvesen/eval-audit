@@ -114,3 +114,26 @@ def test_grader_subprocess__stdlib_imports_still_work() -> None:
     assert grade_result["success"] is True, (
         f"-I mode broke stdlib imports: stderr_tail={grade_result['stderr_tail']!r}"
     )
+
+
+def test_grader_subprocess__setup_crash_is_marked_for_errored_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Infrastructure failures must not be counted as graded model failures."""
+    grade = _load_grade_module()
+
+    def raise_os_error(*_args, **_kwargs):
+        raise OSError("simulated subprocess setup failure")
+
+    monkeypatch.setattr(grade.subprocess, "run", raise_os_error)
+
+    grade_result = grade._grade_one(
+        prompt="def f():\n    pass\n",
+        completion="    return 1\n",
+        test="def check(fn):\n    assert fn() == 1\n",
+        entry_point="f",
+    )
+
+    assert grade_result["grader_crash"] is True
+    assert grade_result["success"] is None
+    assert "GRADER_CRASH" in grade_result["stderr_tail"]

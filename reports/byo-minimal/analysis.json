@@ -1,0 +1,54 @@
+{
+  "study_id": "byo-minimal",
+  "per_agent": [
+    {
+      "agent_id": "alice",
+      "n_graded": 10,
+      "n_errored": 0,
+      "success_rate": 0.8,
+      "success_rate_ci_low": 0.49016247153664183,
+      "success_rate_ci_high": 0.9433178485456247,
+      "total_cost_usd": 0.9999999999999999,
+      "cost_per_success_usd": 0.12499999999999999
+    },
+    {
+      "agent_id": "bob",
+      "n_graded": 10,
+      "n_errored": 0,
+      "success_rate": 0.4,
+      "success_rate_ci_low": 0.16818032970623614,
+      "success_rate_ci_high": 0.6873262302663417,
+      "total_cost_usd": 0.49999999999999994,
+      "cost_per_success_usd": 0.12499999999999999
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "alice_vs_bob",
+      "text": "Alice (8/10 = 80%) outperforms Bob (4/10 = 40%) on the toy 10-task BYO benchmark while costing 2x more per task ($0.10 vs $0.05). This worked example demonstrates the canonical input contract; the audit verdict should be unambiguous given the deliberately wide success-rate gap.",
+      "treatment": "alice",
+      "control": "bob",
+      "delta_point_estimate": 0.4,
+      "delta_ci_low": 0.09999999999999998,
+      "delta_ci_high": 0.7,
+      "raw_p_value": 0.03678749787978615,
+      "adjusted_p_value": 0.03678749787978615,
+      "rejects_null": true,
+      "treatment_total_cost_usd": 0.9999999999999999,
+      "control_total_cost_usd": 0.49999999999999994,
+      "bootstrap": [
+        0.4,
+        0.09999999999999998,
+        0.7,
+        10000,
+        42
+      ]
+    }
+  ],
+  "pareto_frontier": [
+    "alice",
+    "bob"
+  ],
+  "bootstrap_seed": 42,
+  "pareto_status": "computed"
+}

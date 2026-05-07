@@ -74,7 +74,18 @@ def test_check__json_output_is_stable_and_has_no_timestamps(
         "residual_risks_source",
     ]
     for check in payload["checks"]:
-        assert set(check) == {"details", "id", "message", "severity", "status"}
+        assert set(check) == {
+            "details",
+            "fix_suggestion",
+            "id",
+            "message",
+            "severity",
+            "status",
+        }
+        if check["status"] == "pass":
+            assert check["fix_suggestion"] is None
+        else:
+            assert check["fix_suggestion"]
 
 
 def test_check__out_writes_json_while_preserving_human_stdout(
@@ -137,6 +148,7 @@ def test_check__fails_when_claimed_agent_is_absent(
     check = _check_by_id(payload, "claim_agents_present")
     assert check["severity"] == "error"
     assert check["status"] == "fail"
+    assert check["fix_suggestion"]
     assert "alice" in str(check["details"])
 
 
@@ -169,7 +181,75 @@ def test_check__fails_when_tasks_are_not_paired(
     assert payload["status"] == "not_ready"
     assert check["severity"] == "error"
     assert check["status"] == "fail"
+    assert "paired task rows" in check["fix_suggestion"]
     assert check["details"]["missing_control_task_counts"] == [1]
+
+
+def test_check__fails_when_claimed_agent_has_duplicate_task_run_rows(
+    runner: CliRunner, repo_root: Path, tmp_path: Path
+) -> None:
+    from eval_audit.cli import app
+
+    frame = pl.read_parquet(repo_root / "examples" / "byo-minimal" / "runs.parquet")
+    duplicate = frame.filter((pl.col("agent_id") == "alice") & (pl.col("task_id") == "task_01"))
+    bad = pl.concat([frame, duplicate], how="vertical")
+    bad_path = tmp_path / "duplicate-observation.parquet"
+    bad.write_parquet(bad_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "check",
+            str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
+            "--runs",
+            str(bad_path),
+            "--repo-root",
+            str(repo_root),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    check = _check_by_id(payload, "paired_tasks_complete")
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "fail"
+    assert "duplicate_observation_keys" in check["details"]
+    assert "alice:task_01" in str(check["details"])
+
+
+def test_check__fails_when_claimed_agent_has_unexpected_runs_per_task(
+    runner: CliRunner, repo_root: Path, tmp_path: Path
+) -> None:
+    from eval_audit.cli import app
+
+    frame = pl.read_parquet(repo_root / "examples" / "byo-minimal" / "runs.parquet")
+    extra_run = frame.filter((pl.col("agent_id") == "alice") & (pl.col("task_id") == "task_01"))
+    extra_run = extra_run.with_columns(pl.lit("alice-extra-run").alias("run_id"))
+    bad = pl.concat([frame, extra_run], how="vertical")
+    bad_path = tmp_path / "uneven-run-count.parquet"
+    bad.write_parquet(bad_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "check",
+            str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
+            "--runs",
+            str(bad_path),
+            "--repo-root",
+            str(repo_root),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    check = _check_by_id(payload, "paired_tasks_complete")
+    assert payload["status"] == "not_ready"
+    assert check["status"] == "fail"
+    assert "invalid_task_run_counts" in check["details"]
+    assert "expected=1:observed=2" in str(check["details"])
 
 
 def test_check__fails_for_cross_harness_claimed_rows(
@@ -206,6 +286,7 @@ def test_check__fails_for_cross_harness_claimed_rows(
     assert payload["status"] == "not_ready"
     assert check["severity"] == "error"
     assert check["status"] == "fail"
+    assert "single-harness paired comparison" in check["fix_suggestion"]
     assert "other-harness" in str(check["details"])
 
 
@@ -237,6 +318,7 @@ def test_check__missing_target_mde_is_warning(
     assert payload["status"] == "ready_with_warnings"
     assert check["severity"] == "warning"
     assert check["status"] == "fail"
+    assert "inference.target_mde" in check["fix_suggestion"]
 
 
 def test_check__as_reported_only_cost_provenance_is_warning(
@@ -272,6 +354,7 @@ def test_check__as_reported_only_cost_provenance_is_warning(
     assert check["severity"] == "warning"
     assert check["status"] == "fail"
     assert "as_reported_only" in check["message"]
+    assert "as_reported_only" in check["fix_suggestion"]
 
 
 def test_check__cost_not_available_cost_provenance_is_warning(
@@ -299,6 +382,7 @@ def test_check__cost_not_available_cost_provenance_is_warning(
     assert check["severity"] == "warning"
     assert check["status"] == "fail"
     assert "cost_not_available" in check["message"]
+    assert "cost_not_available" in check["fix_suggestion"]
 
 
 def _check_by_id(payload: dict, check_id: str) -> dict:
