@@ -19,7 +19,7 @@ class PrimaryOutcome(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    unit: str
+    unit: Literal["task"]
     direction: Literal["higher_is_better", "lower_is_better"]
 
 
@@ -105,9 +105,11 @@ class StudySpec(BaseModel):
             errors.append(
                 f"inference.alpha must be > 0 and < 1 (got {self.inference.alpha})"
             )
-        if self.inference.target_mde is not None and self.inference.target_mde <= 0:
+        if self.inference.target_mde is not None and not (
+            0.0 < self.inference.target_mde <= 1.0
+        ):
             errors.append(
-                "inference.target_mde must be positive when declared "
+                "inference.target_mde must be > 0 and <= 1 when declared "
                 f"(got {self.inference.target_mde})"
             )
         if self.cost.primary_view != "pareto_frontier":
