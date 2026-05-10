@@ -83,7 +83,6 @@ def _main(
 ) -> None:
     """eval-audit — verdict-grade audit reports for AI benchmark claims."""
     # Body intentionally empty; the callback exists to host the --version flag.
-    return
 
 
 @spec_app.command("validate")
@@ -552,9 +551,7 @@ def gate_cmd(
             err=True,
         )
         raise typer.Exit(code=2)
-    allowed_verdicts = [
-        verdict for verdict in DECISION_IMPACT_VOCAB if verdict in set(requested_verdicts)
-    ]
+    allowed_verdicts = requested_verdicts
 
     root = _resolve_repo_root(repo_root)
     study = StudySpec.from_yaml(study_yaml)
