@@ -66,9 +66,8 @@ def explain_decision_impact(
     suppressed_branches: list[str] = []
 
     if cost_available:
-        treatment_cost = ctx.treatment_cost_usd
-        control_cost = ctx.control_cost_usd
-        assert treatment_cost is not None and control_cost is not None
+        treatment_cost: float = ctx.treatment_cost_usd  # type: ignore[assignment]
+        control_cost: float = ctx.control_cost_usd  # type: ignore[assignment]
         cheaper_cost = min(treatment_cost, control_cost)
         gap = abs(treatment_cost - control_cost)
         cost_gap_ratio = gap / cheaper_cost if cheaper_cost > 0 else None

@@ -64,8 +64,8 @@ class ReadinessResult:
 
 
 def render_readiness_text(result: ReadinessResult) -> str:
-    errors = _count_failed(result, "error")
-    warnings = _count_failed(result, "warning")
+    errors = _count_failed_checks(result.checks, "error")
+    warnings = _count_failed_checks(result.checks, "warning")
     lines = [
         f"status: {result.status}",
         f"study: {result.study_id or 'n/a'}",
@@ -190,8 +190,8 @@ def check_evidence(
     repo_root: Path,
     initial_checks: list[ReadinessCheck] | None = None,
 ) -> ReadinessResult:
-    checks = list(initial_checks or [])
-    if not initial_checks:
+    checks: list[ReadinessCheck] = list(initial_checks) if initial_checks is not None else []
+    if initial_checks is None:
         checks.extend(
             [
                 _check("study_loads", "error", "pass", "study YAML loaded", {}),
@@ -642,10 +642,6 @@ def _result(study_id: str | None, checks: list[ReadinessCheck]) -> ReadinessResu
     else:
         status = "ready"
     return ReadinessResult(study_id=study_id, status=status, checks=checks)
-
-
-def _count_failed(result: ReadinessResult, severity: CheckSeverity) -> int:
-    return _count_failed_checks(result.checks, severity)
 
 
 def _count_failed_checks(checks: list[ReadinessCheck], severity: CheckSeverity) -> int:

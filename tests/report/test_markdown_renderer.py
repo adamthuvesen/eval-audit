@@ -438,7 +438,7 @@ def test_what_would_change_it__renderer_n_matches_resolution_function() -> None:
 
 def test_paired_task_count__includes_errored_rows_as_paired_tasks() -> None:
     """Errored rows still define paired tasks; they are counted as failures later."""
-    from eval_audit.report.markdown import _paired_task_count
+    from eval_audit.report.summary import paired_task_count
 
     runs = pl.DataFrame(
         [
@@ -449,7 +449,7 @@ def test_paired_task_count__includes_errored_rows_as_paired_tasks() -> None:
         ]
     )
 
-    assert _paired_task_count(runs, "treatment", "control") == 2
+    assert paired_task_count(runs, "treatment", "control") == 2
 
 
 def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
