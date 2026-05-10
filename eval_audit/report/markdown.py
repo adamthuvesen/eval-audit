@@ -19,6 +19,7 @@ from eval_audit.report.decisions import (
     explain_decision_impact,
 )
 from eval_audit.report.sensitivity import claim_context_for_result, compute_sensitivity_rows
+from eval_audit.report.summary import claim_status, dominant_cost_provenance, paired_task_count
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import CostProvenance
 from eval_audit.scouting_paths import resolve_decision_doc
@@ -70,14 +71,6 @@ _VERDICT_RATIONALE: dict[str, str] = {
         "cost data that triggers the cost-gap rule) shifts the picture."
     ),
 }
-
-
-def _claim_status(rejects: bool, direction_matches: bool) -> str:
-    if rejects and direction_matches:
-        return "supported"
-    if rejects and not direction_matches:
-        return "unsupported"
-    return "inconclusive"
 
 
 def _what_would_change_it(
@@ -502,9 +495,9 @@ def _render_audit_summary(
     for c in result.claims:
         ctx = claim_context_for_result(c, result, study)
         di = decision_impact(ctx)
-        status = _claim_status(c.rejects_null, ctx.direction_matches_claim)
+        status = claim_status(c.rejects_null, ctx.direction_matches_claim)
         ci_half_width = (c.delta_ci_high - c.delta_ci_low) / 2.0
-        n_paired = _paired_task_count(runs, c.treatment, c.control)
+        n_paired = paired_task_count(runs, c.treatment, c.control)
 
         if multi_claim:
             parts.append(f"### Claim `{c.claim_id}`\n")
@@ -525,21 +518,6 @@ def _render_audit_summary(
         parts.append("")
 
     return parts
-
-
-def _paired_task_count(runs: pl.DataFrame, treatment: str, control: str) -> int:
-    """Count the task IDs shared by both claim arms."""
-    treatment_tasks = (
-        runs.filter(pl.col("agent_id") == treatment)
-        .select("task_id")
-        .unique()
-    )
-    control_tasks = (
-        runs.filter(pl.col("agent_id") == control)
-        .select("task_id")
-        .unique()
-    )
-    return treatment_tasks.join(control_tasks, on="task_id", how="inner").height
 
 
 def _render_per_agent_summary(result: AnalysisResult) -> list[str]:
@@ -637,21 +615,6 @@ def _validate_report_outcome(study: StudySpec) -> None:
                 f"v0 reports support only claim outcome 'success_rate' "
                 f"(claim_id={claim.id!r}, outcome={claim.outcome!r})"
             )
-
-
-def _dominant_cost_provenance(runs: pl.DataFrame) -> str:
-    """Most-frequent ``cost_provenance`` value in the runs frame.
-
-    Used by controlled-evidence reports where there is no scouting
-    cost-reconciliation.json — provenance is per-row in the canonical parquet.
-    Falls back to ``n/a`` when the column is absent or empty.
-    """
-    if "cost_provenance" not in runs.columns or runs.is_empty():
-        return "n/a"
-    counts = runs.group_by("cost_provenance").len().sort("len", descending=True)
-    if counts.is_empty():
-        return "n/a"
-    return str(counts.row(0)[0])
 
 
 def _render_provenance_controlled_evidence(
@@ -849,7 +812,7 @@ def render_report(
         cost_provenance_class = cost_recon_data.get("outcome", "n/a")
     elif study.analysis_mode == "preregistered":
         # Controlled-evidence path: cost provenance is per-row in the runs frame.
-        cost_provenance_class = _dominant_cost_provenance(runs)
+        cost_provenance_class = dominant_cost_provenance(runs)
     else:
         # Public-submission re-analyses (declared_reanalysis) without a scouting
         # cost-reconciliation.json file. Today this fires for cost-suppressed
@@ -857,7 +820,7 @@ def render_report(
         # carried row-by-row as `cost_not_available`. Other provenance classes
         # for declared_reanalysis still come from the cost-reconciliation.json
         # so existing exhibits stay byte-identical.
-        row_level = _dominant_cost_provenance(runs)
+        row_level = dominant_cost_provenance(runs)
         if row_level == CostProvenance.COST_NOT_AVAILABLE.value:
             cost_provenance_class = row_level
     source_url = ""
@@ -885,7 +848,6 @@ def render_report(
 
     parts: list[str] = []
 
-    # 1. Audit Summary
     parts.extend(
         _render_audit_summary(
             result,
@@ -896,7 +858,6 @@ def render_report(
         )
     )
 
-    # 2. Study
     parts.append("## Study\n")
     parts.append(f"- **id:** `{study.id}`")
     parts.append(f"- **benchmark:** `{study.benchmark}`")
@@ -910,7 +871,6 @@ def render_report(
             parts.append(f"- **claim `{claim.id}`:** {claim.text}")
     parts.append("")
 
-    # 3. Provenance
     parts.append("## Provenance\n")
     if study.analysis_mode == "preregistered":
         parts.extend(
@@ -982,10 +942,8 @@ def render_report(
         )
         parts.append("")
 
-    # 4. Per-agent summary
     parts.extend(_render_per_agent_summary(result))
 
-    # 5. Claims
     parts.append("## Claims\n")
     target_mde = study.inference.target_mde
     if target_mde is not None:
@@ -1000,7 +958,7 @@ def render_report(
     for c in result.claims:
         ctx = claim_context_for_result(c, result, study)
         di = decision_impact(ctx)
-        status = _claim_status(c.rejects_null, ctx.direction_matches_claim)
+        status = claim_status(c.rejects_null, ctx.direction_matches_claim)
         adj = "n/a" if c.adjusted_p_value is None else f"{c.adjusted_p_value:.4f}"
         row = {
             "claim_id": c.claim_id,
@@ -1091,17 +1049,14 @@ def render_report(
             parts.append(f"| {r.dimension} | {r.value} | {verdict_cell} |")
         parts.append("")
 
-    # 6. Robustness Review
     parts.extend(
         _render_robustness_review(
             result, study, sensitivity_rows_by_claim, cost_provenance_class
         )
     )
 
-    # 7. Cost-quality view
     parts.extend(_render_cost_quality_view(result))
 
-    # 8. Residual risks
     parts.append("## Residual risks\n")
     parts.append(
         "**Inherited from scouting decision** (verbatim from "
@@ -1110,7 +1065,6 @@ def render_report(
     parts.append(residual_risks_text)
     parts.append("")
 
-    # 9. Reproducibility footer
     parts.append("## Reproducibility footer\n")
     parts.append(f"- **rendered_at:** `{rendered_at}`")
     parts.append(f"- **git_commit:** `{git_commit}`")
