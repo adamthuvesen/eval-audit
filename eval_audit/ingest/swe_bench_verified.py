@@ -20,6 +20,7 @@ artifacts.
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 import polars as pl
@@ -105,9 +106,8 @@ class SweBenchVerifiedAdapter:
             task_ids = group["task_id"].to_list()
             unique_tasks = set(task_ids)
             if len(task_ids) != len(unique_tasks):
-                duplicates = sorted(
-                    {t for t in task_ids if task_ids.count(t) > 1}
-                )[:3]
+                counts = Counter(task_ids)
+                duplicates = sorted(t for t, n in counts.items() if n > 1)[:3]
                 raise IngestContractError(
                     f"swe_bench_verified adapter found duplicate task_ids for "
                     f"agent_id={agent_id_str!r} (first 3: {duplicates}); each "
