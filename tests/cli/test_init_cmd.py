@@ -28,6 +28,19 @@ def test_init__creates_four_expected_files(runner: CliRunner, tmp_path: Path) ->
     ]
 
 
+def test_init__readme_names_current_run_commands(
+    runner: CliRunner, tmp_path: Path
+) -> None:
+    from eval_audit.cli import app
+
+    result = runner.invoke(app, ["init", "my-study", "--cwd", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+
+    readme = (tmp_path / "my-study" / "README.md").read_text()
+    assert "eval-audit audit study.yaml --runs runs.parquet" in readme
+    assert "eval-audit report ..." not in readme
+
+
 def test_init__scaffolded_study_yaml_parses_with_correct_id(
     runner: CliRunner, tmp_path: Path
 ) -> None:

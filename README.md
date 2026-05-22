@@ -142,6 +142,7 @@ The separate research-step flow remains supported:
 ```bash
 eval-audit init my-study
 # edit my-study/make_runs.py and my-study/study.yaml
+python my-study/make_runs.py
 eval-audit validate my-study/runs.parquet my-study/study.yaml
 eval-audit check my-study/study.yaml --runs my-study/runs.parquet
 eval-audit analyze my-study/study.yaml --runs my-study/runs.parquet
@@ -149,7 +150,11 @@ eval-audit report my-study/study.yaml --runs my-study/runs.parquet --skip-valida
 ```
 
 `validate` checks the input schemas in isolation. `check` evaluates whether the
-declared comparison is audit-ready.
+declared comparison is audit-ready. `audit` is the recommended command for a
+complete BYO run because it writes `check.json`, `analysis.json`, `report.md`,
+and `summary.json` together. The standalone `report --skip-validation` command
+is useful while inspecting the renderer; the CLI warns because it bypasses the
+source-checkout synthetic-validation gate.
 
 References:
 
@@ -166,6 +171,10 @@ eval-audit init my-first-audit
 cd my-first-audit
 eval-audit audit study.yaml --runs runs.parquet
 ```
+
+`init` creates `study.yaml`, `make_runs.py`, `README.md`, and an initial
+`runs.parquet`. After editing `make_runs.py`, run `python make_runs.py` before
+rerunning the audit.
 
 The audit artifacts are written to:
 
@@ -203,10 +212,12 @@ Useful commands:
 
 ```bash
 uv run eval-audit spec validate studies/gaia-hal-generalist.yaml
-uv run eval-audit audit examples/byo-minimal/study.yaml --runs examples/byo-minimal/runs.parquet
-uv run eval-audit analyze studies/gaia-hal-generalist.yaml
-uv run eval-audit report studies/gaia-hal-generalist.yaml
-uv run eval-audit portfolio reports --out portfolio.md
+uv run eval-audit audit examples/byo-minimal/study.yaml \
+  --runs examples/byo-minimal/runs.parquet \
+  --out-dir /tmp/eval-audit-reports
+uv run eval-audit analyze studies/gaia-hal-generalist.yaml --out-dir /tmp/eval-audit-reports
+uv run eval-audit report studies/gaia-hal-generalist.yaml --out-dir /tmp/eval-audit-reports
+uv run eval-audit portfolio reports --out /tmp/eval-audit-portfolio.md
 ```
 
 Snapshot updates are explicit:

@@ -95,9 +95,21 @@ Next steps:
    agent identifiers. Adjust `inference.target_mde` to the smallest effect
    you'd want to detect.
 4. Run `eval-audit validate runs.parquet study.yaml` to pre-flight.
-5. Run `eval-audit analyze study.yaml --runs runs.parquet` to write
-   `reports/{study_id}/analysis.json`, or `eval-audit report ...` for the
-   markdown audit report.
+5. Run `eval-audit audit study.yaml --runs runs.parquet` to write
+   `reports/{study_id}/check.json`, `analysis.json`, `report.md`, and
+   `summary.json`.
+
+For step-by-step inspection, use the decomposed commands:
+
+```bash
+eval-audit check study.yaml --runs runs.parquet
+eval-audit analyze study.yaml --runs runs.parquet
+eval-audit report study.yaml --runs runs.parquet --skip-validation
+```
+
+The standalone report command warns when `--skip-validation` is used because it
+bypasses the source-checkout synthetic-validation gate. Use `audit` for the
+complete final artifact set.
 
 For the formal field-by-field RunRecord reference, see
 [`agents/docs/INPUT_CONTRACT.md`](../agents/docs/INPUT_CONTRACT.md). For the

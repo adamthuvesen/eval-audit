@@ -10,19 +10,22 @@ The narrative worked example lives in [`examples/byo-minimal/`](../../examples/b
 
 `eval-audit` accepts run-level data through two deliberately different conventions:
 
-```
-ADAPTER PATH (existing benchmarks, demos)         BYO PATH (your data)
-────────────────────────────────────────         ─────────────────────
-eval-audit analyze studies/exhibit-a.yaml        eval-audit analyze study.yaml \
-                                                     --runs path/to/runs.parquet
+- **Adapter path (existing benchmarks, demos):**
 
-reads from a directory containing                reads from a single parquet file
-auxiliary files:                                 (no auxiliary files needed)
-  sample.parquet
-  cost-reconciliation.json
-  columns.json
-  provenance.json
-```
+  ```bash
+  eval-audit analyze studies/gaia-hal-generalist.yaml
+  ```
+
+  Reads from a directory containing auxiliary files such as `sample.parquet`,
+  `cost-reconciliation.json`, `columns.json`, and `provenance.json`.
+
+- **BYO path (your data):**
+
+  ```bash
+  eval-audit analyze study.yaml --runs path/to/runs.parquet
+  ```
+
+  Reads from a single parquet file; no auxiliary files are needed.
 
 The directory convention exists because real benchmark fixtures need provenance, cost reconciliation, and column-mapping receipts. The `--runs <file>` convention is for users whose data is already canonical — they have one parquet, not a directory of receipts.
 

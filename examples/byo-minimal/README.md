@@ -47,9 +47,10 @@ survives standard reviewer perturbations across five fixed dimensions.
    ```
 
    The audit writes `check.json`, `analysis.json`, `report.md`, and
-   `summary.json` under `reports/<study_id>/`. Use the decomposed
-   `validate`/`check`/`analyze`/`report` commands only when you need to
-   inspect each reproducibility step separately.
+   `summary.json` under `reports/<study_id>/`. This is the recommended final
+   BYO command because the four deterministic artifacts are created together.
+   Use the decomposed `validate`/`check`/`analyze`/`report` commands only when
+   you need to inspect each reproducibility step separately.
 
    ```bash
    eval-audit validate runs.parquet study.yaml
@@ -57,6 +58,10 @@ survives standard reviewer perturbations across five fixed dimensions.
    eval-audit analyze study.yaml --runs runs.parquet
    eval-audit report study.yaml --runs runs.parquet --skip-validation
    ```
+
+   The standalone report command warns when `--skip-validation` is used because
+   it bypasses the source-checkout synthetic-validation gate. Use `audit` for a
+   complete final artifact set.
 
 For the formal field-by-field `RunRecord` reference (every column, what
 analysis uses it for, BYO guidance for awkward fields), see
