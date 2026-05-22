@@ -26,7 +26,6 @@ from eval_audit.checks import (
     ReadinessResult,
     ReadinessStatus,
     check_evidence,
-    check_loaded_evidence,
     check_paths,
     render_readiness_text,
 )
@@ -39,19 +38,25 @@ from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 from eval_audit.ingest.swe_bench_verified import SweBenchVerifiedAdapter
 from eval_audit.ingest.synthetic import SyntheticAdapter
 from eval_audit.ingest.terminal_bench import TerminalBenchMuxAdapter
+from eval_audit.pipeline import (
+    claim_verdicts,
+    render_audit_markdown,
+    run_analysis,
+    run_readiness,
+    write_analysis_json,
+    write_check_json,
+    write_summary_json,
+)
 from eval_audit.portfolio import (
     load_portfolio_rows,
     portfolio_json_bytes,
     render_portfolio_markdown,
 )
-from eval_audit.report.decisions import DECISION_IMPACT_VOCAB, decision_impact
+from eval_audit.report.decisions import DECISION_IMPACT_VOCAB
 from eval_audit.report.html import render_html_report
-from eval_audit.report.markdown import render_report, render_report_to
-from eval_audit.report.sensitivity import claim_context_for_result
-from eval_audit.report.summary import build_audit_summary, summary_json_bytes
+from eval_audit.report.markdown import render_report_to
 from eval_audit.schema import StudySpec
 from eval_audit.spec import render_study_spec
-from eval_audit.stats import AnalysisResult, analyze
 
 _DETERMINISTIC_AUDIT_CLOCK = datetime(1970, 1, 1, tzinfo=UTC)
 _READINESS_RANK: dict[ReadinessStatus, int] = {
@@ -257,63 +262,6 @@ def _run_synthetic_validation_gate(repo_root: Path) -> bool:
     return result.returncode == 0
 
 
-def _serialise_result(result) -> dict:
-    out = dataclasses.asdict(result)
-    if isinstance(out.get("pareto_frontier"), set):
-        out["pareto_frontier"] = sorted(out["pareto_frontier"])
-    return out
-
-
-def _analysis_json_bytes(result: AnalysisResult) -> bytes:
-    return (
-        json.dumps(_serialise_result(result), allow_nan=False, indent=2, default=str) + "\n"
-    ).encode()
-
-
-def _write_analysis_json(result: AnalysisResult, target_dir: Path) -> Path:
-    target = target_dir / "analysis.json"
-    target.write_bytes(_analysis_json_bytes(result))
-    return target
-
-
-def _write_check_json(readiness: ReadinessResult, target_dir: Path) -> tuple[Path, str]:
-    check_json = readiness.to_json_bytes()
-    check_path = target_dir / "check.json"
-    check_path.write_bytes(check_json)
-    return check_path, hashlib.sha256(check_json).hexdigest()
-
-
-def _render_report_text(
-    result: AnalysisResult,
-    study: StudySpec,
-    runs_frame,
-    *,
-    root: Path,
-    runs_path: Path | None,
-    readiness: ReadinessResult,
-    check_sha256: str,
-    bootstrap_iterations: int,
-    bootstrap_seed: int,
-    deterministic_clock: bool = False,
-) -> str:
-    clock = (
-        (lambda: _DETERMINISTIC_AUDIT_CLOCK) if deterministic_clock else (lambda: datetime.now(UTC))
-    )
-    return render_report(
-        result,
-        study,
-        runs_frame,
-        clock=clock,
-        git_commit=_git_commit(root),
-        fixture_sha256=_fixture_sha256(study, root, runs_path),
-        repo_root=root,
-        bootstrap_iterations=bootstrap_iterations,
-        bootstrap_seed=bootstrap_seed,
-        evidence_readiness=readiness.status,
-        check_sha256=check_sha256,
-    )
-
-
 def _write_markdown_report(
     text: str,
     target_dir: Path,
@@ -327,50 +275,6 @@ def _write_html_report(markdown_text: str, study: StudySpec, target_dir: Path) -
     target = target_dir / "report.html"
     target.write_text(render_html_report(markdown_text, title=f"{study.id} audit report"))
     return target
-
-
-def _write_summary_json(
-    *,
-    result: AnalysisResult,
-    study: StudySpec,
-    runs_frame,
-    readiness: ReadinessResult,
-    target_dir: Path,
-    check_path: Path,
-    analysis_path: Path,
-    report_path: Path,
-    html_path: Path | None,
-) -> Path:
-    artifact_paths = {
-        "check_json": check_path,
-        "analysis_json": analysis_path,
-        "report_md": report_path,
-    }
-    if html_path is not None:
-        artifact_paths["report_html"] = html_path
-    payload = build_audit_summary(
-        result=result,
-        study=study,
-        runs=runs_frame,
-        readiness=readiness.status,
-        artifact_paths=artifact_paths,
-    )
-    target = target_dir / "summary.json"
-    target.write_bytes(summary_json_bytes(payload))
-    return target
-
-
-def _claim_verdicts(result: AnalysisResult, study: StudySpec) -> list[dict[str, str]]:
-    verdicts: list[dict[str, str]] = []
-    for claim in result.claims:
-        ctx = claim_context_for_result(claim, result, study)
-        verdicts.append(
-            {
-                "claim_id": claim.claim_id,
-                "verdict": decision_impact(ctx),
-            }
-        )
-    return verdicts
 
 
 def _failed_checks(readiness: ReadinessResult) -> list[ReadinessCheck]:
@@ -414,7 +318,7 @@ def analyze_cmd(
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
-    result = analyze(
+    result = run_analysis(
         study,
         runs_frame,
         bootstrap_iterations=bootstrap_iterations,
@@ -422,7 +326,7 @@ def analyze_cmd(
     )
     target_dir = out_dir / study.id
     target_dir.mkdir(parents=True, exist_ok=True)
-    target = _write_analysis_json(result, target_dir)
+    target = write_analysis_json(result, target_dir)
     typer.echo(f"wrote {target}")
 
 
@@ -448,12 +352,8 @@ def audit_cmd(
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
-    readiness = check_loaded_evidence(
-        study_yaml,
-        runs,
-        study,
-        runs_frame,
-        repo_root=root,
+    readiness = run_readiness(
+        study_yaml, runs, study, runs_frame, repo_root=root
     )
     if readiness.status == "not_ready":
         important = _most_important_failed_check(readiness)
@@ -470,35 +370,38 @@ def audit_cmd(
 
     target_dir = out_dir / study.id
     target_dir.mkdir(parents=True, exist_ok=True)
-    check_path, check_sha256 = _write_check_json(readiness, target_dir)
-    result = analyze(
+    check_path, check_sha256 = write_check_json(readiness, target_dir)
+    result = run_analysis(
         study,
         runs_frame,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
     )
-    analysis_path = _write_analysis_json(result, target_dir)
-    markdown_text = _render_report_text(
+    analysis_path = write_analysis_json(result, target_dir)
+    markdown_text = render_audit_markdown(
         result,
         study,
         runs_frame,
-        root=root,
+        repo_root=root,
         runs_path=runs,
         readiness=readiness,
         check_sha256=check_sha256,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
+        git_commit=_git_commit(root),
+        fixture_sha256=_fixture_sha256(study, root, runs),
         deterministic_clock=True,
     )
     report_path = _write_markdown_report(markdown_text, target_dir)
     html_path: Path | None = None
     if html:
         html_path = _write_html_report(markdown_text, study, target_dir)
-    summary_path = _write_summary_json(
+    summary_path = write_summary_json(
         result=result,
         study=study,
         runs_frame=runs_frame,
         readiness=readiness,
+        repo_root=root,
         target_dir=target_dir,
         check_path=check_path,
         analysis_path=analysis_path,
@@ -506,7 +409,7 @@ def audit_cmd(
         html_path=html_path,
     )
 
-    verdicts = _claim_verdicts(result, study)
+    verdicts = claim_verdicts(result, study)
     typer.echo(f"audit passed: study={study.id} readiness={readiness.status}")
     typer.echo(f"wrote {check_path}")
     typer.echo(f"wrote {analysis_path}")
@@ -568,12 +471,8 @@ def gate_cmd(
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
-    readiness = check_loaded_evidence(
-        study_yaml,
-        runs,
-        study,
-        runs_frame,
-        repo_root=root,
+    readiness = run_readiness(
+        study_yaml, runs, study, runs_frame, repo_root=root
     )
 
     failures: list[dict[str, object]] = []
@@ -597,13 +496,13 @@ def gate_cmd(
             }
         )
     else:
-        result = analyze(
+        result = run_analysis(
             study,
             runs_frame,
             bootstrap_iterations=bootstrap_iterations,
             bootstrap_seed=bootstrap_seed,
         )
-        claims = _claim_verdicts(result, study)
+        claims = claim_verdicts(result, study)
         for claim in claims:
             if claim["verdict"] not in allowed_verdicts:
                 failures.append(
