@@ -54,7 +54,7 @@ Every row in your parquet must populate every field listed below. Optional field
 ### harness
 
 - **Type:** `str` (required, non-null)
-- **Used by analysis:** yes — cross-harness comparison refusal. The renderer raises `CrossHarnessComparisonError` if a study's claim spans two harnesses.
+- **Used by analysis:** yes — cross-harness comparison refusal. `analyze()` raises `CrossHarnessComparisonError` if a claim's treatment and control run under different harnesses; other harness or missing-row failures raise `AnalysisInputError`.
 - **BYO guidance:** all rows in a single audit must share one harness value. Pick a string that names the scaffold (e.g. `"my-harness"`).
 
 ### run_id
