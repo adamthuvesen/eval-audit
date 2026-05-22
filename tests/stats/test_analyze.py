@@ -101,7 +101,7 @@ def test_analyze__rows_must_match_declared_study_harness() -> None:
     """
     import pytest
 
-    from eval_audit.stats import CrossHarnessComparisonError, analyze
+    from eval_audit.stats import AnalysisInputError, analyze
 
     frame = pl.DataFrame([
         _row("agent_t", "t01", "tau_bench_tool_calling"),
@@ -111,7 +111,7 @@ def test_analyze__rows_must_match_declared_study_harness() -> None:
     ])
     study = _stub_study("agent_t", "agent_c", "hal_generalist_agent")
 
-    with pytest.raises(CrossHarnessComparisonError) as exc_info:
+    with pytest.raises(AnalysisInputError) as exc_info:
         analyze(study, frame)
 
     msg = str(exc_info.value)
@@ -125,7 +125,7 @@ def test_analyze__missing_claimed_agent_rows_fail_clearly() -> None:
     """
     import pytest
 
-    from eval_audit.stats import CrossHarnessComparisonError, analyze
+    from eval_audit.stats import AnalysisInputError, analyze
 
     frame = pl.DataFrame([
         _row("agent_t", "t01", "hal_generalist_agent"),
@@ -133,7 +133,7 @@ def test_analyze__missing_claimed_agent_rows_fail_clearly() -> None:
     ])
     study = _stub_study("agent_t", "agent_c", "hal_generalist_agent")
 
-    with pytest.raises(CrossHarnessComparisonError) as exc_info:
+    with pytest.raises(AnalysisInputError) as exc_info:
         analyze(study, frame)
 
     msg = str(exc_info.value)
