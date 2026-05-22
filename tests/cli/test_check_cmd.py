@@ -114,6 +114,39 @@ def test_check__out_writes_json_while_preserving_human_stdout(
     assert payload["study_id"] == "byo-minimal"
 
 
+def test_check__invalid_yaml_syntax_is_not_a_traceback(
+    runner: CliRunner,
+    repo_root: Path,
+    tmp_path: Path,
+) -> None:
+    from eval_audit.cli import app
+
+    bad_study = tmp_path / "bad-study.yaml"
+    bad_study.write_text("schema_version: [\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "check",
+            str(bad_study),
+            "--runs",
+            str(repo_root / "examples" / "byo-minimal" / "runs.parquet"),
+            "--repo-root",
+            str(repo_root),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Traceback" not in result.output
+    payload = json.loads(result.output)
+    assert payload["status"] == "not_ready"
+    check = _check_by_id(payload, "study_loads")
+    assert check["status"] == "fail"
+    assert "bad-study.yaml" in check["details"]["path"]
+    assert "Fix the study YAML path or schema errors" in check["fix_suggestion"]
+
+
 def test_check__fails_when_claimed_agent_is_absent(
     runner: CliRunner, repo_root: Path, tmp_path: Path
 ) -> None:

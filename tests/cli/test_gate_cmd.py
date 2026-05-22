@@ -137,6 +137,34 @@ def test_gate__rejects_unknown_verdict_name(
     assert "inconclusive_no_action" in result.output
 
 
+def test_gate__invalid_study_yaml_exits_nonzero_without_traceback(
+    runner: CliRunner,
+    repo_root: Path,
+    tmp_path: Path,
+) -> None:
+    from eval_audit.cli import app
+
+    bad_study = tmp_path / "bad-study.yaml"
+    bad_study.write_text("schema_version: 1\nid: bad\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "gate",
+            str(bad_study),
+            "--runs",
+            str(repo_root / "examples" / "byo-minimal" / "runs.parquet"),
+            "--bootstrap-iterations",
+            "10",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "invalid study YAML" in result.output
+    assert "Field required" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_gate__fails_when_not_ready_with_fix_suggestion(
     runner: CliRunner,
     repo_root: Path,

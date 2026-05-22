@@ -49,6 +49,28 @@ def test_validate__missing_runs_path_exits_nonzero(
     assert "nonexistent.parquet" in result.output
 
 
+def test_validate__non_parquet_runs_file_exits_nonzero_without_traceback(
+    runner: CliRunner, repo_root: Path, tmp_path: Path
+) -> None:
+    from eval_audit.cli import app
+
+    bad_runs = tmp_path / "runs.txt"
+    bad_runs.write_text("not parquet")
+
+    result = runner.invoke(
+        app,
+        [
+            "validate",
+            str(bad_runs),
+            str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "could not read runs parquet" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_validate__malformed_parquet_names_row_and_field(
     runner: CliRunner, repo_root: Path, tmp_path: Path
 ) -> None:

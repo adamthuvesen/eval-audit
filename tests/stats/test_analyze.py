@@ -141,6 +141,38 @@ def test_analyze__missing_claimed_agent_rows_fail_clearly() -> None:
     assert "no rows" in msg
 
 
+def test_analyze__zero_success_cost_per_success_is_null() -> None:
+    """WHEN an agent has cost but zero successful tasks,
+    THEN cost_per_success_usd is unavailable rather than JSON-hostile infinity.
+    """
+    import pytest
+
+    from eval_audit.stats import analyze
+
+    rows = []
+    for task_id in ("t01", "t02"):
+        treatment = _row("agent_t", task_id, "hal_generalist_agent")
+        treatment["success"] = False
+        treatment["partial_credit"] = False
+        control = _row("agent_c", task_id, "hal_generalist_agent")
+        control["success"] = False
+        control["partial_credit"] = False
+        rows.extend([treatment, control])
+
+    result = analyze(
+        _stub_study("agent_t", "agent_c", "hal_generalist_agent"),
+        pl.DataFrame(rows),
+        bootstrap_iterations=20,
+        bootstrap_seed=42,
+    )
+
+    by_id = {summary.agent_id: summary for summary in result.per_agent}
+    assert by_id["agent_t"].total_cost_usd == pytest.approx(0.002)
+    assert by_id["agent_c"].total_cost_usd == pytest.approx(0.002)
+    assert by_id["agent_t"].cost_per_success_usd is None
+    assert by_id["agent_c"].cost_per_success_usd is None
+
+
 def test_analyze__benjamini_hochberg_dispatches_to_bh(monkeypatch) -> None:
     """WHEN correction_method is benjamini_hochberg,
     THEN analyze reports BH adjusted p-values rather than raw p-values.

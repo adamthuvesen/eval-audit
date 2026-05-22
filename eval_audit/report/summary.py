@@ -167,4 +167,6 @@ def build_audit_summary(
 
 
 def summary_json_bytes(payload: dict[str, Any]) -> bytes:
-    return (json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n").encode()
+    return (
+        json.dumps(payload, allow_nan=False, indent=2, sort_keys=True, default=str) + "\n"
+    ).encode()

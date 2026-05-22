@@ -234,7 +234,7 @@ def _agent_summary(
         total_cost = float(per_run["_r"].sum())
     else:
         total_cost = float(graded["reconstructed_per_task_cost_usd"].sum())
-    cost_per_success = total_cost / successes if successes else float("inf")
+    cost_per_success = total_cost / successes if successes else None
     return AgentSummary(
         agent_id=agent_id,
         n_graded=n_graded,

@@ -101,6 +101,33 @@ def test_runs_flag__no_flag_preserves_adapter_path_for_existing_exhibits(
     assert (out_dir / "gaia-hal-generalist" / "analysis.json").exists()
 
 
+def test_runs_flag__no_flag_for_byo_study_names_runs_fix(
+    runner: CliRunner, repo_root: Path, tmp_path: Path
+) -> None:
+    from eval_audit.cli import app
+
+    out_dir = tmp_path / "reports"
+    result = runner.invoke(
+        app,
+        [
+            "analyze",
+            str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+            "--bootstrap-iterations",
+            "200",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Pass --runs PATH" in result.output
+    assert "benchmark='byo-minimal'" in result.output
+    assert "Traceback" not in result.output
+    assert not (out_dir / "byo-minimal" / "analysis.json").exists()
+
+
 def test_runs_flag__missing_path_exits_nonzero_with_clear_error(
     runner: CliRunner, repo_root: Path, tmp_path: Path
 ) -> None:
@@ -120,6 +147,62 @@ def test_runs_flag__missing_path_exits_nonzero_with_clear_error(
 
     assert result.exit_code != 0
     assert "nonexistent.parquet" in result.output
+    assert not (out_dir / "byo-minimal" / "analysis.json").exists()
+
+
+def test_runs_flag__non_parquet_file_exits_nonzero_without_traceback(
+    runner: CliRunner, repo_root: Path, tmp_path: Path
+) -> None:
+    from eval_audit.cli import app
+
+    bad_runs = tmp_path / "runs.txt"
+    bad_runs.write_text("not parquet")
+    out_dir = tmp_path / "reports"
+
+    result = runner.invoke(
+        app,
+        [
+            "analyze",
+            str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
+            "--runs",
+            str(bad_runs),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "could not read runs parquet" in result.output
+    assert "Traceback" not in result.output
+    assert not (out_dir / "byo-minimal" / "analysis.json").exists()
+
+
+def test_runs_flag__directory_path_exits_nonzero_without_traceback(
+    runner: CliRunner, repo_root: Path, tmp_path: Path
+) -> None:
+    from eval_audit.cli import app
+
+    out_dir = tmp_path / "reports"
+
+    result = runner.invoke(
+        app,
+        [
+            "analyze",
+            str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
+            "--runs",
+            str(repo_root / "examples" / "byo-minimal"),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "runs parquet must be a readable file" in result.output
+    assert "Traceback" not in result.output
     assert not (out_dir / "byo-minimal" / "analysis.json").exists()
 
 

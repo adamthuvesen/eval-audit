@@ -74,6 +74,37 @@ def test_cli_report__skip_flag_warns(
     assert (out_dir / "gaia-hal-generalist" / "report.md").exists()
 
 
+def test_cli_report__invalid_study_yaml_exits_nonzero_without_traceback(
+    runner: CliRunner,
+    tmp_path: Path,
+) -> None:
+    from eval_audit.cli import app
+
+    bad_study = tmp_path / "bad-study.yaml"
+    bad_study.write_text("schema_version: 1\nid: bad\n")
+    out_dir = tmp_path / "reports"
+
+    result = runner.invoke(
+        app,
+        [
+            "report",
+            str(bad_study),
+            "--out-dir",
+            str(out_dir),
+            "--skip-validation",
+            "--bootstrap-iterations",
+            "10",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "invalid study YAML" in result.output
+    assert "Field required" in result.output
+    assert "Traceback" not in result.output
+    assert "synthetic validation skipped" not in result.output
+    assert not out_dir.exists()
+
+
 def test_cli_report__writes_readiness_json_and_footer_hash(
     runner: CliRunner,
     repo_root: Path,

@@ -18,6 +18,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
+from yaml import YAMLError
 
 from eval_audit.checks import (
     ReadinessCheck,
@@ -85,18 +87,20 @@ def _main(
     # Body intentionally empty; the callback exists to host the --version flag.
 
 
+def _load_study_or_exit(study_yaml: Path) -> StudySpec:
+    try:
+        return StudySpec.from_yaml(study_yaml)
+    except (ValidationError, ValueError, YAMLError) as exc:
+        typer.echo(f"invalid study YAML {study_yaml}: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+
 @spec_app.command("validate")
 def spec_validate_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
 ) -> None:
     """Load STUDY_YAML through StudySpec.from_yaml; exit non-zero on validation failure."""
-    from pydantic import ValidationError
-
-    try:
-        study = StudySpec.from_yaml(study_yaml)
-    except ValidationError as exc:
-        typer.echo(str(exc))
-        raise typer.Exit(code=2) from exc
+    study = _load_study_or_exit(study_yaml)
     typer.echo(f"OK: {study.id}")
 
 
@@ -117,7 +121,7 @@ def spec_render_cmd(
         )
         raise typer.Exit(code=2)
 
-    study = StudySpec.from_yaml(study_yaml)
+    study = _load_study_or_exit(study_yaml)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(render_study_spec(study))
     typer.echo(f"wrote {out}")
@@ -156,7 +160,9 @@ def _resolve_repo_root(explicit: Path | None) -> Path:
 def _fixture_source(study: StudySpec, repo_root: Path) -> _FixtureSource:
     if study.benchmark not in _ADAPTERS:
         raise typer.BadParameter(
-            f"no ingest adapter for benchmark={study.benchmark!r}; known: {sorted(_ADAPTERS)}"
+            f"no benchmark-keyed ingest adapter for benchmark={study.benchmark!r}. "
+            "Pass --runs PATH for canonical BYO RunRecord parquet, or use one "
+            f"of the adapter-backed benchmarks: {sorted(_ADAPTERS)}"
         )
     if study.benchmark == "synthetic":
         source = repo_root / "scouting" / "synthetic"
@@ -190,7 +196,11 @@ def _resolve_runs_frame(study: StudySpec, repo_root: Path, runs_override: Path |
             err=True,
         )
         raise typer.Exit(code=1)
-    return load_run_records(runs_override)
+    try:
+        return load_run_records(runs_override)
+    except IngestContractError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
 
 def _git_commit(repo_root: Path) -> str:
@@ -255,7 +265,9 @@ def _serialise_result(result) -> dict:
 
 
 def _analysis_json_bytes(result: AnalysisResult) -> bytes:
-    return (json.dumps(_serialise_result(result), indent=2, default=str) + "\n").encode()
+    return (
+        json.dumps(_serialise_result(result), allow_nan=False, indent=2, default=str) + "\n"
+    ).encode()
 
 
 def _write_analysis_json(result: AnalysisResult, target_dir: Path) -> Path:
@@ -400,7 +412,7 @@ def analyze_cmd(
 ) -> None:
     """Run analysis end-to-end and write `reports/<id>/analysis.json`."""
     root = _resolve_repo_root(repo_root)
-    study = StudySpec.from_yaml(study_yaml)
+    study = _load_study_or_exit(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
     result = analyze(
         study,
@@ -434,7 +446,7 @@ def audit_cmd(
 ) -> None:
     """Validate, check readiness, analyze, and write check.json, analysis.json, report.md, and summary.json."""
     root = _resolve_repo_root(repo_root)
-    study = StudySpec.from_yaml(study_yaml)
+    study = _load_study_or_exit(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
     readiness = check_loaded_evidence(
         study_yaml,
@@ -554,7 +566,7 @@ def gate_cmd(
     allowed_verdicts = requested_verdicts
 
     root = _resolve_repo_root(repo_root)
-    study = StudySpec.from_yaml(study_yaml)
+    study = _load_study_or_exit(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
     readiness = check_loaded_evidence(
         study_yaml,
@@ -614,7 +626,10 @@ def gate_cmd(
     }
 
     if json_output:
-        typer.echo(json.dumps(payload, indent=2, sort_keys=True) + "\n", nl=False)
+        typer.echo(
+            json.dumps(payload, allow_nan=False, indent=2, sort_keys=True) + "\n",
+            nl=False,
+        )
     else:
         typer.echo(f"gate {status}: study={study.id} readiness={readiness.status}")
         if claims:
@@ -696,6 +711,7 @@ def report_cmd(
 ) -> None:
     """Run validation gate, then write `reports/<id>/report.md`."""
     root = _resolve_repo_root(repo_root)
+    study = _load_study_or_exit(study_yaml)
 
     if skip_validation:
         typer.echo(
@@ -709,7 +725,6 @@ def report_cmd(
             typer.echo("synthetic-validation gate FAILED; refusing to write report.", err=True)
             raise typer.Exit(code=1)
 
-    study = StudySpec.from_yaml(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
     readiness = check_evidence(study, runs_frame, repo_root=root)
     if readiness.status == "not_ready":
@@ -836,8 +851,6 @@ def validate_cmd(
     study: Path = typer.Argument(..., help="Path to a StudySpec YAML file."),
 ) -> None:
     """Pre-flight check: validate a runs parquet and a study YAML in isolation."""
-    from pydantic import ValidationError
-
     if not runs.exists():
         typer.echo(f"runs path does not exist: {runs}", err=True)
         raise typer.Exit(code=1)
@@ -850,11 +863,7 @@ def validate_cmd(
     if not study.exists():
         typer.echo(f"study path does not exist: {study}", err=True)
         raise typer.Exit(code=1)
-    try:
-        study_spec = StudySpec.from_yaml(study)
-    except ValidationError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from exc
+    study_spec = _load_study_or_exit(study)
 
     typer.echo(f"OK: {frame.height} rows, study {study_spec.id!r}")
 

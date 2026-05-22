@@ -546,7 +546,8 @@ def _render_per_agent_summary(result: AnalysisResult) -> list[str]:
         parts.append("|---|---:|---:|---:|---:|---:|---:|---:|")
         for s in result.per_agent:
             cps = (
-                "inf" if s.cost_per_success_usd == float("inf")
+                "n/a"
+                if s.cost_per_success_usd is None
                 else _format_currency(s.cost_per_success_usd)
             )
             parts.append(

@@ -9,6 +9,7 @@ from typing import Literal
 
 import polars as pl
 from pydantic import ValidationError
+from yaml import YAMLError
 
 from eval_audit.ingest import IngestContractError
 from eval_audit.ingest.generic import load_run_records
@@ -57,7 +58,7 @@ class ReadinessResult:
         }
 
     def to_json(self) -> str:
-        return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
+        return json.dumps(self.to_dict(), allow_nan=False, indent=2, sort_keys=True) + "\n"
 
     def to_json_bytes(self) -> bytes:
         return self.to_json().encode()
@@ -95,7 +96,7 @@ def check_paths(
 
     try:
         study = StudySpec.from_yaml(study_yaml)
-    except (FileNotFoundError, ValidationError, ValueError) as exc:
+    except (FileNotFoundError, ValidationError, ValueError, YAMLError) as exc:
         checks.append(
             _check(
                 "study_loads",

@@ -3,11 +3,23 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from eval_audit.report.summary import file_sha256
+
+REQUIRED_CLAIM_TEXT_FIELDS: tuple[str, ...] = (
+    "study_id",
+    "claim_id",
+    "treatment",
+    "control",
+    "verdict",
+    "readiness",
+    "cost_provenance",
+)
+REQUIRED_CLAIM_NUMERIC_FIELDS: tuple[str, ...] = ("delta", "ci_low", "ci_high")
 
 
 @dataclass(frozen=True)
@@ -93,12 +105,57 @@ def _staleness_note(report_dir: Path, payload: dict[str, Any]) -> str | None:
     return None
 
 
+def _required_text(claim: dict[str, Any], key: str) -> str:
+    value = claim[key]
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{key} must be a non-empty string")
+    return value
+
+
+def _required_finite_float(claim: dict[str, Any], key: str) -> float:
+    value = claim[key]
+    if isinstance(value, bool):
+        raise ValueError(f"{key} must be a finite number")
+    converted = float(value)
+    if not math.isfinite(converted):
+        raise ValueError(f"{key} must be a finite number")
+    return converted
+
+
+def _complete_claim_row(report_dir: Path, claim: object) -> PortfolioRow:
+    if not isinstance(claim, dict):
+        raise ValueError("claim record is not an object")
+    for key in REQUIRED_CLAIM_TEXT_FIELDS:
+        _required_text(claim, key)
+    numeric_fields = {
+        key: _required_finite_float(claim, key) for key in REQUIRED_CLAIM_NUMERIC_FIELDS
+    }
+    return PortfolioRow(
+        study_id=claim["study_id"],
+        claim_id=claim["claim_id"],
+        treatment=claim["treatment"],
+        control=claim["control"],
+        verdict=claim["verdict"],
+        readiness=claim["readiness"],
+        delta=numeric_fields["delta"],
+        ci_low=numeric_fields["ci_low"],
+        ci_high=numeric_fields["ci_high"],
+        cost_provenance=claim["cost_provenance"],
+        artifact_status="complete",
+        report_dir=str(report_dir),
+        note=str(claim.get("cost_caveat", "")),
+    )
+
+
 def load_portfolio_rows(reports_dir: Path) -> list[PortfolioRow]:
     rows: list[PortfolioRow] = []
     for report_dir in _candidate_report_dirs(reports_dir):
         summary_path = report_dir / "summary.json"
         if not summary_path.exists():
-            if any((report_dir / name).exists() for name in ("report.md", "analysis.json", "check.json")):
+            if any(
+                (report_dir / name).exists()
+                for name in ("report.md", "analysis.json", "check.json")
+            ):
                 rows.append(
                     _incomplete_row(
                         report_dir,
@@ -111,6 +168,15 @@ def load_portfolio_rows(reports_dir: Path) -> list[PortfolioRow]:
             payload = json.loads(summary_path.read_text())
         except json.JSONDecodeError as exc:
             rows.append(_incomplete_row(report_dir, "invalid_summary", str(exc)))
+            continue
+        if not isinstance(payload, dict):
+            rows.append(
+                _incomplete_row(
+                    report_dir,
+                    "invalid_summary",
+                    "summary.json root must be an object",
+                )
+            )
             continue
         stale_note = _staleness_note(report_dir, payload)
         if stale_note is not None:
@@ -126,24 +192,18 @@ def load_portfolio_rows(reports_dir: Path) -> list[PortfolioRow]:
                 )
             )
             continue
-        for claim in claims:
+        try:
+            claim_rows = [_complete_claim_row(report_dir, claim) for claim in claims]
+        except (KeyError, TypeError, ValueError) as exc:
             rows.append(
-                PortfolioRow(
-                    study_id=str(claim["study_id"]),
-                    claim_id=str(claim["claim_id"]),
-                    treatment=str(claim["treatment"]),
-                    control=str(claim["control"]),
-                    verdict=str(claim["verdict"]),
-                    readiness=str(claim["readiness"]),
-                    delta=float(claim["delta"]),
-                    ci_low=float(claim["ci_low"]),
-                    ci_high=float(claim["ci_high"]),
-                    cost_provenance=str(claim["cost_provenance"]),
-                    artifact_status="complete",
-                    report_dir=str(report_dir),
-                    note=str(claim.get("cost_caveat", "")),
+                _incomplete_row(
+                    report_dir,
+                    "invalid_summary",
+                    f"summary.json has invalid claim record: {exc}",
                 )
             )
+        else:
+            rows.extend(claim_rows)
     return sorted(
         rows,
         key=lambda row: (
@@ -156,7 +216,7 @@ def load_portfolio_rows(reports_dir: Path) -> list[PortfolioRow]:
 
 def portfolio_json_bytes(rows: list[PortfolioRow]) -> bytes:
     payload = {"schema_version": 1, "rows": [row.as_dict() for row in rows]}
-    return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+    return (json.dumps(payload, allow_nan=False, indent=2, sort_keys=True) + "\n").encode()
 
 
 def _format_pp(value: float | None) -> str:

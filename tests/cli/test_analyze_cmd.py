@@ -44,6 +44,80 @@ def test_cli_analyze__rejects_zero_bootstrap_iterations(
     assert not (out_dir / "gaia-hal-generalist" / "analysis.json").exists()
 
 
+def test_cli_analyze__invalid_study_yaml_exits_nonzero_without_traceback(
+    runner: CliRunner,
+    tmp_path: Path,
+) -> None:
+    from eval_audit.cli import app
+
+    bad_study = tmp_path / "bad-study.yaml"
+    bad_study.write_text("schema_version: 1\nid: bad\n")
+    out_dir = tmp_path / "reports"
+
+    result = runner.invoke(
+        app,
+        [
+            "analyze",
+            str(bad_study),
+            "--out-dir",
+            str(out_dir),
+            "--bootstrap-iterations",
+            "10",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "invalid study YAML" in result.output
+    assert "Field required" in result.output
+    assert "Traceback" not in result.output
+    assert not out_dir.exists()
+
+
+def test_cli_analyze__zero_success_cost_per_success_serializes_as_null(
+    runner: CliRunner,
+    repo_root: Path,
+    tmp_path: Path,
+) -> None:
+    import json
+
+    import polars as pl
+
+    from eval_audit.cli import app
+
+    source = pl.read_parquet(repo_root / "examples" / "byo-minimal" / "runs.parquet")
+    zero_success_runs = source.with_columns(
+        success=pl.lit(False),
+        partial_credit=pl.lit(False),
+    )
+    runs_path = tmp_path / "zero-success-runs.parquet"
+    zero_success_runs.write_parquet(runs_path)
+    out_dir = tmp_path / "reports"
+
+    result = runner.invoke(
+        app,
+        [
+            "analyze",
+            str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
+            "--runs",
+            str(runs_path),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+            "--bootstrap-iterations",
+            "200",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    analysis_text = (out_dir / "byo-minimal" / "analysis.json").read_text()
+    assert "Infinity" not in analysis_text
+    assert "NaN" not in analysis_text
+
+    analysis = json.loads(analysis_text)
+    assert {agent["cost_per_success_usd"] for agent in analysis["per_agent"]} == {None}
+
+
 def test_cli_analyze__swe_bench_verified_resolves_examples_backed_fixture(
     runner: CliRunner,
     repo_root: Path,

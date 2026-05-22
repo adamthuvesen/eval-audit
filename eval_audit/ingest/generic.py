@@ -13,8 +13,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import polars as pl
+from polars.exceptions import PolarsError
 
-from eval_audit.ingest.base import validate_run_records
+from eval_audit.ingest.base import IngestContractError, validate_run_records
 
 
 def load_run_records(parquet_path: Path) -> pl.DataFrame:
@@ -29,6 +30,11 @@ def load_run_records(parquet_path: Path) -> pl.DataFrame:
     Pydantic model. The original ``pydantic.ValidationError`` is preserved
     as ``__cause__`` for debug consumers.
     """
-    frame = pl.read_parquet(parquet_path)
+    if not parquet_path.is_file():
+        raise IngestContractError(f"runs parquet must be a readable file: {parquet_path}")
+    try:
+        frame = pl.read_parquet(parquet_path)
+    except (OSError, PolarsError) as exc:
+        raise IngestContractError(f"could not read runs parquet {parquet_path}: {exc}") from exc
     validate_run_records(frame)
     return frame

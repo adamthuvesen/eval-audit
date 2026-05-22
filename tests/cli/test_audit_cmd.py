@@ -106,6 +106,38 @@ def test_audit__not_ready_stops_before_analysis_and_report(
     assert not (out_dir / "byo-minimal" / "summary.json").exists()
 
 
+def test_audit__invalid_study_yaml_exits_nonzero_without_traceback(
+    runner: CliRunner,
+    repo_root: Path,
+    tmp_path: Path,
+) -> None:
+    from eval_audit.cli import app
+
+    bad_study = tmp_path / "bad-study.yaml"
+    bad_study.write_text("schema_version: 1\nid: bad\n")
+    out_dir = tmp_path / "reports"
+
+    result = runner.invoke(
+        app,
+        [
+            "audit",
+            str(bad_study),
+            "--runs",
+            str(repo_root / "examples" / "byo-minimal" / "runs.parquet"),
+            "--out-dir",
+            str(out_dir),
+            "--bootstrap-iterations",
+            "10",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "invalid study YAML" in result.output
+    assert "Field required" in result.output
+    assert "Traceback" not in result.output
+    assert not out_dir.exists()
+
+
 def test_audit__cross_harness_refusal_does_not_write_report(
     runner: CliRunner,
     repo_root: Path,
