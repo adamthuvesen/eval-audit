@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import click
 import polars as pl
 import pytest
 from typer.testing import CliRunner
@@ -122,8 +123,9 @@ def test_runs_flag__no_flag_for_byo_study_names_runs_fix(
     )
 
     assert result.exit_code != 0
-    assert "Pass --runs PATH" in result.output
-    assert "benchmark='byo-minimal'" in result.output
+    plain_output = " ".join(click.unstyle(result.output).split())
+    assert "Pass --runs PATH" in plain_output
+    assert "benchmark='byo-minimal'" in plain_output
     assert "Traceback" not in result.output
     assert not (out_dir / "byo-minimal" / "analysis.json").exists()
 
