@@ -89,7 +89,7 @@ def test_analyze__declared_non_claim_agent_with_no_rows_raises() -> None:
     for a missing agent would otherwise distort the per-agent report table
     and the Pareto frontier inputs.
     """
-    from eval_audit.stats.analyze import CrossHarnessComparisonError, analyze
+    from eval_audit.stats import AnalysisInputError, analyze
 
     rows: list[dict] = []
     for i in range(4):
@@ -100,7 +100,7 @@ def test_analyze__declared_non_claim_agent_with_no_rows_raises() -> None:
     frame = pl.DataFrame(rows, strict=False)
     study = _three_agent_study()
 
-    with pytest.raises(CrossHarnessComparisonError) as excinfo:
+    with pytest.raises(AnalysisInputError) as excinfo:
         analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
 
     msg = str(excinfo.value)

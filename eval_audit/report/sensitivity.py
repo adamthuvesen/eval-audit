@@ -31,10 +31,10 @@ import polars as pl
 from eval_audit.report.decisions import ClaimContext, decision_impact, direction_matches_claim
 from eval_audit.schema import StudySpec
 from eval_audit.stats import AnalysisResult, ClaimResult
+from eval_audit.stats.agent_metrics import ErroredRowPolicy, summarize_agents_for_pareto
+from eval_audit.stats.analyze import paired_task_p_value
 from eval_audit.stats.bootstrap import paired_task_bootstrap
 from eval_audit.stats.correction import benjamini_hochberg, holm_bonferroni
-from eval_audit.stats.intervals import wilson_interval
-from eval_audit.stats.outcomes import success_rate_numeric_expr
 from eval_audit.stats.pareto import pareto_frontier
 
 
@@ -233,11 +233,6 @@ def verdict_with_errored_excluded(
         seed=bootstrap_seed,
     )
 
-    # Recompute paired raw p on the graded-only frame and re-apply the study's
-    # correction across the family. This keeps the rejection basis identical
-    # to the baseline (correction-adjusted paired-p test vs alpha).
-    from eval_audit.stats.analyze import paired_task_p_value
-
     perturbed_raw_p = paired_task_p_value(treatment_rows, control_rows)
     raw_p_pairs: list[tuple[str, float]] = []
     for c in result.claims:
@@ -263,40 +258,21 @@ def verdict_with_errored_excluded(
     if result.pareto_status == "suppressed_cost_not_available":
         treatment_is_dominated = False
     else:
-        per_agent_rows: list[dict] = []
-        for agent_ref in study.agents:
-            agent_id = agent_ref.id
-            rows = graded.filter(pl.col("agent_id") == agent_id)
-            if rows.height == 0:
-                continue
-            successes = int(
-                rows.select(success_rate_numeric_expr().sum().alias("_successes"))[
-                    "_successes"
-                ][0]
-            )
-            n = rows.height
-            rate, _, _ = wilson_interval(successes, n, alpha) if n else (0.0, 0.0, 1.0)
-            if rows["reconstructed_per_task_cost_usd"].null_count() == rows.height:
-                cost = float(
-                    rows.group_by("run_id")
-                    .agg(pl.col("reported_run_total_cost_usd").first().alias("_r"))["_r"]
-                    .sum()
-                )
-            else:
-                cost = float(rows["reconstructed_per_task_cost_usd"].sum())
-            per_agent_rows.append(
-                {"agent_id": agent_id, "success_rate": rate, "cost": cost}
-            )
-
-        if per_agent_rows:
+        per_agent_for_pareto = summarize_agents_for_pareto(
+            study,
+            runs,
+            alpha,
+            policy=ErroredRowPolicy.graded_only,
+        )
+        if per_agent_for_pareto is None:
+            treatment_is_dominated = False
+        else:
             frontier = pareto_frontier(
-                pl.DataFrame(per_agent_rows),
+                per_agent_for_pareto,
                 success_col="success_rate",
                 cost_col="cost",
             )
             treatment_is_dominated = claim.treatment not in frontier
-        else:
-            treatment_is_dominated = False
 
     direction_matches = direction_matches_claim(
         study.primary_outcome.direction,

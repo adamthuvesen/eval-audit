@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+
+def _pair_costs(ctx: ClaimContext) -> tuple[float, float]:
+    assert ctx.treatment_cost_usd is not None and ctx.control_cost_usd is not None
+    return ctx.treatment_cost_usd, ctx.control_cost_usd
+
+
 DECISION_IMPACT_VOCAB: tuple[str, ...] = (
     "switch",
     "hold",
@@ -66,8 +72,7 @@ def explain_decision_impact(
     suppressed_branches: list[str] = []
 
     if cost_available:
-        treatment_cost: float = ctx.treatment_cost_usd  # type: ignore[assignment]
-        control_cost: float = ctx.control_cost_usd  # type: ignore[assignment]
+        treatment_cost, control_cost = _pair_costs(ctx)
         cheaper_cost = min(treatment_cost, control_cost)
         gap = abs(treatment_cost - control_cost)
         cost_gap_ratio = gap / cheaper_cost if cheaper_cost > 0 else None

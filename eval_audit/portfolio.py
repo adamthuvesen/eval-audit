@@ -8,7 +8,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from eval_audit.report.summary import file_sha256
+from eval_audit.schema.audit_summary import AuditSummary
 
 REQUIRED_CLAIM_TEXT_FIELDS: tuple[str, ...] = (
     "study_id",
@@ -165,11 +168,11 @@ def load_portfolio_rows(reports_dir: Path) -> list[PortfolioRow]:
                 )
             continue
         try:
-            payload = json.loads(summary_path.read_text())
+            raw_payload = json.loads(summary_path.read_text())
         except json.JSONDecodeError as exc:
             rows.append(_incomplete_row(report_dir, "invalid_summary", str(exc)))
             continue
-        if not isinstance(payload, dict):
+        if not isinstance(raw_payload, dict):
             rows.append(
                 _incomplete_row(
                     report_dir,
@@ -177,6 +180,11 @@ def load_portfolio_rows(reports_dir: Path) -> list[PortfolioRow]:
                     "summary.json root must be an object",
                 )
             )
+            continue
+        try:
+            payload = AuditSummary.model_validate(raw_payload).to_json_dict()
+        except (ValidationError, ValueError, TypeError) as exc:
+            rows.append(_incomplete_row(report_dir, "invalid_summary", str(exc)))
             continue
         stale_note = _staleness_note(report_dir, payload)
         if stale_note is not None:

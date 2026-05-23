@@ -49,7 +49,7 @@ Every `study.yaml` MUST populate every required field listed below. Optional fie
 ### harness
 
 - **Type:** `str` (required, non-null)
-- **Used by analysis:** yes — `eval-audit` refuses cross-harness comparisons. Every `RunRecord` in the audit MUST have a `harness` field matching this value. The renderer raises `CrossHarnessComparisonError` if any row diverges.
+- **Used by analysis:** yes — `eval-audit` refuses cross-harness comparisons. Every `RunRecord` in the audit MUST have a `harness` field matching this value. `CrossHarnessComparisonError` applies when treatment and control harnesses differ; `AnalysisInputError` covers missing rows, per-agent harness mismatch, or rows that do not match `study.harness`.
 - **BYO guidance:** a stable string naming the scaffold or agent framework. For BYO data, often the same as `benchmark`.
 
 ### primary_outcome
