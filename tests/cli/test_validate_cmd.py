@@ -14,9 +14,7 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
-def test_validate__byo_example_succeeds_with_ok_message(
-    runner: CliRunner, repo_root: Path
-) -> None:
+def test_validate__byo_example_succeeds_with_ok_message(runner: CliRunner, repo_root: Path) -> None:
     from eval_audit.cli import app
 
     result = runner.invoke(
@@ -182,9 +180,7 @@ def test_validate__missing_study_path_exits_nonzero(
     assert "nonexistent.yaml" in result.output
 
 
-def test_validate__has_no_side_effects(
-    runner: CliRunner, repo_root: Path, tmp_path: Path
-) -> None:
+def test_validate__has_no_side_effects(runner: CliRunner, repo_root: Path, tmp_path: Path) -> None:
     """validate must not write files or create directories anywhere."""
     from eval_audit.cli import app
 

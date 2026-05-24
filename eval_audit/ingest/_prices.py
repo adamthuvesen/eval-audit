@@ -14,7 +14,7 @@ PRICE_TABLE_PINNED_AT = "2026-05-02"
 # (input_price_per_million, output_price_per_million) in USD.
 # Sourced from scouting/candidates/gaia/cost-reconciliation.json `provider_pricing_source`.
 PRICE_TABLE: dict[str, tuple[float, float]] = {
-    "o4-mini-2025-04-16":         (1.10, 4.40),
+    "o4-mini-2025-04-16": (1.10, 4.40),
     "claude-3-7-sonnet-20250219": (3.00, 15.00),
-    "gpt-4o-2024-11-20":          (2.50, 10.00),
+    "gpt-4o-2024-11-20": (2.50, 10.00),
 }

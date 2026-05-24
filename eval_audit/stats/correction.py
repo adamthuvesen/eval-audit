@@ -50,9 +50,7 @@ def benjamini_hochberg(
 
     adjusted: dict[int, float] = {}
     running_min = 1.0
-    for rank, (orig_idx, (_claim_id, raw_p)) in reversed(
-        list(enumerate(sorted_by_p, start=1))
-    ):
+    for rank, (orig_idx, (_claim_id, raw_p)) in reversed(list(enumerate(sorted_by_p, start=1))):
         adj = min(1.0, (m / rank) * raw_p)
         running_min = min(running_min, adj)
         adjusted[orig_idx] = running_min

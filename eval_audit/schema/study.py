@@ -102,12 +102,8 @@ class StudySpec(BaseModel):
                 f"(got {self.design.observed_runs_per_agent})"
             )
         if not 0.0 < self.inference.alpha < 1.0:
-            errors.append(
-                f"inference.alpha must be > 0 and < 1 (got {self.inference.alpha})"
-            )
-        if self.inference.target_mde is not None and not (
-            0.0 < self.inference.target_mde <= 1.0
-        ):
+            errors.append(f"inference.alpha must be > 0 and < 1 (got {self.inference.alpha})")
+        if self.inference.target_mde is not None and not (0.0 < self.inference.target_mde <= 1.0):
             errors.append(
                 "inference.target_mde must be > 0 and <= 1 when declared "
                 f"(got {self.inference.target_mde})"
@@ -149,8 +145,7 @@ class StudySpec(BaseModel):
 
             if claim.treatment == claim.control:
                 errors.append(
-                    f"claim {claim.id!r} has identical treatment and control "
-                    f"({claim.treatment!r})"
+                    f"claim {claim.id!r} has identical treatment and control ({claim.treatment!r})"
                 )
             for role, agent_id in (
                 ("treatment", claim.treatment),

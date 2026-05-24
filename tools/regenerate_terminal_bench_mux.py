@@ -103,20 +103,12 @@ def _metadata(submission: str) -> tuple[dict, bytes]:
 
 def _job_dirs(submission: str) -> list[str]:
     items = _api_tree(_submission_path(submission))
-    return sorted(
-        item["path"].split("/")[-1]
-        for item in items
-        if item["type"] == "directory"
-    )
+    return sorted(item["path"].split("/")[-1] for item in items if item["type"] == "directory")
 
 
 def _task_trial_dirs(submission: str, run_id: str) -> list[str]:
     items = _api_tree(f"{_submission_path(submission)}/{run_id}")
-    task_dirs = sorted(
-        item["path"].split("/")[-1]
-        for item in items
-        if item["type"] == "directory"
-    )
+    task_dirs = sorted(item["path"].split("/")[-1] for item in items if item["type"] == "directory")
     if len(task_dirs) != TERMINAL_BENCH_2_TASK_COUNT:
         raise RuntimeError(
             f"{submission}/{run_id} expected {TERMINAL_BENCH_2_TASK_COUNT} "
@@ -142,6 +134,7 @@ def _load_submission(submission: str) -> tuple[dict, dict]:
 
     for run_id in _job_dirs(submission):
         task_dirs = _task_trial_dirs(submission, run_id)
+
         def fetch_trial(trial_dir: str, run_id: str = run_id) -> tuple[dict, bytes]:
             return _result(submission, run_id, trial_dir)
 
@@ -173,21 +166,14 @@ def main() -> None:
         parsed, provenance = _load_submission(submission)
         submissions[submission] = parsed
         submission_provenance[submission] = provenance
-        print(
-            "    "
-            f"runs={len(parsed['runs'])}, result_json={provenance['result_json_count']}"
-        )
+        print(f"    runs={len(parsed['runs'])}, result_json={provenance['result_json_count']}")
 
     print("Building canonical RunRecord frame...")
     frame = build_canonical_frame(submissions=submissions)
     for submission in SUBMISSIONS:
-        success_count = int(
-            frame.filter(pl.col("agent_id") == submission)["success"].sum()
-        )
+        success_count = int(frame.filter(pl.col("agent_id") == submission)["success"].sum())
         submission_rows = frame.filter(pl.col("agent_id") == submission).height
-        print(
-            f"  {submission}: {success_count}/{submission_rows}"
-        )
+        print(f"  {submission}: {success_count}/{submission_rows}")
 
     FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
     runs_path = FIXTURE_DIR / "runs.parquet"
@@ -213,9 +199,7 @@ def main() -> None:
             submission: {
                 **SUBMISSIONS[submission],
                 **submission_provenance[submission],
-                "metadata_url": _resolve_url(
-                    f"{_submission_path(submission)}/metadata.yaml"
-                ),
+                "metadata_url": _resolve_url(f"{_submission_path(submission)}/metadata.yaml"),
             }
             for submission in SUBMISSIONS
         },

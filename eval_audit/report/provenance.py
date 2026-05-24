@@ -24,8 +24,7 @@ def extract_residual_risks(decision_md_path: Path, relative_label: str) -> str:
     """Extract the bulleted residual-risks list from the resolved scouting decision doc."""
     if not decision_md_path.exists():
         return (
-            f"_(no scouting decision document at {relative_label}; "
-            "residual risks not surfaced.)_"
+            f"_(no scouting decision document at {relative_label}; residual risks not surfaced.)_"
         )
     text = decision_md_path.read_text()
     start_match = re.search(r"^## Residual risks\s*$", text, flags=re.MULTILINE)
@@ -41,15 +40,9 @@ def load_scouting_artifacts(study: StudySpec, repo_root: Path) -> ScoutingArtifa
     """Load scouting candidate paths and public-submission fallbacks."""
     benchmark_dir = benchmark_dir_name(study.benchmark)
     cost_recon_path = (
-        repo_root
-        / "scouting"
-        / "candidates"
-        / benchmark_dir
-        / "cost-reconciliation.json"
+        repo_root / "scouting" / "candidates" / benchmark_dir / "cost-reconciliation.json"
     )
-    provenance_path = (
-        repo_root / "scouting" / "candidates" / benchmark_dir / "provenance.json"
-    )
+    provenance_path = repo_root / "scouting" / "candidates" / benchmark_dir / "provenance.json"
     cost_recon_data: dict = {}
     if cost_recon_path.exists():
         cost_recon_data = json.loads(cost_recon_path.read_text())
@@ -79,12 +72,8 @@ def load_scouting_artifacts(study: StudySpec, repo_root: Path) -> ScoutingArtifa
     )
 
 
-def resolve_decision_artifacts(
-    repo_root: Path, study: StudySpec
-) -> tuple[Path, str, str]:
+def resolve_decision_artifacts(repo_root: Path, study: StudySpec) -> tuple[Path, str, str]:
     """Return decision doc path, repo-relative label, and residual risks text."""
-    decision_md, decision_md_label = resolve_decision_doc(
-        repo_root, study.benchmark, study.id
-    )
+    decision_md, decision_md_label = resolve_decision_doc(repo_root, study.benchmark, study.id)
     residual_risks_text = extract_residual_risks(decision_md, decision_md_label)
     return decision_md, decision_md_label, residual_risks_text

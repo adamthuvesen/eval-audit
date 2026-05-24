@@ -58,9 +58,7 @@ def _build_context(
     direction_matches: bool | None = None,
 ) -> ClaimContext:
     point_estimate = (
-        claim.delta_point_estimate
-        if delta_point_estimate is None
-        else delta_point_estimate
+        claim.delta_point_estimate if delta_point_estimate is None else delta_point_estimate
     )
     if treatment_is_dominated is None:
         # Under cost suppression the frontier is empty by design; treating absence
@@ -193,12 +191,10 @@ def verdict_with_errored_excluded(
     ``adjusted_p_value <= alpha`` — the same statistic the baseline uses.
     """
     alpha = study.inference.alpha
-    n_errored_in_claim = (
-        runs.filter(
-            pl.col("agent_id").is_in([claim.treatment, claim.control])
-            & (pl.col("outcome_status") == "errored")
-        ).height
-    )
+    n_errored_in_claim = runs.filter(
+        pl.col("agent_id").is_in([claim.treatment, claim.control])
+        & (pl.col("outcome_status") == "errored")
+    ).height
     if n_errored_in_claim == 0:
         # No-op perturbation: excluding zero rows leaves the denominator,
         # paired p, bootstrap CI, Pareto frontier, and costs unchanged.
@@ -216,9 +212,7 @@ def verdict_with_errored_excluded(
 
     # Recompute paired-task bootstrap on the graded-only frame after explicitly
     # aligning task sets; the bootstrap helper refuses mismatched task ids.
-    common_tasks = set(treatment_rows["task_id"].to_list()) & set(
-        control_rows["task_id"].to_list()
-    )
+    common_tasks = set(treatment_rows["task_id"].to_list()) & set(control_rows["task_id"].to_list())
     treatment_rows = treatment_rows.filter(pl.col("task_id").is_in(common_tasks))
     control_rows = control_rows.filter(pl.col("task_id").is_in(common_tasks))
     if treatment_rows.height < 2 or control_rows.height < 2:
@@ -244,12 +238,8 @@ def verdict_with_errored_excluded(
         corrected = benjamini_hochberg(raw_p_pairs, alpha=alpha)
     else:
         # Should never happen given the StudySpec validator; fall back conservatively.
-        corrected = [
-            (cid, rp, rp, rp <= alpha) for (cid, rp) in raw_p_pairs
-        ]
-    perturbed_adj_p = next(
-        adj for (cid, _rp, adj, _rej) in corrected if cid == claim.claim_id
-    )
+        corrected = [(cid, rp, rp, rp <= alpha) for (cid, rp) in raw_p_pairs]
+    perturbed_adj_p = next(adj for (cid, _rp, adj, _rej) in corrected if cid == claim.claim_id)
     rejects = perturbed_adj_p <= alpha
 
     # Pareto dominance: recompute against ALL agents in the study under
@@ -334,9 +324,7 @@ def compute_sensitivity_rows(
         SensitivityRow(
             "correction_method",
             "none",
-            verdict_with_no_correction(
-                claim, result, study, alpha=study.inference.alpha
-            ),
+            verdict_with_no_correction(claim, result, study, alpha=study.inference.alpha),
         )
     )
     rows.append(

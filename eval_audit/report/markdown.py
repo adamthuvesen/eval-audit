@@ -57,6 +57,8 @@ _VERDICT_RATIONALE = VERDICT_RATIONALE
 _ROBUSTNESS_DIMENSIONS = ROBUSTNESS_DIMENSIONS
 _what_would_change_it = what_would_change_it
 _render_audit_summary_stanza = render_audit_summary_stanza
+
+
 def _reviewer_pushback(
     per_agent: list,
     cost_provenance_class: str,
@@ -76,6 +78,8 @@ def _reviewer_pushback(
         cost_recon_data={},
     )
     return audit_summary_section.reviewer_pushback(per_agent, presentation)
+
+
 _copyable_claim_summary = copyable_claim_summary
 _render_verdict_explainer = render_verdict_explainer
 _robustness_multiple_comparison = robustness_multiple_comparison
@@ -144,18 +148,14 @@ def render_report(
 
     if study.analysis_mode == "preregistered":
         parts.append("## Provenance\n")
-        parts.extend(
-            render_provenance_controlled_evidence(study, runs, repo_root, presentation)
-        )
+        parts.extend(render_provenance_controlled_evidence(study, runs, repo_root, presentation))
     else:
         parts.extend(render_public_provenance(presentation))
 
     if presentation.cost_provenance == CostProvenance.AS_REPORTED_ONLY.value:
         parts.extend(render_as_reported_only_caveat(presentation.cost_recon_data))
     if presentation.cost_provenance == CostProvenance.COST_NOT_AVAILABLE.value:
-        suppressed_agents = [
-            s.agent_id for s in result.per_agent if s.total_cost_usd is None
-        ]
+        suppressed_agents = [s.agent_id for s in result.per_agent if s.total_cost_usd is None]
         parts.extend(render_cost_not_available_caveat(suppressed_agents))
 
     parts.extend(render_per_agent_summary(result, presentation))
@@ -257,9 +257,7 @@ def render_report(
             parts.append(f"| {r.dimension} | {r.value} | {verdict_cell} |")
         parts.append("")
 
-    parts.extend(
-        render_robustness_review(result, study, sensitivity_rows_by_claim, presentation)
-    )
+    parts.extend(render_robustness_review(result, study, sensitivity_rows_by_claim, presentation))
     parts.extend(render_cost_quality_view(result, presentation))
 
     parts.append("## Residual risks\n")

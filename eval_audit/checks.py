@@ -303,9 +303,7 @@ def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessChe
             ("control", claim.control),
         ):
             rows = runs.filter(pl.col("agent_id") == agent_id)
-            claim_duplicate_keys.extend(
-                _duplicate_observation_keys(claim.id, role, agent_id, rows)
-            )
+            claim_duplicate_keys.extend(_duplicate_observation_keys(claim.id, role, agent_id, rows))
             claim_invalid_run_count_keys.extend(
                 _invalid_task_run_count_keys(
                     claim.id,

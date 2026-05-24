@@ -76,9 +76,7 @@ def explain_decision_impact(
         cheaper_cost = min(treatment_cost, control_cost)
         gap = abs(treatment_cost - control_cost)
         cost_gap_ratio = gap / cheaper_cost if cheaper_cost > 0 else None
-        has_material_cost_gap = (
-            cost_gap_ratio is not None and cost_gap_ratio >= cost_gap_threshold
-        )
+        has_material_cost_gap = cost_gap_ratio is not None and cost_gap_ratio >= cost_gap_threshold
     elif ci_crosses_zero:
         suppressed_branches.append("uncertainty_with_material_cost_gap")
 
@@ -169,10 +167,7 @@ def explain_decision_impact(
         first_matching_branch="fallback_inconclusive",
         conditions=conditions,
         suppressed_branches=suppressed_branches,
-        summary=(
-            "No dominance, rejection, uncertainty-cost, or under-resolution "
-            "branch matched."
-        ),
+        summary=("No dominance, rejection, uncertainty-cost, or under-resolution branch matched."),
     )
 
 

@@ -56,9 +56,7 @@ class SweBenchVerifiedAdapter:
         runs_path = source_path / "runs.parquet"
         provenance_path = source_path / "provenance.json"
         if not runs_path.exists():
-            raise IngestContractError(
-                f"swe_bench_verified adapter requires {runs_path}"
-            )
+            raise IngestContractError(f"swe_bench_verified adapter requires {runs_path}")
         if not provenance_path.exists():
             raise IngestContractError(
                 f"swe_bench_verified adapter requires {provenance_path}; "
@@ -70,17 +68,19 @@ class SweBenchVerifiedAdapter:
 
     def validate(self, frame: pl.DataFrame) -> None:
         validate_run_records(frame)
-        if "harness" in frame.columns and not (
-            frame["harness"] == SWE_BENCH_VERIFIED_HARNESS
-        ).all():
+        if (
+            "harness" in frame.columns
+            and not (frame["harness"] == SWE_BENCH_VERIFIED_HARNESS).all()
+        ):
             harnesses = sorted(frame["harness"].unique().to_list())
             raise IngestContractError(
                 "swe_bench_verified adapter expects every row to have "
                 f"harness={SWE_BENCH_VERIFIED_HARNESS!r}; got {harnesses}"
             )
-        if "cost_provenance" in frame.columns and not (
-            frame["cost_provenance"] == CostProvenance.COST_NOT_AVAILABLE.value
-        ).all():
+        if (
+            "cost_provenance" in frame.columns
+            and not (frame["cost_provenance"] == CostProvenance.COST_NOT_AVAILABLE.value).all()
+        ):
             classes = sorted(frame["cost_provenance"].unique().to_list())
             raise IngestContractError(
                 "swe_bench_verified adapter expects every row to have "

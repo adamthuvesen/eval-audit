@@ -70,9 +70,7 @@ def test_pareto__every_frontier_agent_is_not_dominated(agents: list) -> None:
     frontier = pareto_frontier(_to_frame(agents), success_col="success_rate", cost_col="cost")
     in_frontier = [a for a in agents if a[0] in frontier]
     for agent in in_frontier:
-        assert not _is_dominated(agent, agents), (
-            f"agent {agent} on frontier but strictly dominated"
-        )
+        assert not _is_dominated(agent, agents), f"agent {agent} on frontier but strictly dominated"
 
 
 @_SETTINGS

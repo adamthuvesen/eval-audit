@@ -352,9 +352,7 @@ def audit_cmd(
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
-    readiness = run_readiness(
-        study_yaml, runs, study, runs_frame, repo_root=root
-    )
+    readiness = run_readiness(study_yaml, runs, study, runs_frame, repo_root=root)
     if readiness.status == "not_ready":
         important = _most_important_failed_check(readiness)
         failed_ids = ", ".join(check.id for check in _failed_checks(readiness))
@@ -471,9 +469,7 @@ def gate_cmd(
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
-    readiness = run_readiness(
-        study_yaml, runs, study, runs_frame, repo_root=root
-    )
+    readiness = run_readiness(study_yaml, runs, study, runs_frame, repo_root=root)
 
     failures: list[dict[str, object]] = []
     claims: list[dict[str, str]] = []

@@ -148,12 +148,9 @@ class HalGaiaAdapter:
         recon_frame = frame.with_columns(
             pl.Series("_full_recon", recon_for_reconciliation).alias("_full_recon")
         )
-        per_run = (
-            recon_frame.group_by("agent_id", "run_id")
-            .agg(
-                pl.col("_full_recon").sum().alias("_recon"),
-                pl.col("reported_run_total_cost_usd").first().alias("_reported"),
-            )
+        per_run = recon_frame.group_by("agent_id", "run_id").agg(
+            pl.col("_full_recon").sum().alias("_recon"),
+            pl.col("reported_run_total_cost_usd").first().alias("_reported"),
         )
         for row in per_run.iter_rows(named=True):
             reported = row["_reported"]

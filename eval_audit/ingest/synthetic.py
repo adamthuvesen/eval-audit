@@ -32,9 +32,8 @@ class SyntheticAdapter:
         retrieved_at = datetime.fromtimestamp(spec_path.stat().st_mtime, UTC).isoformat()
 
         # Per-(agent, seed) sum of cost approximates a "run total" for joinability.
-        run_totals = (
-            raw.group_by(["agent_id", "seed"])
-            .agg(pl.col("cost_usd").sum().alias("_run_total"))
+        run_totals = raw.group_by(["agent_id", "seed"]).agg(
+            pl.col("cost_usd").sum().alias("_run_total")
         )
         joined = raw.join(run_totals, on=["agent_id", "seed"], how="left")
 
@@ -51,20 +50,26 @@ class SyntheticAdapter:
             pl.lit("graded").alias("outcome_status"),
             pl.col("tokens_in"),
             pl.col("tokens_out"),
-            pl.col("tokens_in").cast(pl.Int64).map_elements(
-                lambda v: {spec_id: int(v)}, return_dtype=pl.Object
-            ).alias("tokens_in_by_model"),
-            pl.col("tokens_out").cast(pl.Int64).map_elements(
-                lambda v: {spec_id: int(v)}, return_dtype=pl.Object
-            ).alias("tokens_out_by_model"),
+            pl.col("tokens_in")
+            .cast(pl.Int64)
+            .map_elements(lambda v: {spec_id: int(v)}, return_dtype=pl.Object)
+            .alias("tokens_in_by_model"),
+            pl.col("tokens_out")
+            .cast(pl.Int64)
+            .map_elements(lambda v: {spec_id: int(v)}, return_dtype=pl.Object)
+            .alias("tokens_out_by_model"),
             pl.col("wall_clock_s").alias("latency_s"),
             pl.lit(None, dtype=pl.Datetime).alias("timestamp"),
             pl.col("cost_usd").alias("reconstructed_per_task_cost_usd"),
             pl.col("_run_total").alias("reported_run_total_cost_usd"),
             pl.lit(CostProvenance.RECONCILED.value).alias("cost_provenance"),
-            pl.lit({"source_fixture": "scouting/synthetic/runs.parquet",
-                    "source_retrieved_at": retrieved_at},
-                   dtype=pl.Object).alias("rerun_metadata"),
+            pl.lit(
+                {
+                    "source_fixture": "scouting/synthetic/runs.parquet",
+                    "source_retrieved_at": retrieved_at,
+                },
+                dtype=pl.Object,
+            ).alias("rerun_metadata"),
         )
 
         # Drop the join helper if present (it shouldn't be after select, but be defensive).
@@ -77,4 +82,6 @@ class SyntheticAdapter:
     def validate(self, frame: pl.DataFrame) -> None:
         validate_run_records(frame)
         if "harness" in frame.columns and not (frame["harness"] == "synthetic").all():
-            raise IngestContractError("synthetic adapter expects every row to have harness='synthetic'")
+            raise IngestContractError(
+                "synthetic adapter expects every row to have harness='synthetic'"
+            )

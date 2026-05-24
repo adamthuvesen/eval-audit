@@ -86,9 +86,7 @@ def hal_common_record_fields(
         "tokens_in_by_model": tokens_in_by_model,
         "tokens_out_by_model": tokens_out_by_model,
         "latency_s": (
-            float(row["latency_total_s"])
-            if row["latency_total_s"] is not None
-            else None
+            float(row["latency_total_s"]) if row["latency_total_s"] is not None else None
         ),
         "timestamp": row["first_call_ts"],
         "reconstructed_per_task_cost_usd": reconstructed_cost,

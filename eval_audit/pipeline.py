@@ -109,9 +109,7 @@ def render_audit_markdown(
     deterministic_clock: bool = False,
 ) -> str:
     clock: Callable[[], datetime] = (
-        (lambda: _DETERMINISTIC_AUDIT_CLOCK)
-        if deterministic_clock
-        else (lambda: datetime.now(UTC))
+        (lambda: _DETERMINISTIC_AUDIT_CLOCK) if deterministic_clock else (lambda: datetime.now(UTC))
     )
     return render_report(
         result,

@@ -108,7 +108,5 @@ def validate_run_records(frame: pl.DataFrame) -> None:
                 field_path = ".".join(str(p) for p in first.get("loc", ())) or "<unknown>"
                 msg = first.get("msg", "validation failed")
                 bad_value = first.get("input", "<n/a>")
-                summary = (
-                    f"row {idx}, field {field_path!r}: value {bad_value!r} — {msg}"
-                )
+                summary = f"row {idx}, field {field_path!r}: value {bad_value!r} — {msg}"
             raise IngestContractError(summary) from exc

@@ -30,9 +30,12 @@ def test_cli_analyze__rejects_zero_bootstrap_iterations(
         [
             "analyze",
             str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
-            "--bootstrap-iterations", "0",
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+            "--bootstrap-iterations",
+            "0",
         ],
     )
 
@@ -141,9 +144,12 @@ def test_cli_analyze__swe_bench_verified_resolves_examples_backed_fixture(
         [
             "analyze",
             str(repo_root / "studies" / "swe-bench-verified-openhands.yaml"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
-            "--bootstrap-iterations", "200",
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+            "--bootstrap-iterations",
+            "200",
         ],
     )
 
@@ -174,9 +180,12 @@ def test_cli_analyze__terminal_bench_resolves_examples_backed_fixture(
         [
             "analyze",
             str(repo_root / "studies" / "terminal-bench-2-mux.yaml"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
-            "--bootstrap-iterations", "200",
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+            "--bootstrap-iterations",
+            "200",
         ],
     )
 

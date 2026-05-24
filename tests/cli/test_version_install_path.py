@@ -63,9 +63,7 @@ def test_version_install_path__no_hardcoded_version_constant_in_source() -> None
     # double quotes). Anchor to assignment-style usage so unrelated string mentions
     # in docstrings or comments don't trip the test.
     pattern = re.compile(
-        r"""(__version__|VERSION)\s*=\s*['"]"""
-        + re.escape(expected)
-        + r"""['"]"""
+        r"""(__version__|VERSION)\s*=\s*['"]""" + re.escape(expected) + r"""['"]"""
     )
     offenders: list[str] = []
     for path in (REPO_ROOT / "eval_audit").rglob("*.py"):

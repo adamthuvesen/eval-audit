@@ -99,7 +99,9 @@ def test_report__multi_claim_study_section_lists_all_claim_texts(repo_root: Path
     assert "- **claim:**" not in study_section
 
 
-def test_report__inherited_residual_risks_are_not_edited(gaia_hal_generalist_inputs, repo_root: Path) -> None:
+def test_report__inherited_residual_risks_are_not_edited(
+    gaia_hal_generalist_inputs, repo_root: Path
+) -> None:
     """WHEN the residual-risks section is rendered,
     THEN the text under 'Inherited from scouting decision' matches the residual-risks
     bullets in scouting/gaia-hal-generalist-decision.md byte-for-byte after whitespace normalization.
@@ -128,10 +130,14 @@ def test_report__inherited_residual_risks_are_not_edited(gaia_hal_generalist_inp
             head = line.split(".", 2)[1].strip().split(".")[0]
             head_norm = " ".join(head.split())
             inherited_norm = " ".join(inherited_block.split())
-            assert head_norm in inherited_norm, f"residual risk header missing from report: {head_norm!r}"
+            assert head_norm in inherited_norm, (
+                f"residual risk header missing from report: {head_norm!r}"
+            )
 
 
-def test_report__rerunning_renders_byte_identical_output(gaia_hal_generalist_inputs, repo_root: Path) -> None:
+def test_report__rerunning_renders_byte_identical_output(
+    gaia_hal_generalist_inputs, repo_root: Path
+) -> None:
     """WHEN the renderer is invoked twice with the same inputs and a fixed clock,
     THEN the two outputs have identical sha256 hashes.
     """
@@ -144,7 +150,9 @@ def test_report__rerunning_renders_byte_identical_output(gaia_hal_generalist_inp
     assert hashlib.sha256(a.encode()).hexdigest() == hashlib.sha256(b.encode()).hexdigest()
 
 
-def test_report__snapshot_diff_caught_in_tests(gaia_hal_generalist_inputs, repo_root: Path, tmp_path: Path) -> None:
+def test_report__snapshot_diff_caught_in_tests(
+    gaia_hal_generalist_inputs, repo_root: Path, tmp_path: Path
+) -> None:
     """WHEN a developer mutates the renderer's output without updating the snapshot,
     THEN the snapshot test fails with a diff showing the change.
 
@@ -163,7 +171,9 @@ def test_report__snapshot_diff_caught_in_tests(gaia_hal_generalist_inputs, repo_
     assert mutated != snapshot_path.read_text(), "snapshot mechanism failed to detect mutation"
 
 
-def test_report__cross_harness_study_produces_no_report_file(repo_root: Path, tmp_path: Path) -> None:
+def test_report__cross_harness_study_produces_no_report_file(
+    repo_root: Path, tmp_path: Path
+) -> None:
     """WHEN a study spec is rendered against a frame where treatment and control rows
     have different harness values, THEN no markdown file is written and a
     CrossHarnessComparisonError propagates.
@@ -178,26 +188,48 @@ def test_report__cross_harness_study_produces_no_report_file(repo_root: Path, tm
     control = study.claims[0].control
     rows = [
         {
-            "agent_id": treatment, "model_id": "m1", "harness": "hal_generalist_agent",
-            "run_id": "r1", "task_id": "t1", "task_category": None, "seed": None,
-            "success": True, "partial_credit": True, "outcome_status": "graded",
-            "tokens_in": 1, "tokens_out": 1,
-            "tokens_in_by_model": {"m": 1}, "tokens_out_by_model": {"m": 1},
-            "latency_s": 1.0, "timestamp": None,
+            "agent_id": treatment,
+            "model_id": "m1",
+            "harness": "hal_generalist_agent",
+            "run_id": "r1",
+            "task_id": "t1",
+            "task_category": None,
+            "seed": None,
+            "success": True,
+            "partial_credit": True,
+            "outcome_status": "graded",
+            "tokens_in": 1,
+            "tokens_out": 1,
+            "tokens_in_by_model": {"m": 1},
+            "tokens_out_by_model": {"m": 1},
+            "latency_s": 1.0,
+            "timestamp": None,
             "reconstructed_per_task_cost_usd": 0.001,
             "reported_run_total_cost_usd": 0.05,
-            "cost_provenance": "reconciled", "rerun_metadata": {},
+            "cost_provenance": "reconciled",
+            "rerun_metadata": {},
         },
         {
-            "agent_id": control, "model_id": "m2", "harness": "hal_tool_calling",
-            "run_id": "r2", "task_id": "t1", "task_category": None, "seed": None,
-            "success": False, "partial_credit": False, "outcome_status": "graded",
-            "tokens_in": 1, "tokens_out": 1,
-            "tokens_in_by_model": {"m": 1}, "tokens_out_by_model": {"m": 1},
-            "latency_s": 1.0, "timestamp": None,
+            "agent_id": control,
+            "model_id": "m2",
+            "harness": "hal_tool_calling",
+            "run_id": "r2",
+            "task_id": "t1",
+            "task_category": None,
+            "seed": None,
+            "success": False,
+            "partial_credit": False,
+            "outcome_status": "graded",
+            "tokens_in": 1,
+            "tokens_out": 1,
+            "tokens_in_by_model": {"m": 1},
+            "tokens_out_by_model": {"m": 1},
+            "latency_s": 1.0,
+            "timestamp": None,
             "reconstructed_per_task_cost_usd": 0.001,
             "reported_run_total_cost_usd": 0.05,
-            "cost_provenance": "reconciled", "rerun_metadata": {},
+            "cost_provenance": "reconciled",
+            "rerun_metadata": {},
         },
     ]
     runs = pl.DataFrame(rows, strict=False)
@@ -232,12 +264,22 @@ def test_report__incomplete_reconstructed_cost_produces_no_report_file(
 
     def row(agent_id: str, task_id: str, success: bool, cost: float | None) -> dict:
         return {
-            "agent_id": agent_id, "model_id": agent_id, "harness": study.harness,
-            "run_id": f"r-{agent_id}", "task_id": task_id, "task_category": None,
-            "seed": None, "success": success, "partial_credit": success,
-            "outcome_status": "graded", "tokens_in": 1, "tokens_out": 1,
-            "tokens_in_by_model": {"m": 1}, "tokens_out_by_model": {"m": 1},
-            "latency_s": 1.0, "timestamp": None,
+            "agent_id": agent_id,
+            "model_id": agent_id,
+            "harness": study.harness,
+            "run_id": f"r-{agent_id}",
+            "task_id": task_id,
+            "task_category": None,
+            "seed": None,
+            "success": success,
+            "partial_credit": success,
+            "outcome_status": "graded",
+            "tokens_in": 1,
+            "tokens_out": 1,
+            "tokens_in_by_model": {"m": 1},
+            "tokens_out_by_model": {"m": 1},
+            "latency_s": 1.0,
+            "timestamp": None,
             "reconstructed_per_task_cost_usd": cost,
             "reported_run_total_cost_usd": 1.0,
             "cost_provenance": "partial" if cost is None else "reconciled",
@@ -416,8 +458,7 @@ def test_what_would_change_it__null_target_mde_picks_encouragement() -> None:
     from eval_audit.report.markdown import _what_would_change_it
 
     assert _what_would_change_it(target_mde=None, ci_half_width=0.10, n_paired=100) == (
-        "declaring an inference.target_mde would let this report estimate "
-        "required sample size"
+        "declaring an inference.target_mde would let this report estimate required sample size"
     )
 
 
@@ -548,8 +589,13 @@ def test_audit_summary__tau_bench_airline_tool_calling_emits_one_sub_stanza_per_
         last_pos = pos
 
     # Each sub-stanza has the five bullets.
-    for prefix in ("- **Verdict:**", "- **Claim status:**", "- **Why:**",
-                   "- **What would change it:**", "- **Reviewer pushback:**"):
+    for prefix in (
+        "- **Verdict:**",
+        "- **Claim status:**",
+        "- **Why:**",
+        "- **What would change it:**",
+        "- **Reviewer pushback:**",
+    ):
         assert summary.count(prefix) == len(claim_ids), (
             f"expected {len(claim_ids)} occurrences of {prefix!r} in summary"
         )
@@ -582,9 +628,10 @@ def test_audit_summary__claim_status_matches_claims_table_value(
     summary_status = status_line.split(":**", 1)[1].strip()
 
     # Pull the status from the Claims table row (third '|' field after the header).
-    after_summary = text[text.index("## Claims"):]
+    after_summary = text[text.index("## Claims") :]
     claims_rows = [
-        line for line in after_summary.splitlines()
+        line
+        for line in after_summary.splitlines()
         if line.startswith("|") and not line.startswith("|---") and "|---" not in line
     ]
     # Skip header row.
@@ -609,8 +656,7 @@ def test_audit_summary__verdict_line_carries_token_and_rationale(
     assert "- **Verdict:** `hedge_on_cost` — " in summary
     # Pull the verdict bullet line out so we can assert against it specifically.
     verdict_line = next(
-        line for line in summary.splitlines()
-        if line.startswith("- **Verdict:** `hedge_on_cost`")
+        line for line in summary.splitlines() if line.startswith("- **Verdict:** `hedge_on_cost`")
     )
     # The rule that fired:
     assert "CI" in verdict_line and "zero" in verdict_line
@@ -873,9 +919,7 @@ def test_robustness_review__gaia_hal_generalist_target_mde_does_not_survive(
     section = _extract_robustness_review(text)
 
     # The Target MDE row should read "does not survive" with the under-resolved note.
-    target_line = next(
-        line for line in section.splitlines() if line.startswith("| Target MDE |")
-    )
+    target_line = next(line for line in section.splitlines() if line.startswith("| Target MDE |"))
     assert "does not survive" in target_line
     assert "under-resolved" in target_line
     assert " pp >" in target_line  # half-width > MDE

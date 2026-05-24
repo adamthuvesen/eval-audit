@@ -42,10 +42,12 @@ def _row(
 
 
 def test_summarize_agent__headline_includes_errored_in_denominator() -> None:
-    rows = pl.DataFrame([
-        _row("a", "t1", success=True),
-        _row("a", "t2", success=False, outcome_status="errored"),
-    ])
+    rows = pl.DataFrame(
+        [
+            _row("a", "t1", success=True),
+            _row("a", "t2", success=False, outcome_status="errored"),
+        ]
+    )
     summary = summarize_agent("a", rows, 0.05, policy=ErroredRowPolicy.headline)
     assert summary.n_graded == 1
     assert summary.n_errored == 1
@@ -53,10 +55,12 @@ def test_summarize_agent__headline_includes_errored_in_denominator() -> None:
 
 
 def test_summarize_agent__graded_only_excludes_errored_from_denominator() -> None:
-    rows = pl.DataFrame([
-        _row("a", "t1", success=True),
-        _row("a", "t2", success=False, outcome_status="errored"),
-    ])
+    rows = pl.DataFrame(
+        [
+            _row("a", "t1", success=True),
+            _row("a", "t2", success=False, outcome_status="errored"),
+        ]
+    )
     summary = summarize_agent("a", rows, 0.05, policy=ErroredRowPolicy.graded_only)
     assert summary.n_graded == 1
     assert summary.n_errored == 0
@@ -64,28 +68,32 @@ def test_summarize_agent__graded_only_excludes_errored_from_denominator() -> Non
 
 
 def test_summarize_agent__cost_not_available_suppresses_cost_fields() -> None:
-    rows = pl.DataFrame([
-        {
-            **_row("a", "t1"),
-            "reconstructed_per_task_cost_usd": None,
-            "reported_run_total_cost_usd": None,
-            "cost_provenance": "cost_not_available",
-        }
-    ])
+    rows = pl.DataFrame(
+        [
+            {
+                **_row("a", "t1"),
+                "reconstructed_per_task_cost_usd": None,
+                "reported_run_total_cost_usd": None,
+                "cost_provenance": "cost_not_available",
+            }
+        ]
+    )
     summary = summarize_agent("a", rows, 0.05)
     assert summary.total_cost_usd is None
     assert summary.cost_per_success_usd is None
 
 
 def test_summarize_agent__mixed_cost_provenance_raises() -> None:
-    rows = pl.DataFrame([
-        _row("a", "t1", cost_provenance="reconciled"),
-        {
-            **_row("a", "t2"),
-            "cost_provenance": "cost_not_available",
-            "reconstructed_per_task_cost_usd": None,
-            "reported_run_total_cost_usd": None,
-        },
-    ])
+    rows = pl.DataFrame(
+        [
+            _row("a", "t1", cost_provenance="reconciled"),
+            {
+                **_row("a", "t2"),
+                "cost_provenance": "cost_not_available",
+                "reconstructed_per_task_cost_usd": None,
+                "reported_run_total_cost_usd": None,
+            },
+        ]
+    )
     with pytest.raises(CostProvenanceError, match="mixed cost_provenance"):
         summarize_agent("a", rows, 0.05)

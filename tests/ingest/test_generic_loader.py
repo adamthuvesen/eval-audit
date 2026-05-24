@@ -19,9 +19,7 @@ def test_generic_loader__example_fixture_validates_cleanly(repo_root: Path) -> N
     assert set(frame.columns) == set(RunRecord.model_fields.keys())
 
 
-def test_generic_loader__missing_column_names_the_column(
-    repo_root: Path, tmp_path: Path
-) -> None:
+def test_generic_loader__missing_column_names_the_column(repo_root: Path, tmp_path: Path) -> None:
     """Drop a required column → IngestContractError mentions it by name."""
     src = pl.read_parquet(repo_root / "examples" / "byo-minimal" / "runs.parquet")
     bad = src.drop("cost_provenance")

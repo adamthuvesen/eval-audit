@@ -68,19 +68,9 @@ def paired_task_bootstrap(
             and "outcome_status" in arm_a.columns
             and "outcome_status" in arm_b.columns
         )
-        outcome_expr = numeric_outcome_expr(
-            outcome, use_outcome_status=use_outcome_status
-        )
-        a_means = (
-            arm_a.group_by("task_id")
-            .agg(outcome_expr.mean().alias("_a"))
-            .sort("task_id")
-        )
-        b_means = (
-            arm_b.group_by("task_id")
-            .agg(outcome_expr.mean().alias("_b"))
-            .sort("task_id")
-        )
+        outcome_expr = numeric_outcome_expr(outcome, use_outcome_status=use_outcome_status)
+        a_means = arm_a.group_by("task_id").agg(outcome_expr.mean().alias("_a")).sort("task_id")
+        b_means = arm_b.group_by("task_id").agg(outcome_expr.mean().alias("_b")).sort("task_id")
     except Exception as exc:
         raise ValueError(f"outcome column {outcome!r} cannot be used numerically") from exc
     paired = a_means.join(b_means, on="task_id", how="inner").sort("task_id")

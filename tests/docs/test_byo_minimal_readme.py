@@ -72,7 +72,9 @@ def test_project_readme__example_reports_section_indexes_three_reports(
     assert "reports/byo-minimal/report.md" in section
 
     # Verdict tokens named literally for each report.
-    assert "hedge_on_cost" in section  # gaia-hal-generalist (also tau-bench-airline-tool-calling ×2)
+    assert (
+        "hedge_on_cost" in section
+    )  # gaia-hal-generalist (also tau-bench-airline-tool-calling ×2)
     assert "drop_from_shortlist" in section  # tau-bench-airline-tool-calling
     assert "switch" in section  # byo-minimal
 

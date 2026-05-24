@@ -28,9 +28,7 @@ def test_init__creates_four_expected_files(runner: CliRunner, tmp_path: Path) ->
     ]
 
 
-def test_init__readme_names_current_run_commands(
-    runner: CliRunner, tmp_path: Path
-) -> None:
+def test_init__readme_names_current_run_commands(runner: CliRunner, tmp_path: Path) -> None:
     from eval_audit.cli import app
 
     result = runner.invoke(app, ["init", "my-study", "--cwd", str(tmp_path)])
@@ -99,10 +97,14 @@ def test_init__round_trips_through_analyze(
         [
             "analyze",
             str(tmp_path / "my-study" / "study.yaml"),
-            "--runs", str(tmp_path / "my-study" / "runs.parquet"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
-            "--bootstrap-iterations", "200",
+            "--runs",
+            str(tmp_path / "my-study" / "runs.parquet"),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+            "--bootstrap-iterations",
+            "200",
         ],
     )
     assert analyze.exit_code == 0, analyze.output
@@ -112,15 +114,13 @@ def test_init__round_trips_through_analyze(
 @pytest.mark.parametrize(
     "bad_slug",
     [
-        "My_Study",         # uppercase + underscore
-        "study/foo",        # slash (typer + slug validator both reject)
-        "study with space", # whitespace
-        "",                 # empty
+        "My_Study",  # uppercase + underscore
+        "study/foo",  # slash (typer + slug validator both reject)
+        "study with space",  # whitespace
+        "",  # empty
     ],
 )
-def test_init__rejects_bad_slugs(
-    runner: CliRunner, tmp_path: Path, bad_slug: str
-) -> None:
+def test_init__rejects_bad_slugs(runner: CliRunner, tmp_path: Path, bad_slug: str) -> None:
     from eval_audit.cli import app
 
     result = runner.invoke(app, ["init", bad_slug, "--cwd", str(tmp_path)])
@@ -131,9 +131,7 @@ def test_init__rejects_bad_slugs(
         assert not (tmp_path / bad_slug).exists()
 
 
-def test_init__leading_hyphen_slug_is_rejected(
-    runner: CliRunner, tmp_path: Path
-) -> None:
+def test_init__leading_hyphen_slug_is_rejected(runner: CliRunner, tmp_path: Path) -> None:
     """Leading-hyphen names are unsafe because they look like CLI flags. Use `--` to separate."""
     from eval_audit.cli import app
 
@@ -151,9 +149,7 @@ def test_init__digit_prefix_is_allowed(runner: CliRunner, tmp_path: Path) -> Non
     assert (tmp_path / "1study" / "study.yaml").exists()
 
 
-def test_init__refuses_to_clobber_non_empty_directory(
-    runner: CliRunner, tmp_path: Path
-) -> None:
+def test_init__refuses_to_clobber_non_empty_directory(runner: CliRunner, tmp_path: Path) -> None:
     from eval_audit.cli import app
 
     target = tmp_path / "my-study"
@@ -167,9 +163,7 @@ def test_init__refuses_to_clobber_non_empty_directory(
     assert not (target / "study.yaml").exists()
 
 
-def test_init__accepts_existing_empty_directory(
-    runner: CliRunner, tmp_path: Path
-) -> None:
+def test_init__accepts_existing_empty_directory(runner: CliRunner, tmp_path: Path) -> None:
     from eval_audit.cli import app
 
     target = tmp_path / "my-study"
