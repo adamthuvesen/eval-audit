@@ -285,15 +285,15 @@ def main() -> None:
         graded_path.write_text(json.dumps({**record, **graded}, indent=2) + "\n")
         total += 1
         marker = (
-            "PASS" if graded.get("success")
-            else "FAIL" if graded.get("outcome_status") == "graded"
+            "PASS"
+            if graded.get("success")
+            else "FAIL"
+            if graded.get("outcome_status") == "graded"
             else "ERR"
         )
         print(f"  {marker:4s} {record['agent_short']} {task_id} {record['run_id']}")
 
-    print(
-        f"done: total={total} skipped={skipped} pass={n_pass} fail={n_fail} errored={n_errored}"
-    )
+    print(f"done: total={total} skipped={skipped} pass={n_pass} fail={n_fail} errored={n_errored}")
 
 
 if __name__ == "__main__":

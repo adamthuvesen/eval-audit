@@ -44,9 +44,7 @@ VERIFIED_PARQUET_URL = (
     "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/resolve/main/"
     "data/test-00000-of-00001.parquet"
 )
-EXPERIMENTS_REPO_API = (
-    "https://api.github.com/repos/swe-bench/experiments/commits/main"
-)
+EXPERIMENTS_REPO_API = "https://api.github.com/repos/swe-bench/experiments/commits/main"
 RESULTS_URL_TEMPLATE = (
     "https://raw.githubusercontent.com/swe-bench/experiments/{commit}/"
     "evaluation/verified/{submission}/results/results.json"
@@ -71,14 +69,11 @@ def _sha256(data: bytes) -> str:
 def _load_task_universe(parquet_bytes: bytes) -> list[str]:
     frame = pl.read_parquet(io.BytesIO(parquet_bytes))
     if "instance_id" not in frame.columns:
-        raise RuntimeError(
-            "SWE-bench Verified parquet is missing 'instance_id' column"
-        )
+        raise RuntimeError("SWE-bench Verified parquet is missing 'instance_id' column")
     universe = frame["instance_id"].to_list()
     if len(universe) != SWE_BENCH_VERIFIED_TASK_COUNT:
         raise RuntimeError(
-            f"Expected {SWE_BENCH_VERIFIED_TASK_COUNT} Verified tasks; "
-            f"got {len(universe)}"
+            f"Expected {SWE_BENCH_VERIFIED_TASK_COUNT} Verified tasks; got {len(universe)}"
         )
     if len(set(universe)) != len(universe):
         raise RuntimeError("Verified parquet contains duplicate instance_ids")
@@ -129,12 +124,8 @@ def main() -> None:
 
     print("Building canonical RunRecord frame...")
     frame = build_canonical_frame(task_universe=universe, submissions=submissions)
-    treat_succ = int(
-        frame.filter(pl.col("agent_id") == TREATMENT_DIR)["success"].sum()
-    )
-    ctrl_succ = int(
-        frame.filter(pl.col("agent_id") == CONTROL_DIR)["success"].sum()
-    )
+    treat_succ = int(frame.filter(pl.col("agent_id") == TREATMENT_DIR)["success"].sum())
+    ctrl_succ = int(frame.filter(pl.col("agent_id") == CONTROL_DIR)["success"].sum())
     print(f"  treatment success count: {treat_succ}/{SWE_BENCH_VERIFIED_TASK_COUNT}")
     print(f"  control success count:   {ctrl_succ}/{SWE_BENCH_VERIFIED_TASK_COUNT}")
 
@@ -154,16 +145,12 @@ def main() -> None:
                 "purpose": "SWE-bench Verified 500-task universe",
             },
             {
-                "url": RESULTS_URL_TEMPLATE.format(
-                    commit=pinned_commit, submission=TREATMENT_DIR
-                ),
+                "url": RESULTS_URL_TEMPLATE.format(commit=pinned_commit, submission=TREATMENT_DIR),
                 "sha256": _sha256(treat_raw),
                 "purpose": "treatment submission resolved/no_generation/no_logs",
             },
             {
-                "url": RESULTS_URL_TEMPLATE.format(
-                    commit=pinned_commit, submission=CONTROL_DIR
-                ),
+                "url": RESULTS_URL_TEMPLATE.format(commit=pinned_commit, submission=CONTROL_DIR),
                 "sha256": _sha256(ctrl_raw),
                 "purpose": "control submission resolved/no_generation/no_logs",
             },

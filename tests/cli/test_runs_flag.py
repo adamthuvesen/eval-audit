@@ -26,10 +26,14 @@ def test_runs_flag__analyze_with_byo_parquet_writes_analysis_json(
         [
             "analyze",
             str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
-            "--runs", str(repo_root / "examples" / "byo-minimal" / "runs.parquet"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
-            "--bootstrap-iterations", "500",
+            "--runs",
+            str(repo_root / "examples" / "byo-minimal" / "runs.parquet"),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+            "--bootstrap-iterations",
+            "500",
         ],
     )
 
@@ -48,11 +52,15 @@ def test_runs_flag__report_with_byo_parquet_writes_nine_section_report(
         [
             "report",
             str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
-            "--runs", str(repo_root / "examples" / "byo-minimal" / "runs.parquet"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
+            "--runs",
+            str(repo_root / "examples" / "byo-minimal" / "runs.parquet"),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
             "--skip-validation",
-            "--bootstrap-iterations", "500",
+            "--bootstrap-iterations",
+            "500",
         ],
     )
 
@@ -92,9 +100,12 @@ def test_runs_flag__no_flag_preserves_adapter_path_for_existing_exhibits(
         [
             "analyze",
             str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
-            "--bootstrap-iterations", "200",
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
+            "--bootstrap-iterations",
+            "200",
         ],
     )
 
@@ -141,9 +152,12 @@ def test_runs_flag__missing_path_exits_nonzero_with_clear_error(
         [
             "analyze",
             str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
-            "--runs", "nonexistent.parquet",
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
+            "--runs",
+            "nonexistent.parquet",
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
         ],
     )
 
@@ -227,9 +241,12 @@ def test_runs_flag__malformed_parquet_names_row_and_field(
         [
             "analyze",
             str(repo_root / "examples" / "byo-minimal" / "study.yaml"),
-            "--runs", str(bad_path),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
+            "--runs",
+            str(bad_path),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
         ],
     )
 

@@ -115,10 +115,12 @@ def test_as_reported_only__renderer_emits_caveat_block_and_omits_price_pin_metad
         ],
     )
     runs_two = runs.filter(
-        pl.col("agent_id").is_in([
-            "Taubench ToolCalling (claude-3.7-sonnet)",
-            "Taubench ToolCalling (o4-mini-2025-04-16 high)",
-        ])
+        pl.col("agent_id").is_in(
+            [
+                "Taubench ToolCalling (claude-3.7-sonnet)",
+                "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+            ]
+        )
     )
     result = analyze(study, runs_two, bootstrap_iterations=200, bootstrap_seed=42)
     text = render_report(

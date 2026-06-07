@@ -24,11 +24,7 @@ def robustness_multiple_comparison(rows, baseline: str) -> tuple[str, str]:
             flipped.append("α=0.01")
         elif r.dimension == "alpha" and r.value == "0.10" and r.verdict != baseline:
             flipped.append("α=0.10")
-        elif (
-            r.dimension == "correction_method"
-            and r.value == "none"
-            and r.verdict != baseline
-        ):
+        elif r.dimension == "correction_method" and r.value == "none" and r.verdict != baseline:
             flipped.append("correction=none")
     if not flipped:
         return (
@@ -47,9 +43,7 @@ def robustness_errored_policy(rows, baseline: str) -> tuple[str, str]:
                 "does not survive",
                 f"verdict flips when errored rows excluded ({baseline} → {r.verdict})",
             )
-    raise ReportContractError(
-        "errored_policy=excluded row missing from sensitivity rows"
-    )
+    raise ReportContractError("errored_policy=excluded row missing from sensitivity rows")
 
 
 def robustness_cost_threshold(
@@ -76,9 +70,7 @@ def robustness_cost_threshold(
     )
 
 
-def robustness_target_mde(
-    target_mde: float | None, ci_half_width: float
-) -> tuple[str, str]:
+def robustness_target_mde(target_mde: float | None, ci_half_width: float) -> tuple[str, str]:
     if target_mde is None:
         return ("not assessed", "inference.target_mde not declared")
     half_pp = ci_half_width * 100
@@ -147,9 +139,7 @@ def render_robustness_review(
         if multi_claim:
             parts.append(f"### Claim `{c.claim_id}`\n")
         parts.extend(
-            render_robustness_review_table(
-                rows, baseline, target_mde, ci_half_width, presentation
-            )
+            render_robustness_review_table(rows, baseline, target_mde, ci_half_width, presentation)
         )
         parts.append("")
     return parts

@@ -297,11 +297,14 @@ def test_build_canonical_frame__round_trips_through_parquet(tmp_path: Path) -> N
 
     assert loaded.height == frame.height
     assert set(loaded.columns) == set(frame.columns)
-    assert int(
-        loaded.filter(pl.col("agent_id") == "20251127_openhands_claude-opus-4-5")[
-            "success"
-        ].sum()
-    ) == 388
+    assert (
+        int(
+            loaded.filter(pl.col("agent_id") == "20251127_openhands_claude-opus-4-5")[
+                "success"
+            ].sum()
+        )
+        == 388
+    )
 
 
 def test_adapter_validate__rejects_wrong_harness(tmp_path: Path) -> None:

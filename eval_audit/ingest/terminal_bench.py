@@ -37,9 +37,7 @@ class TerminalBenchMuxAdapter:
         runs_path = source_path / "runs.parquet"
         provenance_path = source_path / "provenance.json"
         if not runs_path.exists():
-            raise IngestContractError(
-                f"terminal_bench_mux adapter requires {runs_path}"
-            )
+            raise IngestContractError(f"terminal_bench_mux adapter requires {runs_path}")
         if not provenance_path.exists():
             raise IngestContractError(
                 f"terminal_bench_mux adapter requires {provenance_path}; "
@@ -57,9 +55,7 @@ class TerminalBenchMuxAdapter:
                 "terminal_bench_mux adapter expects every row to have "
                 f"harness={TERMINAL_BENCH_2_HARNESS!r}; got {harnesses}"
             )
-        if not (
-            frame["cost_provenance"] == CostProvenance.COST_NOT_AVAILABLE.value
-        ).all():
+        if not (frame["cost_provenance"] == CostProvenance.COST_NOT_AVAILABLE.value).all():
             classes = sorted(frame["cost_provenance"].unique().to_list())
             raise IngestContractError(
                 "terminal_bench_mux adapter expects every row to have "
@@ -176,9 +172,7 @@ def build_canonical_frame(
                 rows.append(_record_to_row(agent_id, run_id, metadata, record))
 
         if agent_tasks is None:
-            raise IngestContractError(
-                f"Terminal-Bench submission {agent_id!r} has no runs"
-            )
+            raise IngestContractError(f"Terminal-Bench submission {agent_id!r} has no runs")
         if reference_tasks is None:
             reference_tasks = agent_tasks
         elif agent_tasks != reference_tasks:

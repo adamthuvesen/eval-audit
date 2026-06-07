@@ -134,9 +134,7 @@ def _render_decision_gallery(repo_root: Path, readiness_kwargs) -> str:
     from eval_audit.stats import analyze
 
     study = StudySpec.from_yaml(repo_root / "studies" / "decision-gallery.yaml")
-    runs = load_run_records(
-        repo_root / "examples" / "decision-gallery" / "runs.parquet"
-    )
+    runs = load_run_records(repo_root / "examples" / "decision-gallery" / "runs.parquet")
     result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
     return render_report(
         result,
@@ -166,9 +164,7 @@ def _render_swe_bench_verified_openhands(repo_root: Path, readiness_kwargs) -> s
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
-    study = StudySpec.from_yaml(
-        repo_root / "studies" / "swe-bench-verified-openhands.yaml"
-    )
+    study = StudySpec.from_yaml(repo_root / "studies" / "swe-bench-verified-openhands.yaml")
     adapter = SweBenchVerifiedAdapter()
     runs = adapter.load(repo_root / "examples" / "swe-bench-verified-openhands")
     result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
@@ -232,7 +228,9 @@ def test_report_snapshot__humaneval_direct_completion_matches_committed_snapshot
     _check_snapshot(SNAPSHOT_PATH_C, rendered, "HumanEval Direct Completion")
 
 
-def test_humaneval_direct_completion_runs_parquet__cost_provenance_is_partial(repo_root: Path) -> None:
+def test_humaneval_direct_completion_runs_parquet__cost_provenance_is_partial(
+    repo_root: Path,
+) -> None:
     """The committed HumanEval Direct Completion parquet must use cost_provenance='partial'.
 
     The Anthropic Messages API does not expose an independent provider-side
@@ -242,9 +240,7 @@ def test_humaneval_direct_completion_runs_parquet__cost_provenance_is_partial(re
     """
     import polars as pl
 
-    runs = pl.read_parquet(
-        repo_root / "examples" / "humaneval-direct-completion" / "runs.parquet"
-    )
+    runs = pl.read_parquet(repo_root / "examples" / "humaneval-direct-completion" / "runs.parquet")
     provenance_values = sorted(runs["cost_provenance"].unique().to_list())
     assert provenance_values == ["partial"], (
         f"HumanEval Direct Completion parquet must use cost_provenance='partial' (got {provenance_values})"
@@ -262,15 +258,11 @@ def test_report_snapshot__swe_bench_verified_openhands_matches_committed_snapsho
     repo_root: Path, readiness_kwargs
 ) -> None:
     rendered = _render_swe_bench_verified_openhands(repo_root, readiness_kwargs)
-    _check_snapshot(
-        SNAPSHOT_PATH_SWE_BENCH, rendered, "SWE-bench Verified OpenHands"
-    )
+    _check_snapshot(SNAPSHOT_PATH_SWE_BENCH, rendered, "SWE-bench Verified OpenHands")
 
 
 def test_report_snapshot__terminal_bench_2_mux_matches_committed_snapshot(
     repo_root: Path, readiness_kwargs
 ) -> None:
     rendered = _render_terminal_bench_2_mux(repo_root, readiness_kwargs)
-    _check_snapshot(
-        SNAPSHOT_PATH_TERMINAL_BENCH, rendered, "Terminal-Bench 2.0 Mux"
-    )
+    _check_snapshot(SNAPSHOT_PATH_TERMINAL_BENCH, rendered, "Terminal-Bench 2.0 Mux")

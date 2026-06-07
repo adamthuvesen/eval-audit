@@ -45,8 +45,7 @@ class RunRecord(BaseModel):
         negative_models = [model for model, tokens in value.items() if tokens < 0]
         if negative_models:
             raise ValueError(
-                "token breakdown values must be non-negative "
-                f"(model(s): {sorted(negative_models)})"
+                f"token breakdown values must be non-negative (model(s): {sorted(negative_models)})"
             )
         return value
 

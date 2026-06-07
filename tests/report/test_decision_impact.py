@@ -52,27 +52,58 @@ def test_decision_impact__rejects_table_branches() -> None:
     from eval_audit.report.decisions import decision_impact
 
     # Pareto-dominated treatment -> drop_from_shortlist (highest priority).
-    assert decision_impact(_stub_claim_result(treatment_dominated=True, rejects=True)) == "drop_from_shortlist"
+    assert (
+        decision_impact(_stub_claim_result(treatment_dominated=True, rejects=True))
+        == "drop_from_shortlist"
+    )
 
     # Rejects + matching direction -> switch.
-    assert decision_impact(
-        _stub_claim_result(rejects=True, delta_point=0.05, delta_lo=0.01, delta_hi=0.09, direction_matches_claim=True)
-    ) == "switch"
+    assert (
+        decision_impact(
+            _stub_claim_result(
+                rejects=True,
+                delta_point=0.05,
+                delta_lo=0.01,
+                delta_hi=0.09,
+                direction_matches_claim=True,
+            )
+        )
+        == "switch"
+    )
 
     # Rejects + opposite direction -> hold.
-    assert decision_impact(
-        _stub_claim_result(rejects=True, delta_point=-0.05, delta_lo=-0.09, delta_hi=-0.01, direction_matches_claim=False)
-    ) == "hold"
+    assert (
+        decision_impact(
+            _stub_claim_result(
+                rejects=True,
+                delta_point=-0.05,
+                delta_lo=-0.09,
+                delta_hi=-0.01,
+                direction_matches_claim=False,
+            )
+        )
+        == "hold"
+    )
 
     # CI crosses zero, no meaningful cost gap -> rerun_more_n.
-    assert decision_impact(
-        _stub_claim_result(rejects=False, delta_lo=-0.02, delta_hi=0.02, treatment_cost=100, control_cost=101)
-    ) == "rerun_more_n"
+    assert (
+        decision_impact(
+            _stub_claim_result(
+                rejects=False, delta_lo=-0.02, delta_hi=0.02, treatment_cost=100, control_cost=101
+            )
+        )
+        == "rerun_more_n"
+    )
 
     # CI crosses zero, large cost gap -> hedge_on_cost.
-    assert decision_impact(
-        _stub_claim_result(rejects=False, delta_lo=-0.02, delta_hi=0.02, treatment_cost=200, control_cost=100)
-    ) == "hedge_on_cost"
+    assert (
+        decision_impact(
+            _stub_claim_result(
+                rejects=False, delta_lo=-0.02, delta_hi=0.02, treatment_cost=200, control_cost=100
+            )
+        )
+        == "hedge_on_cost"
+    )
 
 
 def test_explain_decision_impact__covers_controlled_branches() -> None:

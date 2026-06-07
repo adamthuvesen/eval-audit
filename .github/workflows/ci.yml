@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   check:
-    name: make check (pytest + ruff)
+    name: make check (ruff + format + pytest)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

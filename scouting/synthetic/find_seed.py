@@ -57,11 +57,13 @@ def main() -> None:
 
     spec = yaml.safe_load(generate.SPEC_PATH.read_text())
     # Ensure acceptance_criteria is present (re-uses generator's check).
-    missing = [k for k in generate.REQUIRED_CRITERIA_KEYS if k not in (spec.get("acceptance_criteria") or {})]
+    missing = [
+        k
+        for k in generate.REQUIRED_CRITERIA_KEYS
+        if k not in (spec.get("acceptance_criteria") or {})
+    ]
     if missing:
-        sys.stderr.write(
-            f"spec.yaml is missing required acceptance_criteria keys: {missing}\n"
-        )
+        sys.stderr.write(f"spec.yaml is missing required acceptance_criteria keys: {missing}\n")
         sys.exit(2)
 
     print(
@@ -69,12 +71,15 @@ def main() -> None:
         f"({'all matches' if args.all else 'first match'})..."
     )
 
-    pass_counts = {name: 0 for name in (
-        "primary_delta_proximity",
-        "primary_bootstrap_ci_crosses_zero",
-        "pareto_membership_match",
-        "per_agent_rate_proximity",
-    )}
+    pass_counts = {
+        name: 0
+        for name in (
+            "primary_delta_proximity",
+            "primary_bootstrap_ci_crosses_zero",
+            "pareto_membership_match",
+            "per_agent_rate_proximity",
+        )
+    }
     found: list[int] = []
 
     for offset in range(args.budget):
@@ -96,9 +101,7 @@ def main() -> None:
             print(f"  ...checked {offset + 1} seeds, no full pass yet", file=sys.stderr)
 
     if args.all:
-        print(
-            f"\nScanned {args.budget} seeds; {len(found)} satisfied all criteria."
-        )
+        print(f"\nScanned {args.budget} seeds; {len(found)} satisfied all criteria.")
         if found:
             print("Passing seeds:", found)
             sys.exit(0)

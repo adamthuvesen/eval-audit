@@ -51,8 +51,7 @@ def render_provenance_controlled_evidence(
         parts.append("- **model_arms:**")
         for row in arm_summary.iter_rows(named=True):
             parts.append(
-                f"  - `{row['agent_id']}` → `{row['model_id']}` "
-                f"({row['n_runs']} run(s) per task)"
+                f"  - `{row['agent_id']}` → `{row['model_id']}` ({row['n_runs']} run(s) per task)"
             )
         if rerun_policy:
             parts.append(f"- **rerun_policy:** `{rerun_policy}`")
@@ -74,9 +73,7 @@ def render_provenance_controlled_evidence(
         parts.append(f"- **harness:** `{study.harness}`")
     if "cost_provenance" in runs.columns and not runs.is_empty():
         total = runs.height
-        match = runs.filter(
-            pl.col("cost_provenance") == presentation.cost_provenance
-        ).height
+        match = runs.filter(pl.col("cost_provenance") == presentation.cost_provenance).height
         parts.append(
             f"- **cost_provenance:** `{presentation.cost_provenance}` ({match}/{total} rows)"
         )

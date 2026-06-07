@@ -19,12 +19,9 @@ def test_pareto__synthetic_dataset_frontier_matches_truth(scouting_dir: Path) ->
     adapter = SyntheticAdapter()
     frame = adapter.load(scouting_dir / "synthetic")
 
-    per_agent = (
-        frame.group_by("agent_id")
-        .agg(
-            pl.col("success").cast(pl.Int64).mean().alias("success_rate"),
-            pl.col("reconstructed_per_task_cost_usd").sum().alias("cost"),
-        )
+    per_agent = frame.group_by("agent_id").agg(
+        pl.col("success").cast(pl.Int64).mean().alias("success_rate"),
+        pl.col("reconstructed_per_task_cost_usd").sum().alias("cost"),
     )
 
     frontier = pareto_frontier(per_agent, success_col="success_rate", cost_col="cost")

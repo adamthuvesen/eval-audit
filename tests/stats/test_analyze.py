@@ -103,12 +103,14 @@ def test_analyze__rows_must_match_declared_study_harness() -> None:
 
     from eval_audit.stats import AnalysisInputError, analyze
 
-    frame = pl.DataFrame([
-        _row("agent_t", "t01", "tau_bench_tool_calling"),
-        _row("agent_t", "t02", "tau_bench_tool_calling"),
-        _row("agent_c", "t01", "tau_bench_tool_calling"),
-        _row("agent_c", "t02", "tau_bench_tool_calling"),
-    ])
+    frame = pl.DataFrame(
+        [
+            _row("agent_t", "t01", "tau_bench_tool_calling"),
+            _row("agent_t", "t02", "tau_bench_tool_calling"),
+            _row("agent_c", "t01", "tau_bench_tool_calling"),
+            _row("agent_c", "t02", "tau_bench_tool_calling"),
+        ]
+    )
     study = _stub_study("agent_t", "agent_c", "hal_generalist_agent")
 
     with pytest.raises(AnalysisInputError) as exc_info:
@@ -127,10 +129,12 @@ def test_analyze__missing_claimed_agent_rows_fail_clearly() -> None:
 
     from eval_audit.stats import AnalysisInputError, analyze
 
-    frame = pl.DataFrame([
-        _row("agent_t", "t01", "hal_generalist_agent"),
-        _row("agent_t", "t02", "hal_generalist_agent"),
-    ])
+    frame = pl.DataFrame(
+        [
+            _row("agent_t", "t01", "hal_generalist_agent"),
+            _row("agent_t", "t02", "hal_generalist_agent"),
+        ]
+    )
     study = _stub_study("agent_t", "agent_c", "hal_generalist_agent")
 
     with pytest.raises(AnalysisInputError) as exc_info:
@@ -263,10 +267,12 @@ def test_analyze__unsupported_outcome_fails_loudly() -> None:
     bad_primary = study.primary_outcome.model_copy(update={"name": "latency_s"})
     bad_claim = study.claims[0].model_copy(update={"outcome": "latency_s"})
     bad_study = study.model_copy(update={"primary_outcome": bad_primary, "claims": [bad_claim]})
-    frame = pl.DataFrame([
-        _row("agent_t", "t01", "hal_generalist_agent"),
-        _row("agent_c", "t01", "hal_generalist_agent"),
-    ])
+    frame = pl.DataFrame(
+        [
+            _row("agent_t", "t01", "hal_generalist_agent"),
+            _row("agent_c", "t01", "hal_generalist_agent"),
+        ]
+    )
 
     with pytest.raises(ValueError) as exc_info:
         analyze(bad_study, frame)

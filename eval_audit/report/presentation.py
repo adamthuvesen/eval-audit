@@ -36,9 +36,7 @@ def row_level_cost_provenance(runs: pl.DataFrame) -> str:
     values = sorted(str(v) for v in runs["cost_provenance"].unique().to_list())
     if len(values) == 1:
         return values[0]
-    raise ReportContractError(
-        f"ambiguous cost_provenance across runs frame: {values}"
-    )
+    raise ReportContractError(f"ambiguous cost_provenance across runs frame: {values}")
 
 
 def resolve_report_cost_provenance(
@@ -72,9 +70,7 @@ def resolve_study_presentation(
         repo_root, study
     )
     scouting = load_scouting_artifacts(study, repo_root)
-    cost_provenance = resolve_report_cost_provenance(
-        study, runs, scouting.cost_recon_data
-    )
+    cost_provenance = resolve_report_cost_provenance(study, runs, scouting.cost_recon_data)
     pareto_suppressed = result.pareto_status == "suppressed_cost_not_available"
     cost_suppressed = cost_provenance == CostProvenance.COST_NOT_AVAILABLE.value
     show_cost_columns = not pareto_suppressed and not cost_suppressed

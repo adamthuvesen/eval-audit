@@ -61,10 +61,12 @@ def _render_taubench_report(repo_root: Path, readiness_kwargs) -> str:
     runs = HalTauBenchAdapter().load(repo_root / "scouting" / "candidates" / "tau-bench")
     # Filter to two agents to match the stub study's claim arms.
     runs = runs.filter(
-        pl.col("agent_id").is_in([
-            "Taubench ToolCalling (claude-3.7-sonnet)",
-            "Taubench ToolCalling (o4-mini-2025-04-16 high)",
-        ])
+        pl.col("agent_id").is_in(
+            [
+                "Taubench ToolCalling (claude-3.7-sonnet)",
+                "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+            ]
+        )
     )
     result = analyze(study, runs, bootstrap_iterations=500, bootstrap_seed=42)
     return render_report(
@@ -81,9 +83,7 @@ def _render_taubench_report(repo_root: Path, readiness_kwargs) -> str:
     )
 
 
-def test_caveat__as_reported_only_renders_sub_block(
-    repo_root: Path, readiness_kwargs
-) -> None:
+def test_caveat__as_reported_only_renders_sub_block(repo_root: Path, readiness_kwargs) -> None:
     """WHEN the renderer is called against an analysis result whose fixture has
     cost-reconciliation.json outcome 'as_reported_only' (e.g. tau-bench),
     THEN the rendered report's '## Provenance' section contains a
@@ -112,9 +112,7 @@ def test_caveat__as_reported_only_renders_sub_block(
     assert callout_idx < divergences_idx < caveats_idx
 
 
-def test_caveat__reconciled_fixture_omits_sub_block(
-    repo_root: Path, readiness_kwargs
-) -> None:
+def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path, readiness_kwargs) -> None:
     """Reconciled fixtures do not get a cost-provenance caveat warning block."""
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.report.markdown import render_report
@@ -166,9 +164,7 @@ def test_caveat__cost_per_success_fallback_for_as_reported_only(
     assert "$0.70" in claude_line
 
 
-def test_caveat__divergences_surfaced_verbatim(
-    repo_root: Path, readiness_kwargs
-) -> None:
+def test_caveat__divergences_surfaced_verbatim(repo_root: Path, readiness_kwargs) -> None:
     """WHEN the caveat sub-block renders divergences for the TAU-bench fixture,
     THEN the bulleted list contains exactly three entries (matching the three
     divergences in scouting/candidates/tau-bench/cost-reconciliation.json), and
@@ -179,8 +175,9 @@ def test_caveat__divergences_surfaced_verbatim(
 
     text = _render_taubench_report(repo_root, readiness_kwargs)
     cost_recon = json.loads(
-        (repo_root / "scouting" / "candidates" / "tau-bench" / "cost-reconciliation.json")
-        .read_text()
+        (
+            repo_root / "scouting" / "candidates" / "tau-bench" / "cost-reconciliation.json"
+        ).read_text()
     )
     expected_divergences = cost_recon["divergences"]
 

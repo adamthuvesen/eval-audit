@@ -96,12 +96,13 @@ def test_sensitivity__baseline_row_matches_claims_table_verdict(gaia_hal_general
         claims_verdict = claims_table_match.group(1)
 
         assert baseline_verdict == claims_verdict, (
-            f"baseline {baseline_verdict!r} != claims-table {claims_verdict!r} "
-            f"for {claim.claim_id}"
+            f"baseline {baseline_verdict!r} != claims-table {claims_verdict!r} for {claim.claim_id}"
         )
 
 
-def test_sensitivity__six_perturbation_rows_present_and_ordered(tau_bench_airline_tool_calling) -> None:
+def test_sensitivity__six_perturbation_rows_present_and_ordered(
+    tau_bench_airline_tool_calling,
+) -> None:
     """WHEN the renderer emits the sensitivity sub-block,
     THEN the rows after the baseline appear in the locked order.
     """
@@ -151,7 +152,9 @@ def test_sensitivity__verdicts_are_in_controlled_vocabulary(tau_bench_airline_to
             )
 
 
-def test_sensitivity__flip_annotation_only_on_non_baseline_verdicts(tau_bench_airline_tool_calling) -> None:
+def test_sensitivity__flip_annotation_only_on_non_baseline_verdicts(
+    tau_bench_airline_tool_calling,
+) -> None:
     """A row's verdict cell ends with ` ← flips` iff the verdict differs from
     the baseline verdict for the same claim.
     """
@@ -218,8 +221,6 @@ def test_sensitivity__multiple_claims_one_subblock_each(tau_bench_airline_tool_c
 
     claim_ids = [c.claim_id for c in result.claims]
     indices = [text.index(f"**Verdict sensitivity** — `{cid}`") for cid in claim_ids]
-    assert indices == sorted(indices), (
-        "sensitivity sub-blocks not in claim-row order"
-    )
+    assert indices == sorted(indices), "sensitivity sub-blocks not in claim-row order"
     # Three sub-blocks total (one per claim).
     assert text.count("**Verdict sensitivity**") == len(claim_ids)

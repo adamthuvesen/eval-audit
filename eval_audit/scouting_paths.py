@@ -26,9 +26,7 @@ DECISION_DOC_ALIAS: dict[str, str] = {
 }
 
 
-def resolve_decision_doc(
-    repo_root: Path, benchmark: str, study_id: str
-) -> tuple[Path, str]:
+def resolve_decision_doc(repo_root: Path, benchmark: str, study_id: str) -> tuple[Path, str]:
     """Return ``(path, repo-relative label)`` for the study's decision doc."""
     if benchmark in DECISION_DOC_ALIAS:
         filename = DECISION_DOC_ALIAS[benchmark]

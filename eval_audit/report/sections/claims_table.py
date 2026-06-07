@@ -63,9 +63,7 @@ def render_verdict_explainer(
     cost_gap_ratio = explanation.conditions["cost_gap_ratio"]
     cost_gap_text = "n/a" if cost_gap_ratio is None else f"{cost_gap_ratio:.2%}"
     suppressed = (
-        ", ".join(explanation.suppressed_branches)
-        if explanation.suppressed_branches
-        else "none"
+        ", ".join(explanation.suppressed_branches) if explanation.suppressed_branches else "none"
     )
     parts = [
         f"**Copyable summary** — `{claim.claim_id}`\n",

@@ -61,12 +61,9 @@ def test_hal_gaia__reconstructed_sum_matches_reported_run_total(gaia_dir: Path) 
     adapter = HalGaiaAdapter()
     frame = adapter.load(gaia_dir)
 
-    per_run = (
-        frame.group_by("agent_id", "run_id")
-        .agg(
-            pl.col("reconstructed_per_task_cost_usd").sum().alias("recon"),
-            pl.col("reported_run_total_cost_usd").first().alias("reported"),
-        )
+    per_run = frame.group_by("agent_id", "run_id").agg(
+        pl.col("reconstructed_per_task_cost_usd").sum().alias("recon"),
+        pl.col("reported_run_total_cost_usd").first().alias("reported"),
     )
     for row in per_run.iter_rows(named=True):
         rel_err = abs(row["recon"] - row["reported"]) / row["reported"]
@@ -94,12 +91,16 @@ def test_hal_gaia__unknown_model_fails_loud(gaia_dir: Path, tmp_path: Path) -> N
     first_row = sample.row(0, named=True)
     bad_tin = json.loads(first_row["tokens_in_by_model"])
     bad_tin["totally-fake-model-xyz"] = 100
-    sample = sample.with_row_index().with_columns(
-        pl.when(pl.col("index") == 0)
-        .then(pl.lit(json.dumps(bad_tin)))
-        .otherwise(pl.col("tokens_in_by_model"))
-        .alias("tokens_in_by_model")
-    ).drop("index")
+    sample = (
+        sample.with_row_index()
+        .with_columns(
+            pl.when(pl.col("index") == 0)
+            .then(pl.lit(json.dumps(bad_tin)))
+            .otherwise(pl.col("tokens_in_by_model"))
+            .alias("tokens_in_by_model")
+        )
+        .drop("index")
+    )
     sample.write_parquet(shadow / "sample.parquet")
 
     adapter = HalGaiaAdapter()

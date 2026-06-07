@@ -22,8 +22,7 @@ def what_would_change_it(
 ) -> str:
     if target_mde is None:
         return (
-            "declaring an inference.target_mde would let this report estimate "
-            "required sample size"
+            "declaring an inference.target_mde would let this report estimate required sample size"
         )
     from eval_audit.stats.resolution import estimate_required_paired_tasks
 
@@ -62,9 +61,7 @@ def reviewer_pushback(
     if total_errored > 0:
         n_agents = sum(1 for s in per_agent if s.n_errored > 0)
         agents_word = "agent" if n_agents == 1 else "agents"
-        caveats.append(
-            f"errored rows present ({total_errored} across {n_agents} {agents_word})"
-        )
+        caveats.append(f"errored rows present ({total_errored} across {n_agents} {agents_word})")
     if presentation.cost_provenance == CostProvenance.AS_REPORTED_ONLY.value:
         caveats.append("cost provenance is as_reported_only")
     elif presentation.cost_provenance == CostProvenance.COST_NOT_AVAILABLE.value:

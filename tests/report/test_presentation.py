@@ -95,8 +95,7 @@ def test_resolve_report_cost_provenance__declared_reanalysis_without_recon() -> 
     study = _study(mode="declared_reanalysis")
     runs = pl.DataFrame([_row("cost_not_available"), _row("cost_not_available")])
     assert (
-        resolve_report_cost_provenance(study, runs, {})
-        == CostProvenance.COST_NOT_AVAILABLE.value
+        resolve_report_cost_provenance(study, runs, {}) == CostProvenance.COST_NOT_AVAILABLE.value
     )
     runs_recon = pl.DataFrame([_row("reconciled"), _row("reconciled")])
     assert resolve_report_cost_provenance(study, runs_recon, {}) == "n/a"

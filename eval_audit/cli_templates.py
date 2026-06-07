@@ -144,6 +144,4 @@ def scaffold_byo_study(target_dir: Path, study_id: str) -> None:
         text=True,
     )
     if result.returncode != 0:
-        raise ScaffoldError(
-            f"make_runs.py failed in {target_dir}: {result.stderr.strip()}"
-        )
+        raise ScaffoldError(f"make_runs.py failed in {target_dir}: {result.stderr.strip()}")

@@ -53,7 +53,9 @@ def render_study_spec(study: StudySpec) -> str:
     if study.inference.target_mde is None:
         parts.append("- **target_mde:** none declared")
     else:
-        parts.append(f"- **target_mde:** `{study.inference.target_mde}` (= {study.inference.target_mde * 100:.2f} pp)")
+        parts.append(
+            f"- **target_mde:** `{study.inference.target_mde}` (= {study.inference.target_mde * 100:.2f} pp)"
+        )
     parts.append("")
 
     # 6. Cost view

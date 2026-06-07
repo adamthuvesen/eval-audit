@@ -96,9 +96,7 @@ def _check_harness_consistency(
         for agent_id in (claim.treatment, claim.control):
             rows = rows_by_agent[agent_id]
             if rows.height == 0:
-                raise AnalysisInputError(
-                    f"agent_id={agent_id!r} has no rows in loaded runs"
-                )
+                raise AnalysisInputError(f"agent_id={agent_id!r} has no rows in loaded runs")
             harnesses = sorted(rows["harness"].unique().to_list())
             if len(harnesses) > 1:
                 raise AnalysisInputError(
@@ -123,10 +121,7 @@ def _check_harness_consistency(
 
 
 def _rows_by_agent(runs: pl.DataFrame, agent_ids: set[str]) -> dict[str, pl.DataFrame]:
-    return {
-        agent_id: runs.filter(pl.col("agent_id") == agent_id)
-        for agent_id in sorted(agent_ids)
-    }
+    return {agent_id: runs.filter(pl.col("agent_id") == agent_id) for agent_id in sorted(agent_ids)}
 
 
 def analyze(
@@ -142,9 +137,7 @@ def analyze(
 
     agent_ids = [a.id for a in study.agents]
     claim_agent_ids = {
-        agent_id
-        for claim in study.claims
-        for agent_id in (claim.treatment, claim.control)
+        agent_id for claim in study.claims for agent_id in (claim.treatment, claim.control)
     }
     rows_by_agent = _rows_by_agent(runs, set(agent_ids) | claim_agent_ids)
 
@@ -158,9 +151,7 @@ def analyze(
             raise AnalysisInputError(
                 f"agent_id={agent_id!r} declared in study.agents has no rows in loaded runs"
             )
-        summary = summarize_agent(
-            agent_id, rows, alpha, policy=ErroredRowPolicy.headline
-        )
+        summary = summarize_agent(agent_id, rows, alpha, policy=ErroredRowPolicy.headline)
         per_agent.append(summary)
         by_id[agent_id] = summary
 
@@ -203,9 +194,7 @@ def analyze(
     elif study.inference.correction_method == "benjamini_hochberg":
         corrected = benjamini_hochberg(raw_p_pairs, alpha=alpha)
     else:
-        raise ValueError(
-            f"unsupported correction_method={study.inference.correction_method!r}"
-        )
+        raise ValueError(f"unsupported correction_method={study.inference.correction_method!r}")
 
     by_claim_id = {cid: (rp, ap, rej) for cid, rp, ap, rej in corrected}
 

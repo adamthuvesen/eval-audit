@@ -83,27 +83,33 @@ def _claude_taubench_rows() -> list[dict]:
     """Synthetic 50-task Claude frame: 22 graded-success, 25 graded-fail, 3 errored."""
     rows: list[dict] = []
     for i in range(22):
-        rows.append(_row(
-            agent_id="claude",
-            task_id=f"t{i:02d}",
-            outcome_status="graded",
-            success=True,
-        ))
+        rows.append(
+            _row(
+                agent_id="claude",
+                task_id=f"t{i:02d}",
+                outcome_status="graded",
+                success=True,
+            )
+        )
     for i in range(22, 47):
-        rows.append(_row(
-            agent_id="claude",
-            task_id=f"t{i:02d}",
-            outcome_status="graded",
-            success=False,
-        ))
+        rows.append(
+            _row(
+                agent_id="claude",
+                task_id=f"t{i:02d}",
+                outcome_status="graded",
+                success=False,
+            )
+        )
     for i in range(47, 50):
-        rows.append(_row(
-            agent_id="claude",
-            task_id=f"t{i:02d}",
-            outcome_status="errored",
-            success=None,
-            reconstructed_cost=None,
-        ))
+        rows.append(
+            _row(
+                agent_id="claude",
+                task_id=f"t{i:02d}",
+                outcome_status="errored",
+                success=None,
+                reconstructed_cost=None,
+            )
+        )
     return rows
 
 
@@ -111,19 +117,23 @@ def _o4mini_taubench_rows() -> list[dict]:
     """Synthetic 50-task o4-mini frame: 28 graded-success, 22 graded-fail, 0 errored."""
     rows: list[dict] = []
     for i in range(28):
-        rows.append(_row(
-            agent_id="o4mini",
-            task_id=f"t{i:02d}",
-            outcome_status="graded",
-            success=True,
-        ))
+        rows.append(
+            _row(
+                agent_id="o4mini",
+                task_id=f"t{i:02d}",
+                outcome_status="graded",
+                success=True,
+            )
+        )
     for i in range(28, 50):
-        rows.append(_row(
-            agent_id="o4mini",
-            task_id=f"t{i:02d}",
-            outcome_status="graded",
-            success=False,
-        ))
+        rows.append(
+            _row(
+                agent_id="o4mini",
+                task_id=f"t{i:02d}",
+                outcome_status="graded",
+                success=False,
+            )
+        )
     return rows
 
 
@@ -242,50 +252,58 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     # Expected total_cost_usd = 8 * 0.10 = 0.80; cost_per_success = 0.80 / 5 = 0.16.
     rows: list[dict] = []
     for i in range(5):
-        rows.append(_row(
-            agent_id="reconciled_agent",
-            task_id=f"t{i:02d}",
-            outcome_status="graded",
-            success=True,
-            harness="hal_generalist_agent",
-            cost_provenance="reconciled",
-            reconstructed_cost=0.10,
-            reported_run_total=1.00,
-        ))
+        rows.append(
+            _row(
+                agent_id="reconciled_agent",
+                task_id=f"t{i:02d}",
+                outcome_status="graded",
+                success=True,
+                harness="hal_generalist_agent",
+                cost_provenance="reconciled",
+                reconstructed_cost=0.10,
+                reported_run_total=1.00,
+            )
+        )
     for i in range(5, 8):
-        rows.append(_row(
-            agent_id="reconciled_agent",
-            task_id=f"t{i:02d}",
-            outcome_status="graded",
-            success=False,
-            harness="hal_generalist_agent",
-            cost_provenance="reconciled",
-            reconstructed_cost=0.10,
-            reported_run_total=1.00,
-        ))
+        rows.append(
+            _row(
+                agent_id="reconciled_agent",
+                task_id=f"t{i:02d}",
+                outcome_status="graded",
+                success=False,
+                harness="hal_generalist_agent",
+                cost_provenance="reconciled",
+                reconstructed_cost=0.10,
+                reported_run_total=1.00,
+            )
+        )
     for i in range(8, 10):
-        rows.append(_row(
-            agent_id="reconciled_agent",
-            task_id=f"t{i:02d}",
-            outcome_status="errored",
-            success=None,
-            harness="hal_generalist_agent",
-            cost_provenance="reconciled",
-            reconstructed_cost=None,
-            reported_run_total=1.00,
-        ))
+        rows.append(
+            _row(
+                agent_id="reconciled_agent",
+                task_id=f"t{i:02d}",
+                outcome_status="errored",
+                success=None,
+                harness="hal_generalist_agent",
+                cost_provenance="reconciled",
+                reconstructed_cost=None,
+                reported_run_total=1.00,
+            )
+        )
     # Pair with a control agent so analyze() has a comparison to chew on.
     for i in range(10):
-        rows.append(_row(
-            agent_id="control_agent",
-            task_id=f"t{i:02d}",
-            outcome_status="graded",
-            success=(i < 4),
-            harness="hal_generalist_agent",
-            cost_provenance="reconciled",
-            reconstructed_cost=0.05,
-            reported_run_total=0.50,
-        ))
+        rows.append(
+            _row(
+                agent_id="control_agent",
+                task_id=f"t{i:02d}",
+                outcome_status="graded",
+                success=(i < 4),
+                harness="hal_generalist_agent",
+                cost_provenance="reconciled",
+                reconstructed_cost=0.05,
+                reported_run_total=0.50,
+            )
+        )
 
     frame = pl.DataFrame(rows, strict=False)
     study = _stub_study("reconciled_agent", "control_agent", harness="hal_generalist_agent")
@@ -389,38 +407,46 @@ def test_errored_row_policy__property_success_rate_invariants(
     rows: list[dict] = []
     task_idx = 0
     for _ in range(n_successes):
-        rows.append(_row(
-            agent_id="agent",
-            task_id=f"t{task_idx:03d}",
-            outcome_status="graded",
-            success=True,
-        ))
+        rows.append(
+            _row(
+                agent_id="agent",
+                task_id=f"t{task_idx:03d}",
+                outcome_status="graded",
+                success=True,
+            )
+        )
         task_idx += 1
     for _ in range(n_failures):
-        rows.append(_row(
-            agent_id="agent",
-            task_id=f"t{task_idx:03d}",
-            outcome_status="graded",
-            success=False,
-        ))
+        rows.append(
+            _row(
+                agent_id="agent",
+                task_id=f"t{task_idx:03d}",
+                outcome_status="graded",
+                success=False,
+            )
+        )
         task_idx += 1
     for _ in range(n_errored):
-        rows.append(_row(
-            agent_id="agent",
-            task_id=f"t{task_idx:03d}",
-            outcome_status="errored",
-            success=None,
-            reconstructed_cost=None,
-        ))
+        rows.append(
+            _row(
+                agent_id="agent",
+                task_id=f"t{task_idx:03d}",
+                outcome_status="errored",
+                success=None,
+                reconstructed_cost=None,
+            )
+        )
         task_idx += 1
     # Pair against a control with same task_id set so paired bootstrap can run.
     for i in range(n_total):
-        rows.append(_row(
-            agent_id="control",
-            task_id=f"t{i:03d}",
-            outcome_status="graded",
-            success=False,
-        ))
+        rows.append(
+            _row(
+                agent_id="control",
+                task_id=f"t{i:03d}",
+                outcome_status="graded",
+                success=False,
+            )
+        )
 
     frame = pl.DataFrame(rows, strict=False)
     study = _stub_study("agent", "control")

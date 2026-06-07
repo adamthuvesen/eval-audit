@@ -82,7 +82,9 @@ def test_synthetic_validation__per_agent_success_rate_within_tolerance(analysis,
 
 
 @pytest.mark.synthetic_validation
-def test_synthetic_validation__pairwise_true_effect_ranking_matches(analysis, truth, scouting_dir: Path) -> None:
+def test_synthetic_validation__pairwise_true_effect_ranking_matches(
+    analysis, truth, scouting_dir: Path
+) -> None:
     """For every pair in truth.json, the recovered point estimate has the right sign."""
     from eval_audit.ingest.synthetic import SyntheticAdapter
     from eval_audit.stats.bootstrap import paired_task_bootstrap
@@ -120,7 +122,8 @@ def test_synthetic_validation__primary_pair_holm_does_not_reject(analysis, truth
     """Holm-Bonferroni adjusted p-value for the primary pair does NOT reject at alpha=0.05."""
     primary_pair = tuple(truth["primary_pair"])
     matching = [
-        c for c in analysis.claims
+        c
+        for c in analysis.claims
         if (c.treatment, c.control) == primary_pair or (c.control, c.treatment) == primary_pair
     ]
     assert matching, f"no claim matched primary pair {primary_pair}"

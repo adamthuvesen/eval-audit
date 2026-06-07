@@ -35,9 +35,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 GRADED_DIR = HERE / "graded"
 PRICE_TABLE_PATH = HERE / "price-table.yaml"
-OUT_PATH = (
-    HERE.parent.parent / "examples" / "humaneval-direct-completion" / "runs.parquet"
-)
+OUT_PATH = HERE.parent.parent / "examples" / "humaneval-direct-completion" / "runs.parquet"
 TASK_ID_RE = re.compile(r"^HumanEval/(\d+)$")
 HARNESS_ID = "eval-audit/humaneval-direct-completion-v1"
 
@@ -50,9 +48,7 @@ def _short(model_id: str) -> str:
     raise ValueError(f"unrecognized model_id: {model_id}")
 
 
-def _per_call_cost_usd(
-    tokens_in: int, tokens_out: int, rates: dict
-) -> float:
+def _per_call_cost_usd(tokens_in: int, tokens_out: int, rates: dict) -> float:
     return (
         tokens_in * rates["input_per_mtok"] / 1_000_000
         + tokens_out * rates["output_per_mtok"] / 1_000_000
@@ -109,9 +105,7 @@ def main() -> None:
         timestamp = None
         if record.get("started_at"):
             try:
-                timestamp = datetime.fromisoformat(
-                    record["started_at"].replace("Z", "+00:00")
-                )
+                timestamp = datetime.fromisoformat(record["started_at"].replace("Z", "+00:00"))
             except ValueError:
                 timestamp = None
 
@@ -136,9 +130,7 @@ def main() -> None:
             "reconciliation_tolerance_usd": f"{tolerance:.4f}",
         }
         if outcome_status == "errored":
-            rerun_metadata["error_detail_tail"] = (
-                record.get("grader", {}).get("detail", "")[:200]
-            )
+            rerun_metadata["error_detail_tail"] = record.get("grader", {}).get("detail", "")[:200]
 
         rows.append(
             {
@@ -147,7 +139,9 @@ def main() -> None:
                 "harness": HARNESS_ID,
                 "run_id": run_id,
                 "task_id": task_id,
-                "task_category": f"humaneval_idx_{task_index:03d}" if task_index is not None else None,
+                "task_category": f"humaneval_idx_{task_index:03d}"
+                if task_index is not None
+                else None,
                 "seed": None,
                 "success": success,
                 "partial_credit": partial_credit,
@@ -167,14 +161,13 @@ def main() -> None:
         )
 
     df = pl.DataFrame(rows, strict=False)
-    totals = (
-        df.group_by(["agent_id", "run_id"])
-        .agg(pl.col("_per_call_cost_for_total").sum().alias("_run_total"))
+    totals = df.group_by(["agent_id", "run_id"]).agg(
+        pl.col("_per_call_cost_for_total").sum().alias("_run_total")
     )
     df = df.join(totals, on=["agent_id", "run_id"], how="left")
-    df = df.with_columns(
-        pl.col("_run_total").alias("reported_run_total_cost_usd")
-    ).drop(["_per_call_cost_for_total", "_run_total"])
+    df = df.with_columns(pl.col("_run_total").alias("reported_run_total_cost_usd")).drop(
+        ["_per_call_cost_for_total", "_run_total"]
+    )
 
     canonical_cols = [
         "agent_id",

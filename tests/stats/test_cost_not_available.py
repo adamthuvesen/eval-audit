@@ -99,14 +99,8 @@ def test_agent_summary__cost_not_available_returns_none_costs() -> None:
     """All-cost-not-available agent summary has None for total_cost_usd and cost_per_success_usd."""
     from eval_audit.stats import analyze
 
-    rows = [
-        _suppressed_row("treat", f"task_{i}", success=(i < 3))
-        for i in range(5)
-    ]
-    rows += [
-        _suppressed_row("ctrl", f"task_{i}", success=(i < 2))
-        for i in range(5)
-    ]
+    rows = [_suppressed_row("treat", f"task_{i}", success=(i < 3)) for i in range(5)]
+    rows += [_suppressed_row("ctrl", f"task_{i}", success=(i < 2)) for i in range(5)]
     runs = pl.DataFrame(rows, strict=False)
     study = _stub_study("treat", "ctrl", "swe-bench-verified/openhands-public-submission-v1")
 
@@ -154,14 +148,8 @@ def test_analyze__pareto_skipped_when_any_agent_suppressed() -> None:
     """Pareto frontier is empty and pareto_status flagged when any agent is cost-suppressed."""
     from eval_audit.stats import analyze
 
-    rows = [
-        _suppressed_row("treat", f"task_{i}", success=(i < 3))
-        for i in range(5)
-    ]
-    rows += [
-        _suppressed_row("ctrl", f"task_{i}", success=(i < 2))
-        for i in range(5)
-    ]
+    rows = [_suppressed_row("treat", f"task_{i}", success=(i < 3)) for i in range(5)]
+    rows += [_suppressed_row("ctrl", f"task_{i}", success=(i < 2)) for i in range(5)]
     runs = pl.DataFrame(rows, strict=False)
     study = _stub_study("treat", "ctrl", "swe-bench-verified/openhands-public-submission-v1")
 

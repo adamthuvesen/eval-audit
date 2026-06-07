@@ -22,9 +22,7 @@ def render_per_agent_summary(result: AnalysisResult, presentation: StudyPresenta
                 f"{format_rate(s.success_rate_ci_high)} |"
             )
         parts.append("")
-        parts.append(
-            "_Cost columns suppressed: cost provenance is `cost_not_available`._"
-        )
+        parts.append("_Cost columns suppressed: cost provenance is `cost_not_available`._")
     else:
         parts.append(
             "| agent_id | n_graded | n_errored | success_rate | success_rate_ci_low "
@@ -33,9 +31,7 @@ def render_per_agent_summary(result: AnalysisResult, presentation: StudyPresenta
         parts.append("|---|---:|---:|---:|---:|---:|---:|---:|")
         for s in result.per_agent:
             cps = (
-                "n/a"
-                if s.cost_per_success_usd is None
-                else format_currency(s.cost_per_success_usd)
+                "n/a" if s.cost_per_success_usd is None else format_currency(s.cost_per_success_usd)
             )
             parts.append(
                 f"| {s.agent_id} | {s.n_graded} | {s.n_errored} | "
@@ -58,13 +54,9 @@ def render_cost_quality_view(result: AnalysisResult, presentation: StudyPresenta
         return parts
 
     pareto_sorted = sorted(result.pareto_frontier)
-    parts.append(
-        f"**Pareto frontier (max success_rate, min total_cost_usd):** {pareto_sorted}"
-    )
+    parts.append(f"**Pareto frontier (max success_rate, min total_cost_usd):** {pareto_sorted}")
     parts.append("")
-    dominated = [
-        s.agent_id for s in result.per_agent if s.agent_id not in result.pareto_frontier
-    ]
+    dominated = [s.agent_id for s in result.per_agent if s.agent_id not in result.pareto_frontier]
     if dominated:
         parts.append(
             f"Dominated agents: {sorted(dominated)}. Each is dominated by another agent that "

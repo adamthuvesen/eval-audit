@@ -44,7 +44,7 @@ TASKS_PER_AGENT = 10
 HOLD_TREATMENT_SUCCESS = [True, True, False, False, False, False, False, False, False, False]
 HOLD_CONTROL_SUCCESS = [True, True, True, True, True, True, True, True, True, False]
 HOLD_TREATMENT_COST = 0.02  # per task; 10 tasks → $0.20 total. Cheapest agent.
-HOLD_CONTROL_COST = 0.05    # per task; 10 tasks → $0.50 total. Highest-success agent.
+HOLD_CONTROL_COST = 0.05  # per task; 10 tasks → $0.50 total. Highest-success agent.
 
 # `rerun_more_n_pattern` claim: tied per-arm success rates with offsetting
 # per-task wins/losses so the bootstrap CI clearly straddles zero. Costs
@@ -54,9 +54,9 @@ HOLD_CONTROL_COST = 0.05    # per task; 10 tasks → $0.50 total. Highest-succes
 # Verdict path: not dominated, not rejected, CI crosses zero, cost gap < 10%
 # → `rerun_more_n`.
 RERUN_TREATMENT_SUCCESS = [True, True, True, True, True, False, False, True, False, False]
-RERUN_CONTROL_SUCCESS =   [True, True, True, False, False, True, True, False, False, False]
+RERUN_CONTROL_SUCCESS = [True, True, True, False, False, True, True, False, False, False]
 RERUN_TREATMENT_COST = 0.030  # per task; 10 tasks → $0.30 total.
-RERUN_CONTROL_COST = 0.032    # per task; 10 tasks → $0.32 total. Gap ~6.67%.
+RERUN_CONTROL_COST = 0.032  # per task; 10 tasks → $0.32 total. Gap ~6.67%.
 
 # `inconclusive_no_action_pattern` claim: the CI/p disagreement case. Per-task
 # differences are entirely +1 or 0 (no negatives), so the bootstrap percentile
@@ -69,9 +69,9 @@ RERUN_CONTROL_COST = 0.032    # per task; 10 tasks → $0.32 total. Gap ~6.67%.
 # Verdict path: not dominated, not rejected, CI does NOT cross zero, no cost
 # rule → `inconclusive_no_action`.
 INCONC_TREATMENT_SUCCESS = [True, True, True, True, True, True, True, True, False, False]
-INCONC_CONTROL_SUCCESS =   [True, True, True, True, False, False, False, False, False, False]
+INCONC_CONTROL_SUCCESS = [True, True, True, True, False, False, False, False, False, False]
 INCONC_TREATMENT_COST = 0.04  # per task; 10 tasks → $0.40 total. Cheaper than hold_control.
-INCONC_CONTROL_COST = 0.06    # per task; 10 tasks → $0.60 total.
+INCONC_CONTROL_COST = 0.06  # per task; 10 tasks → $0.60 total.
 
 
 _AGENT_BLOCKS: tuple[tuple[str, list[bool], float], ...] = (
@@ -126,8 +126,7 @@ def build_frame() -> pl.DataFrame:
     for agent_id, successes, cost in _AGENT_BLOCKS:
         if len(successes) != TASKS_PER_AGENT:
             raise ValueError(
-                f"agent {agent_id!r} has {len(successes)} successes; "
-                f"expected {TASKS_PER_AGENT}"
+                f"agent {agent_id!r} has {len(successes)} successes; expected {TASKS_PER_AGENT}"
             )
         for i, success in enumerate(successes, start=1):
             rows.append(
@@ -170,9 +169,7 @@ def _assert_calibration(parquet_path: Path) -> None:
             "cost": [s.total_cost_usd for s in result.per_agent],
         }
     )
-    frontier = set(
-        pareto_frontier(per_agent_frame, success_col="success_rate", cost_col="cost")
-    )
+    frontier = set(pareto_frontier(per_agent_frame, success_col="success_rate", cost_col="cost"))
     cost_by_agent = {s.agent_id: s.total_cost_usd for s in result.per_agent}
 
     failures: list[str] = []

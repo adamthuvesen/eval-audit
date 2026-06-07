@@ -34,8 +34,10 @@ def test_cli_report__default_invocation_runs_validation_first(
         [
             "report",
             str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
         ],
     )
     if result.exit_code != 0:
@@ -64,8 +66,10 @@ def test_cli_report__skip_flag_warns(
         [
             "report",
             str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
             "--skip-validation",
         ],
     )
@@ -224,10 +228,13 @@ def test_cli_report__rejects_zero_bootstrap_iterations(
         [
             "report",
             str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
-            "--out-dir", str(out_dir),
-            "--repo-root", str(repo_root),
+            "--out-dir",
+            str(out_dir),
+            "--repo-root",
+            str(repo_root),
             "--skip-validation",
-            "--bootstrap-iterations", "0",
+            "--bootstrap-iterations",
+            "0",
         ],
     )
 

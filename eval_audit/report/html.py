@@ -38,10 +38,14 @@ def _cell_text(cell: str) -> str:
 def _is_table_start(lines: list[str], index: int) -> bool:
     if index + 1 >= len(lines):
         return False
-    return lines[index].lstrip().startswith("|") and re.match(
-        r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$",
-        lines[index + 1],
-    ) is not None
+    return (
+        lines[index].lstrip().startswith("|")
+        and re.match(
+            r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$",
+            lines[index + 1],
+        )
+        is not None
+    )
 
 
 def _parse_table(lines: list[str], index: int) -> tuple[str, int]:
@@ -111,7 +115,9 @@ def _render_bullets(items: list[str]) -> str:
     if rows:
         rendered.append(f'<div class="kv-list">{"".join(rows)}</div>')
     if ordinary:
-        rendered.append("<ul>" + "".join(f"<li>{_inline(item)}</li>" for item in ordinary) + "</ul>")
+        rendered.append(
+            "<ul>" + "".join(f"<li>{_inline(item)}</li>" for item in ordinary) + "</ul>"
+        )
     return "".join(rendered)
 
 
@@ -211,12 +217,7 @@ def _render_summary_grid(fields: dict[str, str]) -> str:
             if label == "Verdict"
             else f"<p>{_inline(value)}</p>"
         )
-        cards.append(
-            '<article class="summary-card">'
-            f"<h3>{escape(label)}</h3>"
-            f"{extra}"
-            "</article>"
-        )
+        cards.append(f'<article class="summary-card"><h3>{escape(label)}</h3>{extra}</article>')
     return '<div class="summary-grid">' + "".join(cards) + "</div>"
 
 
@@ -340,8 +341,7 @@ def render_html_report(markdown_text: str, *, title: str) -> str:
         for section_title, _ in sections
     )
     rendered_sections = "\n".join(
-        _render_section(section_title, section_lines)
-        for section_title, section_lines in sections
+        _render_section(section_title, section_lines) for section_title, section_lines in sections
     )
     return (
         "<!doctype html>\n"
@@ -404,7 +404,7 @@ def render_html_report(markdown_text: str, *, title: str) -> str:
         "</head>\n"
         "<body>\n"
         "  <header>\n"
-        f"    <div class=\"canonical-note\"><h1>{escaped_title}</h1>"
+        f'    <div class="canonical-note"><h1>{escaped_title}</h1>'
         "<p><code>report.md</code> remains the canonical reproducibility artifact. "
         "This HTML is a structured review view of the same audit evidence.</p>"
         f"<nav>{nav}</nav></div>\n"

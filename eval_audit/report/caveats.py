@@ -52,8 +52,7 @@ def render_as_reported_only_caveat(cost_recon_data: dict) -> list[str]:
         recon = float(d.get("reconstructed_cost_usd", 0.0))
         note = d.get("hypothesis", "")
         parts.append(
-            f"- {agent_id} — reported ${reported:.2f}, reconstructed ${recon:.2f} "
-            f"(note: {note})"
+            f"- {agent_id} — reported ${reported:.2f}, reconstructed ${recon:.2f} (note: {note})"
         )
     parts.append("")
     parts.append("**Caveats:**\n")

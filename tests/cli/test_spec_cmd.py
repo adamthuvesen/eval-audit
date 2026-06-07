@@ -19,7 +19,9 @@ def test_cli_spec_validate__exits_zero_on_valid_file(runner: CliRunner, repo_roo
     """
     from eval_audit.cli import app
 
-    result = runner.invoke(app, ["spec", "validate", str(repo_root / "studies" / "gaia-hal-generalist.yaml")])
+    result = runner.invoke(
+        app, ["spec", "validate", str(repo_root / "studies" / "gaia-hal-generalist.yaml")]
+    )
     assert result.exit_code == 0, result.output
     assert "gaia-hal-generalist" in result.output
     assert "OK" in result.output
@@ -57,10 +59,13 @@ def test_cli_spec_render__writes_deterministic_markdown(
         result = runner.invoke(
             app,
             [
-                "spec", "render",
+                "spec",
+                "render",
                 str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
-                "--out", str(out),
-                "--format", "markdown",
+                "--out",
+                str(out),
+                "--format",
+                "markdown",
             ],
         )
         assert result.exit_code == 0, result.output
@@ -83,10 +88,13 @@ def test_cli_spec_render__rejects_unsupported_format(
     result = runner.invoke(
         app,
         [
-            "spec", "render",
+            "spec",
+            "render",
             str(repo_root / "studies" / "gaia-hal-generalist.yaml"),
-            "--out", str(out),
-            "--format", "html",
+            "--out",
+            str(out),
+            "--format",
+            "html",
         ],
     )
     assert result.exit_code != 0

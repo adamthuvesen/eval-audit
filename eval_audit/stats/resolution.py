@@ -35,15 +35,12 @@ def estimate_required_paired_tasks(
     the declared MDE.
     """
     if current_n_paired <= 0:
-        raise ValueError(
-            f"current_n_paired must be positive (got {current_n_paired})"
-        )
+        raise ValueError(f"current_n_paired must be positive (got {current_n_paired})")
     if target_mde <= 0:
         raise ValueError(f"target_mde must be positive (got {target_mde})")
     if current_ci_half_width < 0:
         raise ValueError(
-            f"current_ci_half_width must be non-negative "
-            f"(got {current_ci_half_width})"
+            f"current_ci_half_width must be non-negative (got {current_ci_half_width})"
         )
 
     if current_ci_half_width <= target_mde:

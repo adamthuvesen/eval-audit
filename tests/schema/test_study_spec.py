@@ -245,7 +245,12 @@ def test_study_spec__rejects_target_mde_above_one(tmp_path: Path) -> None:
     from eval_audit.schema import StudySpec
 
     path = tmp_path / "bad-mde.yaml"
-    path.write_text(_minimal_valid_study_yaml().replace("comparison_family: declared_claims", "comparison_family: declared_claims\n  target_mde: 1.50"))
+    path.write_text(
+        _minimal_valid_study_yaml().replace(
+            "comparison_family: declared_claims",
+            "comparison_family: declared_claims\n  target_mde: 1.50",
+        )
+    )
 
     with pytest.raises(ValidationError) as exc_info:
         StudySpec.from_yaml(path)

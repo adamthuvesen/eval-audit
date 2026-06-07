@@ -32,11 +32,7 @@ def summarize_agent(
     n_graded = graded.height
     n_errored = errored.height if policy == ErroredRowPolicy.headline else 0
     successes = (
-        int(
-            graded.select(success_rate_numeric_expr().sum().alias("_successes"))[
-                "_successes"
-            ][0]
-        )
+        int(graded.select(success_rate_numeric_expr().sum().alias("_successes"))["_successes"][0])
         if n_graded
         else 0
     )
