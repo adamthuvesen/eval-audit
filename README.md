@@ -1,52 +1,39 @@
 # eval-audit
 
-`eval-audit` turns completed benchmark runs into deterministic reports
-that tell you whether the result is solid enough to confidently say that one model is superior to another.
-
-Give it the comparison you want to evaluate, paired per-task outcomes,
-inference settings, and cost data. It answers one question:
+`eval-audit` audits a benchmark comparison you have already run and answers one
+question:
 
 > Is the claim that Model B beats Model A large, reliable, and cost-aware
 > enough to act on?
 
-It audits evidence from runs that already exist. It does not run benchmarks
-or explain trace-level failures.
+You give it a declared study (the comparison, the outcome metric, the claims),
+paired per-task outcomes, and inference/cost settings. It returns a
+deterministic Markdown report with a single decision verb per claim.
 
-## Install
+It does not run benchmarks, score leaderboards, or explain trace-level
+failures. It audits evidence that already exists.
 
-```bash
-uv tool install eval-audit
-```
+## How it works
 
-Or:
+The unit of analysis is the **task**, not the row, because two agents run on the
+same task set and the per-task outcomes are paired. Given that:
 
-```bash
-pipx install eval-audit
-```
+- **Effect size and uncertainty** come from a paired-task cluster bootstrap:
+  resample `task_id`s with replacement (seeded), recompute the delta of mean
+  outcomes each time, and take percentiles of the resampled deltas as the
+  confidence interval. Per-agent success rates carry Wilson score intervals.
+- **Multiple comparisons** within a declared claim family are corrected —
+  Holm-Bonferroni (step-down) for family-wise error, or Benjamini-Hochberg for
+  FDR. The decision uses the adjusted p-value, never the raw one.
+- **Resolution** is checked against a declared target MDE: a comparison whose
+  bootstrap CI is wider than the effect it claims to detect is flagged as
+  under-resolved rather than reported as a null result.
+- **Cost** enters as a Pareto frontier over (success rate, cost) plus explicit
+  cost provenance. When per-task cost cannot be reconstructed honestly from the
+  source artifacts, cost-based verdicts are suppressed rather than fabricated.
 
-Check the install:
-
-```bash
-eval-audit --version
-```
-
-## What You Get
-
-The main artifact is a deterministic Markdown report with:
-
-- verdict and claim status
-- copyable claim summaries and verdict-rule explanations
-- paired uncertainty around the treatment-control effect
-- target-MDE / resolution context
-- cost and cost-provenance caveats
-- robustness review
-- residual risks
-- reproducibility footer with evidence-readiness metadata
-
-Completed audits also write `summary.json`, a deterministic machine-readable
-claim summary used by portfolio/index views.
-
-Each claim receives one decision verb:
+A deterministic decision rule maps that evidence to one of six verdicts. Same
+inputs in, same report out — snapshot-tested.
 
 | Verdict | Meaning |
 | --- | --- |
@@ -57,10 +44,38 @@ Each claim receives one decision verb:
 | `hedge_on_cost` | Quality is unclear, so cost should drive the choice. |
 | `inconclusive_no_action` | The audit does not support a change. |
 
+Alongside `report.md`, a completed audit writes `summary.json` — a deterministic
+machine-readable claim summary the portfolio/index views read.
+
+## Scope
+
+Current scope is intentionally narrow: `success_rate`, `higher_is_better`,
+paired task-level comparisons within **one** harness, frequentist
+intervals/corrections, cost provenance, and Markdown reports. Cross-harness
+comparisons are refused as confounded, not papered over — see
+[reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md).
+
+## Install
+
+```bash
+uv tool install eval-audit   # or: pipx install eval-audit
+eval-audit --version
+```
+
+## Inputs
+
+Two files describe an audit:
+
+- `study.yaml` — benchmark/task family, harness, agents, outcome, claims,
+  inference settings, and cost view.
+- `runs.parquet` — one row per agent-task observation, with `agent_id`,
+  `harness`, `task_id`, `success`, `outcome_status`, token/cost fields, and
+  `cost_provenance`.
+
 ## Demo reports
 
-Committed reports show the supported evidence shapes. Each row is tied to a
-declared study, fixture, and reproducible analysis path.
+Committed reports are the worked evidence: each is tied to a declared study,
+fixture, and reproducible analysis path.
 
 ## Example reports
 
@@ -73,44 +88,35 @@ declared study, fixture, and reproducible analysis path.
 | [Terminal-Bench 2.0 Mux](reports/terminal-bench-2-mux/report.md) | Public Mux submissions with `cost_not_available` suppression. |
 | [BYO minimal](reports/byo-minimal/report.md) | Small synthetic BYO example with a `switch` verdict. |
 
-Cross-harness comparisons are warnings, not audits:
-[reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md).
-
 ## Decision pattern gallery
 
 The decision gallery is synthetic, not benchmark evidence. It exists so readers
-can see verdict patterns render in a full report: `hold`, `rerun_more_n`, and
-`inconclusive_no_action`.
+can see the remaining verdict patterns — `hold`, `rerun_more_n`, and
+`inconclusive_no_action` — render in a full report.
 
 - [reports/decision-gallery/report.md](reports/decision-gallery/report.md)
 - [examples/decision-gallery/README.md](examples/decision-gallery/README.md)
 
 ## Bring your own data
 
-The practical one-command flow is:
+The one-command flow:
 
 ```bash
 eval-audit audit my-study/study.yaml --runs my-study/runs.parquet
 ```
 
-It writes deterministic audit artifacts under `reports/<study_id>/`:
-
-```text
-check.json
-analysis.json
-report.md
-summary.json
-```
-
-Each report includes a copyable summary generated from those artifacts, for
-example:
+It writes deterministic artifacts under `reports/<study_id>/`: `check.json`,
+`analysis.json`, `report.md`, and `summary.json`. Each report carries a
+copyable summary generated from those artifacts. For the committed
+`byo-minimal` example it reads:
 
 > Claim `alice_vs_bob` verdict `switch` for `alice` vs `bob`: delta +40.00 pp
 > with bootstrap CI [+10.00 pp, +70.00 pp]; evidence readiness
-> `ready_with_warnings`. Cost note: treatment cost is 2.00x control.
+> `ready_with_warnings`. Cost caveat: treatment cost is 2.00x control.
 
-For CI, gate the completed evidence against explicit readiness and verdict
-requirements:
+Add `--html` for a static view alongside the Markdown.
+
+To gate a CI pipeline on the evidence:
 
 ```bash
 eval-audit gate my-study/study.yaml --runs my-study/runs.parquet \
@@ -119,25 +125,18 @@ eval-audit gate my-study/study.yaml --runs my-study/runs.parquet \
   --allow-verdict hold
 ```
 
-`report.md` remains the canonical reproducibility artifact. If you want a
-structured static view for human review, opt in with:
+Review multiple completed audits as an evidence index. The portfolio reads
+existing `summary.json` artifacts — it does not recompute analyses, and its rows
+are declared audits rather than a universal model ordering:
 
 ```bash
-eval-audit audit my-study/study.yaml --runs my-study/runs.parquet --html
+eval-audit portfolio reports --out portfolio.md   # or --json
 ```
 
-Review multiple completed audits with an evidence index:
+### Step-by-step flow
 
-```bash
-eval-audit portfolio reports --out portfolio.md
-eval-audit portfolio reports --json
-```
-
-The portfolio reads existing `summary.json` artifacts. It does not run
-benchmarks or recompute analyses, and rows are declared audits rather than a
-universal model ordering.
-
-The separate research-step flow remains supported:
+`audit` bundles the pipeline. The individual steps are also exposed for
+inspection and reproducibility:
 
 ```bash
 eval-audit init my-study
@@ -150,21 +149,18 @@ eval-audit report my-study/study.yaml --runs my-study/runs.parquet --skip-valida
 ```
 
 `validate` checks the input schemas in isolation. `check` evaluates whether the
-declared comparison is audit-ready. `audit` is the recommended command for a
-complete BYO run because it writes `check.json`, `analysis.json`, `report.md`,
-and `summary.json` together. The standalone `report --skip-validation` command
-is useful while inspecting the renderer; the CLI warns because it bypasses the
-source-checkout synthetic-validation gate.
+declared comparison is audit-ready. `report --skip-validation` bypasses the
+source-checkout synthetic-validation gate and warns; it is meant for inspecting
+the renderer, not for publishing evidence. `report.md` is the canonical
+reproducibility artifact either way.
 
 References:
 
-- [examples/byo-minimal/README.md](examples/byo-minimal/README.md)
-- [agents/docs/INPUT_CONTRACT.md](agents/docs/INPUT_CONTRACT.md) for `runs.parquet`
-- [agents/docs/STUDY_SCHEMA.md](agents/docs/STUDY_SCHEMA.md) for `study.yaml`
+- [examples/byo-minimal/README.md](examples/byo-minimal/README.md) — worked example
+- [agents/docs/INPUT_CONTRACT.md](agents/docs/INPUT_CONTRACT.md) — `runs.parquet` field reference
+- [agents/docs/STUDY_SCHEMA.md](agents/docs/STUDY_SCHEMA.md) — `study.yaml` field reference
 
 ## Quickstart
-
-Create and run a tiny bring-your-own-data audit:
 
 ```bash
 eval-audit init my-first-audit
@@ -174,32 +170,7 @@ eval-audit audit study.yaml --runs runs.parquet
 
 `init` creates `study.yaml`, `make_runs.py`, `README.md`, and an initial
 `runs.parquet`. After editing `make_runs.py`, run `python make_runs.py` before
-rerunning the audit.
-
-The audit artifacts are written to:
-
-```text
-reports/my-first-audit/report.md
-reports/my-first-audit/summary.json
-```
-
-For advanced reproducibility, run the separate `validate`, `check`, `analyze`,
-and `report` commands shown above. For publishable evidence from a source
-checkout, run `make check`.
-
-## Inputs
-
-`eval-audit` needs two files:
-
-- `study.yaml`: benchmark/task family, harness, agents, outcome, claims,
-  inference settings, and cost view.
-- `runs.parquet`: one row per agent-task observation, including `agent_id`,
-  `harness`, `task_id`, `success`, `outcome_status`, token/cost fields, and
-  `cost_provenance`.
-
-Current scope is intentionally narrow: `success_rate`, `higher_is_better`,
-paired task-level comparisons, one harness, frequentist intervals/corrections,
-cost provenance, and Markdown reports.
+rerunning the audit. Artifacts land in `reports/my-first-audit/`.
 
 ## Work from source
 
@@ -208,7 +179,7 @@ uv sync --extra dev
 make check
 ```
 
-Useful commands:
+Useful targeted commands:
 
 ```bash
 uv run eval-audit spec validate studies/gaia-hal-generalist.yaml
