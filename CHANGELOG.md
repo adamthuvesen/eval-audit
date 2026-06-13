@@ -120,8 +120,8 @@ Source: `add-schema-versioning`.
 ### Added
 
 - `schema_version: 1` field on every `StudySpec`, validated by `eval_audit/schema/study.py`.
-- Public schema reference: `agents/docs/INPUT_CONTRACT.md` (canonical RunRecord
-  field-by-field reference) and `agents/docs/STUDY_SCHEMA.md` (StudySpec
+- Public schema reference: `docs/INPUT_CONTRACT.md` (canonical RunRecord
+  field-by-field reference) and `docs/STUDY_SCHEMA.md` (StudySpec
   field-by-field reference).
 - Schema contract tests protecting public field names and error wording.
 

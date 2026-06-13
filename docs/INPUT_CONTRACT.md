@@ -2,7 +2,7 @@
 
 This document is the formal field-by-field reference for `RunRecord`, the canonical task-level row that every `eval-audit` audit consumes. Read this when you are bringing your own evaluation data and want to know exactly what `analyze` and `report` expect.
 
-The narrative worked example lives in [`examples/byo-minimal/`](../../examples/byo-minimal/). Open the parquet and the `make_runs.py` script alongside this doc — they show the contract in action.
+The narrative worked example lives in [`examples/byo-minimal/`](../examples/byo-minimal/). Open the parquet and the `make_runs.py` script alongside this doc — they show the contract in action.
 
 > **Doc parity invariant.** The `## Fields` section below is parsed by `tests/docs/test_input_contract.py` and asserted to match `RunRecord.model_fields` from `eval_audit/schema/run_record.py`. Add or rename a `### <field>` sub-heading whenever the schema changes, or CI will fail.
 
@@ -174,6 +174,6 @@ These are checked row-by-row at load time. A failure raises `IngestContractError
 
 ## Where to go next
 
-- [`examples/byo-minimal/study.yaml`](../../examples/byo-minimal/study.yaml) — the smallest valid `StudySpec` declaration.
-- [`examples/byo-minimal/make_runs.py`](../../examples/byo-minimal/make_runs.py) — the construction pattern most BYO users will follow.
-- The schema source of truth lives in [`eval_audit/schema/run_record.py`](../../eval_audit/schema/run_record.py).
+- [`examples/byo-minimal/study.yaml`](../examples/byo-minimal/study.yaml) — the smallest valid `StudySpec` declaration.
+- [`examples/byo-minimal/make_runs.py`](../examples/byo-minimal/make_runs.py) — the construction pattern most BYO users will follow.
+- The schema source of truth lives in [`eval_audit/schema/run_record.py`](../eval_audit/schema/run_record.py).

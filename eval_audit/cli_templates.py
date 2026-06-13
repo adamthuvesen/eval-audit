@@ -112,7 +112,7 @@ bypasses the source-checkout synthetic-validation gate. Use `audit` for the
 complete final artifact set.
 
 For the formal field-by-field RunRecord reference, see
-[`agents/docs/INPUT_CONTRACT.md`](../agents/docs/INPUT_CONTRACT.md). For the
+[`docs/INPUT_CONTRACT.md`](../docs/INPUT_CONTRACT.md). For the
 worked example narrative, see
 [`examples/byo-minimal/README.md`](../examples/byo-minimal/README.md).
 """

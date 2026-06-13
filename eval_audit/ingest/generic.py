@@ -5,7 +5,7 @@ Unlike adapters in this package, the generic loader does NOT implement the
 files (cost-reconciliation, columns mapping, provenance) for real benchmark
 fixtures, while this loader takes a single parquet whose schema already
 matches ``RunRecord``. The dual file/directory convention is deliberate and
-documented in ``agents/docs/INPUT_CONTRACT.md``.
+documented in ``docs/INPUT_CONTRACT.md``.
 """
 
 from __future__ import annotations

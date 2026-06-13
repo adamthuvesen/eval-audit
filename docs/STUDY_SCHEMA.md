@@ -2,7 +2,7 @@
 
 This document is the formal field-by-field reference for `StudySpec`, the declared-study YAML that every `eval-audit` audit consumes alongside its task-level run data. Read this when you are bringing your own data and need to know exactly what shape `eval-audit init`, `validate`, `analyze`, and `report` expect from your `study.yaml`.
 
-The narrative worked example lives in [`examples/byo-minimal/study.yaml`](../../examples/byo-minimal/study.yaml). Open it alongside this doc — it shows the contract in action, with comments explaining each section. The matching `RunRecord` field reference for the run data is at [`agents/docs/INPUT_CONTRACT.md`](INPUT_CONTRACT.md).
+The narrative worked example lives in [`examples/byo-minimal/study.yaml`](../examples/byo-minimal/study.yaml). Open it alongside this doc — it shows the contract in action, with comments explaining each section. The matching `RunRecord` field reference for the run data is at [`docs/INPUT_CONTRACT.md`](INPUT_CONTRACT.md).
 
 > **Doc parity invariant.** The `## Fields` section below and every `## <NestedModel>` sub-section are parsed by `tests/docs/test_study_schema.py` and asserted to match `StudySpec.model_fields` and the corresponding nested-model fields in `eval_audit/schema/study.py`. Add or rename a `### <field>` sub-heading whenever the schema changes, or CI will fail.
 
@@ -224,6 +224,6 @@ The YAML loader aggregates every violation in a single error rather than failing
 
 ## Where to go next
 
-- [`examples/byo-minimal/study.yaml`](../../examples/byo-minimal/study.yaml) — the smallest valid `StudySpec` declaration.
-- [`agents/docs/INPUT_CONTRACT.md`](INPUT_CONTRACT.md) — `RunRecord` field-by-field reference for the run data side of the contract.
-- The schema source of truth lives in [`eval_audit/schema/study.py`](../../eval_audit/schema/study.py).
+- [`examples/byo-minimal/study.yaml`](../examples/byo-minimal/study.yaml) — the smallest valid `StudySpec` declaration.
+- [`docs/INPUT_CONTRACT.md`](INPUT_CONTRACT.md) — `RunRecord` field-by-field reference for the run data side of the contract.
+- The schema source of truth lives in [`eval_audit/schema/study.py`](../eval_audit/schema/study.py).

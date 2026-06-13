@@ -157,8 +157,8 @@ reproducibility artifact either way.
 References:
 
 - [examples/byo-minimal/README.md](examples/byo-minimal/README.md) — worked example
-- [agents/docs/INPUT_CONTRACT.md](agents/docs/INPUT_CONTRACT.md) — `runs.parquet` field reference
-- [agents/docs/STUDY_SCHEMA.md](agents/docs/STUDY_SCHEMA.md) — `study.yaml` field reference
+- [docs/INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md) — `runs.parquet` field reference
+- [docs/STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md) — `study.yaml` field reference
 
 ## Quickstart
 
