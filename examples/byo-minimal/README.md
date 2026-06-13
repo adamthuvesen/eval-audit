@@ -65,7 +65,7 @@ survives standard reviewer perturbations across five fixed dimensions.
 
 For the formal field-by-field `RunRecord` reference (every column, what
 analysis uses it for, BYO guidance for awkward fields), see
-[`agents/docs/INPUT_CONTRACT.md`](../../agents/docs/INPUT_CONTRACT.md).
+[`docs/INPUT_CONTRACT.md`](../../docs/INPUT_CONTRACT.md).
 
 ## Why this example exists
 

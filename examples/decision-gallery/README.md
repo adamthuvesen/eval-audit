@@ -19,7 +19,7 @@ The verdicts already covered by other committed reports (`switch` via BYO minima
 - The rendered audit is at [`reports/decision-gallery/report.md`](../../reports/decision-gallery/report.md).
 - Each claim includes a copyable summary plus a verdict explainer naming the
   first matching decision-rule branch.
-- Field-level `RunRecord` reference: [`agents/docs/INPUT_CONTRACT.md`](../../agents/docs/INPUT_CONTRACT.md).
+- Field-level `RunRecord` reference: [`docs/INPUT_CONTRACT.md`](../../docs/INPUT_CONTRACT.md).
 
 ## Regenerating
 

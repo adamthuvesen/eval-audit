@@ -1,8 +1,8 @@
 # Bring-your-own-data minimal example.
 #
 # A toy 2-agent 10-task audit demonstrating the eval-audit input contract.
-# See agents/docs/INPUT_CONTRACT.md for the full field-by-field RunRecord
-# reference and agents/docs/STUDY_SCHEMA.md for the StudySpec reference.
+# See docs/INPUT_CONTRACT.md for the full field-by-field RunRecord
+# reference and docs/STUDY_SCHEMA.md for the StudySpec reference.
 
 schema_version: 1
 id: byo-minimal

@@ -1,4 +1,4 @@
-"""Doc parity test for agents/docs/STUDY_SCHEMA.md.
+"""Doc parity test for docs/STUDY_SCHEMA.md.
 
 Asserts that every documented `### <field>` sub-heading under the top-level
 `## Fields` block (and under each `## <NestedModel>` block) matches the
@@ -23,7 +23,7 @@ from eval_audit.schema.study import (
 
 
 def _doc_path(repo_root: Path) -> Path:
-    return repo_root / "agents" / "docs" / "STUDY_SCHEMA.md"
+    return repo_root / "docs" / "STUDY_SCHEMA.md"
 
 
 def _extract_field_subheadings(block: str) -> set[str]:
