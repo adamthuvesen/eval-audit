@@ -5,9 +5,9 @@ All notable changes to `eval-audit` are recorded here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-The repo's pre-1.0 milestones (v1.0 through v1.5 in the OpenSpec roadmap) shipped
-during the same week as the inaugural 1.0.0 release; their dated entries below are
-mapped to synthetic SemVer tags so a reader can navigate the methodology history.
+The repo's pre-1.0 milestones (v1.0 through v1.5) shipped during the same week as
+the inaugural 1.0.0 release; their dated entries below are mapped to synthetic
+SemVer tags so a reader can navigate the methodology history.
 
 ## [Unreleased]
 
@@ -66,7 +66,7 @@ BYO, and the synthetic gallery. Source: `add-controlled-real-evidence-exhibit`.
   recorded honestly (Sonnet model_id typo caught on HTTP 404; grader indentation
   normalization).
 - `scouting/exhibit-c/{run.py,grade.py,normalize.py,price-table.yaml,humaneval-tasks-30.jsonl,NOTICE,README.md}` — harness scripts and reproducibility recipe.
-- New OpenSpec capability: `controlled-evidence-exhibits`.
+- New capability: `controlled-evidence-exhibits`.
 - `eval_audit/report/markdown.py` — controlled-evidence Provenance block (run_plan
   link, decision_doc link, task source, harness + commit hash, model arms, rerun
   policy, run dates, price-table date, per-row cost-provenance class) when
@@ -99,7 +99,7 @@ Source: `add-decision-pattern-gallery`.
   claim's calibration and which decision rule it triggers.
 - `README.md` "Decision pattern gallery" section labelling the gallery as
   synthetic methodology demonstration, not benchmark evidence.
-- New OpenSpec capability: `decision-pattern-gallery`.
+- New capability: `decision-pattern-gallery`.
 
 ## [0.4.0] — 2026-05-03 — Decision explainer + example reports
 

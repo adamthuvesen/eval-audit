@@ -5,15 +5,10 @@ Typer's CliRunner. The tests here add two install-path guarantees:
 
 1. The CLI works when invoked as a subprocess (through the installed console
    script), not just in-process — this is the closest in-pytest proxy for the
-   `uv tool install` path the spec requires.
+   `uv tool install` path.
 2. No hardcoded version constant duplicates `pyproject.toml`'s `[project].version`
    field. The single source of truth is package metadata, surfaced via
    `importlib.metadata`.
-
-See openspec/specs/cli/spec.md → "Top-level --version flag prints the package
-version" (the install-path scenarios) and openspec/specs/release-engineering/spec.md
-→ "Package is installable via uv tool install / pipx and the CLI resolves its
-version".
 """
 
 from __future__ import annotations
