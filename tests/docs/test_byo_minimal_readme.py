@@ -43,18 +43,24 @@ def test_byo_minimal_readme__mentions_make_runs(byo_readme: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Project README "Bring your own data" section anchors
+# Project README demo and "Bring your own data" anchors
 # ---------------------------------------------------------------------------
 
 
-def test_project_readme__byo_section_exists_between_examples_and_quickstart(
+def test_project_readme__quickstart_points_to_byo_demo(
     project_readme: str,
 ) -> None:
-    demo_idx = project_readme.index("## Demo reports")
-    examples_idx = project_readme.index("## Example reports")
-    byo_idx = project_readme.index("## Bring your own data")
     quickstart_idx = project_readme.index("## Quickstart")
-    assert demo_idx < examples_idx < byo_idx < quickstart_idx
+    demo_idx = project_readme.index("## Demo reports")
+    section = project_readme[quickstart_idx:demo_idx]
+
+    assert quickstart_idx < demo_idx
+    assert "examples/byo-minimal/study.yaml" in section
+    assert "examples/byo-minimal/runs.parquet" in section
+    assert "/tmp/eval-audit-reports/byo-minimal/report.md" in section
+    assert "/tmp/eval-audit-reports/byo-minimal/summary.json" in section
+    assert "reports/byo-minimal/report.md" in section
+    assert "delta +40.00 pp" in section
 
 
 def test_project_readme__example_reports_section_indexes_three_reports(
@@ -83,7 +89,7 @@ def test_project_readme__byo_section_links_input_contract_and_example(
     project_readme: str,
 ) -> None:
     byo_idx = project_readme.index("## Bring your own data")
-    next_idx = project_readme.index("## Quickstart")
+    next_idx = project_readme.index("## Work from source")
     section = project_readme[byo_idx:next_idx]
     assert "docs/INPUT_CONTRACT.md" in section
     assert "docs/STUDY_SCHEMA.md" in section
@@ -94,7 +100,7 @@ def test_project_readme__byo_section_shows_canonical_cli_snippet(
     project_readme: str,
 ) -> None:
     byo_idx = project_readme.index("## Bring your own data")
-    next_idx = project_readme.index("## Quickstart")
+    next_idx = project_readme.index("## Work from source")
     section = project_readme[byo_idx:next_idx]
     assert "eval-audit init" in section
     assert "eval-audit validate" in section
