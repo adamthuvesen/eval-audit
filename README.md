@@ -72,6 +72,41 @@ Two files describe an audit:
   `harness`, `task_id`, `success`, `outcome_status`, token/cost fields, and
   `cost_provenance`.
 
+## Quickstart
+
+Run the no-secret BYO demo from this repo:
+
+```bash
+uv run eval-audit audit examples/byo-minimal/study.yaml \
+  --runs examples/byo-minimal/runs.parquet \
+  --out-dir /tmp/eval-audit-reports \
+  --html
+```
+
+Expected artifacts:
+
+```text
+/tmp/eval-audit-reports/byo-minimal/check.json
+/tmp/eval-audit-reports/byo-minimal/analysis.json
+/tmp/eval-audit-reports/byo-minimal/report.md
+/tmp/eval-audit-reports/byo-minimal/report.html
+/tmp/eval-audit-reports/byo-minimal/summary.json
+```
+
+The committed preview is
+[reports/byo-minimal/report.md](reports/byo-minimal/report.md). Key lines:
+
+```text
+## Audit Summary
+
+- Verdict: switch
+- Claim status: supported
+- Why: delta +40.00 pp with bootstrap CI [+10.00 pp, +70.00 pp] over 10 paired tasks; treatment is 2.00x the control's cost
+```
+
+The demo input lives in [examples/byo-minimal](examples/byo-minimal). Its guide
+shows how to replace the toy rows with your own paired task outcomes.
+
 ## Demo reports
 
 Committed reports are the worked evidence: each is tied to a declared study,
@@ -159,18 +194,6 @@ References:
 - [examples/byo-minimal/README.md](examples/byo-minimal/README.md) — worked example
 - [docs/INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md) — `runs.parquet` field reference
 - [docs/STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md) — `study.yaml` field reference
-
-## Quickstart
-
-```bash
-eval-audit init my-first-audit
-cd my-first-audit
-eval-audit audit study.yaml --runs runs.parquet
-```
-
-`init` creates `study.yaml`, `make_runs.py`, `README.md`, and an initial
-`runs.parquet`. After editing `make_runs.py`, run `python make_runs.py` before
-rerunning the audit. Artifacts land in `reports/my-first-audit/`.
 
 ## Work from source
 
