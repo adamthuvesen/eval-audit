@@ -13,7 +13,7 @@ from yaml import YAMLError
 
 from eval_audit.ingest import IngestContractError
 from eval_audit.ingest.generic import load_run_records
-from eval_audit.schema import StudySpec
+from eval_audit.schema import Claim, StudySpec
 from eval_audit.schema.enums import CostProvenance
 from eval_audit.scouting_paths import resolve_decision_doc
 
@@ -22,6 +22,41 @@ CheckSeverity = Literal["error", "warning", "info"]
 CheckStatus = Literal["pass", "fail"]
 JsonScalar = str | int | float | bool | None
 Json = JsonScalar | list["Json"] | dict[str, "Json"]
+_STATIC_FIX_SUGGESTIONS = {
+    "study_loads": (
+        "Fix the study YAML path or schema errors so StudySpec.from_yaml() "
+        "can load the declared audit."
+    ),
+    "runs_load": (
+        "Provide a readable canonical RunRecord parquet with the required task-level columns."
+    ),
+    "claim_agents_present": (
+        "Add run rows for every treatment and control agent named by each "
+        "claim, or update the study claims to reference agents present in the runs."
+    ),
+    "claimed_rows_match_study_harness": (
+        "Cross-harness comparisons are not audit-ready; prepare a single-harness "
+        "paired comparison that matches study.harness, or split the evidence into "
+        "separate declared studies per harness."
+    ),
+    "paired_tasks_complete": (
+        "Add the missing paired task rows, remove duplicate task/run rows, "
+        "and make every claimed agent match design.observed_runs_per_agent "
+        "for each task id."
+    ),
+    "outcome_supported": (
+        "Declare a v0-supported success_rate, higher_is_better outcome for "
+        "the study and every claim, or add metric-specific engine support first."
+    ),
+    "target_mde_declared": (
+        "Declare inference.target_mde in the study YAML so the report can "
+        "judge whether the paired evidence resolves the practical effect size."
+    ),
+    "residual_risks_source": (
+        "Add or restore the scouting decision document that records residual "
+        "risks and provenance notes for this fixture."
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -62,6 +97,28 @@ class ReadinessResult:
 
     def to_json_bytes(self) -> bytes:
         return self.to_json().encode()
+
+
+@dataclass(frozen=True)
+class _ClaimPairingDetails:
+    claim_id: str
+    treatment_task_count: int
+    control_task_count: int
+    paired_task_count: int
+    missing_treatment_count: int
+    missing_control_count: int
+    duplicate_observation_keys: list[str]
+    invalid_task_run_count_keys: list[str]
+
+    @property
+    def has_failures(self) -> bool:
+        return (
+            self.missing_treatment_count > 0
+            or self.missing_control_count > 0
+            or self.paired_task_count == 0
+            or bool(self.duplicate_observation_keys)
+            or bool(self.invalid_task_run_count_keys)
+        )
 
 
 def render_readiness_text(result: ReadinessResult) -> str:
@@ -274,69 +331,29 @@ def _claimed_rows_match_study_harness(study: StudySpec, runs: pl.DataFrame) -> R
 
 
 def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessCheck:
-    failures: list[str] = []
-    treatment_counts: list[int] = []
-    control_counts: list[int] = []
-    paired_counts: list[int] = []
-    missing_treatment_counts: list[int] = []
-    missing_control_counts: list[int] = []
-    duplicate_observation_keys: list[str] = []
-    invalid_run_count_keys: list[str] = []
-
-    for claim in study.claims:
-        claim_duplicate_keys: list[str] = []
-        claim_invalid_run_count_keys: list[str] = []
-        treatment_tasks = _task_set(runs, claim.treatment)
-        control_tasks = _task_set(runs, claim.control)
-        paired = treatment_tasks & control_tasks
-        missing_treatment = control_tasks - treatment_tasks
-        missing_control = treatment_tasks - control_tasks
-
-        treatment_counts.append(len(treatment_tasks))
-        control_counts.append(len(control_tasks))
-        paired_counts.append(len(paired))
-        missing_treatment_counts.append(len(missing_treatment))
-        missing_control_counts.append(len(missing_control))
-
-        for role, agent_id in (
-            ("treatment", claim.treatment),
-            ("control", claim.control),
-        ):
-            rows = runs.filter(pl.col("agent_id") == agent_id)
-            claim_duplicate_keys.extend(_duplicate_observation_keys(claim.id, role, agent_id, rows))
-            claim_invalid_run_count_keys.extend(
-                _invalid_task_run_count_keys(
-                    claim.id,
-                    role,
-                    agent_id,
-                    rows,
-                    expected_runs=study.design.observed_runs_per_agent,
-                )
-            )
-
-        duplicate_observation_keys.extend(claim_duplicate_keys)
-        invalid_run_count_keys.extend(claim_invalid_run_count_keys)
-        if (
-            missing_treatment
-            or missing_control
-            or not paired
-            or claim_duplicate_keys
-            or claim_invalid_run_count_keys
-        ):
-            failures.append(claim.id)
+    claim_details = [_claim_pairing_details(study, runs, claim) for claim in study.claims]
+    duplicate_observation_keys = [
+        key for details in claim_details for key in details.duplicate_observation_keys
+    ]
+    invalid_run_count_keys = [
+        key for details in claim_details for key in details.invalid_task_run_count_keys
+    ]
 
     details = {
-        "claims": [claim.id for claim in study.claims],
-        "treatment_task_counts": treatment_counts,
-        "control_task_counts": control_counts,
-        "paired_task_counts": paired_counts,
-        "missing_treatment_task_counts": missing_treatment_counts,
-        "missing_control_task_counts": missing_control_counts,
+        "claims": [details.claim_id for details in claim_details],
+        "treatment_task_counts": [details.treatment_task_count for details in claim_details],
+        "control_task_counts": [details.control_task_count for details in claim_details],
+        "paired_task_counts": [details.paired_task_count for details in claim_details],
+        "missing_treatment_task_counts": [
+            details.missing_treatment_count for details in claim_details
+        ],
+        "missing_control_task_counts": [details.missing_control_count for details in claim_details],
     }
     if duplicate_observation_keys:
         details["duplicate_observation_keys"] = sorted(set(duplicate_observation_keys))
     if invalid_run_count_keys:
         details["invalid_task_run_counts"] = sorted(set(invalid_run_count_keys))
+    failures = [details.claim_id for details in claim_details if details.has_failures]
     if failures:
         details["failed_claims"] = sorted(set(failures))
         return _check(
@@ -352,6 +369,42 @@ def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessChe
         "pass",
         "declared claims have complete paired task observations",
         details,
+    )
+
+
+def _claim_pairing_details(
+    study: StudySpec,
+    runs: pl.DataFrame,
+    claim: Claim,
+) -> _ClaimPairingDetails:
+    treatment_tasks = _task_set(runs, claim.treatment)
+    control_tasks = _task_set(runs, claim.control)
+    duplicate_keys: list[str] = []
+    invalid_run_count_keys: list[str] = []
+    for role, agent_id in (
+        ("treatment", claim.treatment),
+        ("control", claim.control),
+    ):
+        rows = runs.filter(pl.col("agent_id") == agent_id)
+        duplicate_keys.extend(_duplicate_observation_keys(claim.id, role, agent_id, rows))
+        invalid_run_count_keys.extend(
+            _invalid_task_run_count_keys(
+                claim.id,
+                role,
+                agent_id,
+                rows,
+                expected_runs=study.design.observed_runs_per_agent,
+            )
+        )
+    return _ClaimPairingDetails(
+        claim_id=claim.id,
+        treatment_task_count=len(treatment_tasks),
+        control_task_count=len(control_tasks),
+        paired_task_count=len(treatment_tasks & control_tasks),
+        missing_treatment_count=len(control_tasks - treatment_tasks),
+        missing_control_count=len(treatment_tasks - control_tasks),
+        duplicate_observation_keys=duplicate_keys,
+        invalid_task_run_count_keys=invalid_run_count_keys,
     )
 
 
@@ -426,9 +479,7 @@ def _outcome_supported(study: StudySpec) -> ReadinessCheck:
 
 
 def _cost_provenance_explicit(study: StudySpec, runs: pl.DataFrame) -> ReadinessCheck:
-    claimed_agents = sorted(
-        {agent_id for claim in study.claims for agent_id in (claim.treatment, claim.control)}
-    )
+    claimed_agents = _claimed_agent_ids(study)
     claimed_rows = runs.filter(pl.col("agent_id").is_in(claimed_agents))
     if claimed_rows.is_empty():
         return _check(
@@ -442,35 +493,53 @@ def _cost_provenance_explicit(study: StudySpec, runs: pl.DataFrame) -> Readiness
     provenance_values = sorted(
         str(value) for value in claimed_rows["cost_provenance"].unique().to_list()
     )
-    errors: list[str] = []
-    warnings: list[str] = []
+    errors = _cost_provenance_consistency_errors(claimed_agents, claimed_rows)
+    warnings = _cost_provenance_warnings(provenance_values)
+    return _cost_provenance_check(provenance_values, errors, warnings)
 
+
+def _claimed_agent_ids(study: StudySpec) -> list[str]:
+    return sorted(
+        {agent_id for claim in study.claims for agent_id in (claim.treatment, claim.control)}
+    )
+
+
+def _cost_provenance_consistency_errors(
+    claimed_agents: list[str],
+    claimed_rows: pl.DataFrame,
+) -> list[str]:
+    errors: list[str] = []
     for agent_id in claimed_agents:
         rows = claimed_rows.filter(pl.col("agent_id") == agent_id)
         if rows.is_empty():
             continue
-        agent_values = sorted(str(value) for value in rows["cost_provenance"].unique().to_list())
-        if CostProvenance.COST_NOT_AVAILABLE.value in agent_values and len(agent_values) > 1:
-            errors.append(f"{agent_id}: mixed cost_not_available with {agent_values}")
-        if agent_values == [CostProvenance.COST_NOT_AVAILABLE.value]:
-            continue
+        errors.extend(_agent_cost_provenance_errors(agent_id, rows))
+    return errors
 
-        graded = rows.filter(pl.col("outcome_status") == "graded")
-        if not graded.is_empty():
-            null_reconstructed = graded["reconstructed_per_task_cost_usd"].null_count()
-            if 0 < null_reconstructed < graded.height:
-                errors.append(
-                    f"{agent_id}: incomplete reconstructed_per_task_cost_usd "
-                    f"({null_reconstructed}/{graded.height} graded rows null)"
-                )
-            elif (
-                null_reconstructed == graded.height
-                and rows["reported_run_total_cost_usd"].null_count() > 0
-            ):
-                errors.append(
-                    f"{agent_id}: no reconstructed cost and missing reported_run_total_cost_usd"
-                )
 
+def _agent_cost_provenance_errors(agent_id: str, rows: pl.DataFrame) -> list[str]:
+    agent_values = sorted(str(value) for value in rows["cost_provenance"].unique().to_list())
+    if CostProvenance.COST_NOT_AVAILABLE.value in agent_values and len(agent_values) > 1:
+        return [f"{agent_id}: mixed cost_not_available with {agent_values}"]
+    if agent_values == [CostProvenance.COST_NOT_AVAILABLE.value]:
+        return []
+
+    graded = rows.filter(pl.col("outcome_status") == "graded")
+    if graded.is_empty():
+        return []
+    null_reconstructed = graded["reconstructed_per_task_cost_usd"].null_count()
+    if 0 < null_reconstructed < graded.height:
+        return [
+            f"{agent_id}: incomplete reconstructed_per_task_cost_usd "
+            f"({null_reconstructed}/{graded.height} graded rows null)"
+        ]
+    if null_reconstructed == graded.height and rows["reported_run_total_cost_usd"].null_count() > 0:
+        return [f"{agent_id}: no reconstructed cost and missing reported_run_total_cost_usd"]
+    return []
+
+
+def _cost_provenance_warnings(provenance_values: list[str]) -> list[str]:
+    warnings: list[str] = []
     if CostProvenance.AS_REPORTED_ONLY.value in provenance_values:
         warnings.append("cost provenance is as_reported_only")
     if CostProvenance.COST_NOT_AVAILABLE.value in provenance_values:
@@ -479,7 +548,14 @@ def _cost_provenance_explicit(study: StudySpec, runs: pl.DataFrame) -> Readiness
         )
     if CostProvenance.PARTIAL.value in provenance_values:
         warnings.append("cost provenance is partial")
+    return warnings
 
+
+def _cost_provenance_check(
+    provenance_values: list[str],
+    errors: list[str],
+    warnings: list[str],
+) -> ReadinessCheck:
     details = {"cost_provenance": provenance_values}
     if errors:
         details["errors"] = sorted(errors)
@@ -571,66 +647,31 @@ def _check(
 
 
 def _fix_suggestion(check_id: str, details: dict[str, Json]) -> str:
-    if check_id == "study_loads":
-        return (
-            "Fix the study YAML path or schema errors so StudySpec.from_yaml() "
-            "can load the declared audit."
-        )
-    if check_id == "runs_load":
-        return (
-            "Provide a readable canonical RunRecord parquet with the required task-level columns."
-        )
-    if check_id == "claim_agents_present":
-        return (
-            "Add run rows for every treatment and control agent named by each "
-            "claim, or update the study claims to reference agents present in the runs."
-        )
-    if check_id == "claimed_rows_match_study_harness":
-        return (
-            "Cross-harness comparisons are not audit-ready; prepare a single-harness "
-            "paired comparison that matches study.harness, or split the evidence into "
-            "separate declared studies per harness."
-        )
-    if check_id == "paired_tasks_complete":
-        return (
-            "Add the missing paired task rows, remove duplicate task/run rows, "
-            "and make every claimed agent match design.observed_runs_per_agent "
-            "for each task id."
-        )
-    if check_id == "outcome_supported":
-        return (
-            "Declare a v0-supported success_rate, higher_is_better outcome for "
-            "the study and every claim, or add metric-specific engine support first."
-        )
     if check_id == "cost_provenance_explicit":
-        values = details.get("cost_provenance")
-        if isinstance(values, list) and "cost_not_available" in values:
-            return (
-                "Keep cost_not_available only when neither reconstructed per-task "
-                "cost nor reported totals are honestly available, with both cost "
-                "fields null on every row."
-            )
-        if isinstance(values, list) and "as_reported_only" in values:
-            return (
-                "Record the reported run totals and provenance notes that justify "
-                "as_reported_only cost handling, or provide reconciled per-task costs."
-            )
-        return (
-            "Make cost provenance internally consistent: provide complete "
-            "reconstructed per-task costs, complete reported totals, or an explicit "
-            "cost_not_available declaration."
-        )
-    if check_id == "target_mde_declared":
-        return (
-            "Declare inference.target_mde in the study YAML so the report can "
-            "judge whether the paired evidence resolves the practical effect size."
-        )
-    if check_id == "residual_risks_source":
-        return (
-            "Add or restore the scouting decision document that records residual "
-            "risks and provenance notes for this fixture."
-        )
+        return _cost_provenance_fix_suggestion(details)
+    if suggestion := _STATIC_FIX_SUGGESTIONS.get(check_id):
+        return suggestion
     return "Repair the failed readiness condition before running analysis or rendering a report."
+
+
+def _cost_provenance_fix_suggestion(details: dict[str, Json]) -> str:
+    values = details.get("cost_provenance")
+    if isinstance(values, list) and "cost_not_available" in values:
+        return (
+            "Keep cost_not_available only when neither reconstructed per-task "
+            "cost nor reported totals are honestly available, with both cost "
+            "fields null on every row."
+        )
+    if isinstance(values, list) and "as_reported_only" in values:
+        return (
+            "Record the reported run totals and provenance notes that justify "
+            "as_reported_only cost handling, or provide reconciled per-task costs."
+        )
+    return (
+        "Make cost provenance internally consistent: provide complete "
+        "reconstructed per-task costs, complete reported totals, or an explicit "
+        "cost_not_available declaration."
+    )
 
 
 def _result(study_id: str | None, checks: list[ReadinessCheck]) -> ReadinessResult:

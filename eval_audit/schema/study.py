@@ -64,6 +64,96 @@ class Claim(BaseModel):
     outcome: str
 
 
+def _study_invariant_errors(study: StudySpec) -> list[str]:
+    errors: list[str] = []
+    if study.schema_version != 1:
+        errors.append(
+            f"schema_version must be 1 (got {study.schema_version}); this version of "
+            f"eval-audit only supports schema_version=1"
+        )
+    if not study.agents:
+        errors.append("agents must contain at least one entry")
+    if not study.claims:
+        errors.append("claims must contain at least one entry")
+    if study.design.observed_runs_per_agent < 1:
+        errors.append(
+            "design.observed_runs_per_agent must be >= 1 "
+            f"(got {study.design.observed_runs_per_agent})"
+        )
+    if not 0.0 < study.inference.alpha < 1.0:
+        errors.append(f"inference.alpha must be > 0 and < 1 (got {study.inference.alpha})")
+    if study.inference.target_mde is not None and not (0.0 < study.inference.target_mde <= 1.0):
+        errors.append(
+            "inference.target_mde must be > 0 and <= 1 when declared "
+            f"(got {study.inference.target_mde})"
+        )
+    if study.cost.primary_view != "pareto_frontier":
+        errors.append(
+            f"cost.primary_view must be 'pareto_frontier' in v0 (got {study.cost.primary_view!r})"
+        )
+    unsupported_cost_metrics = [
+        metric for metric in study.cost.metrics if metric not in _SUPPORTED_V0_COST_METRICS
+    ]
+    if unsupported_cost_metrics:
+        errors.append(
+            "cost.metrics contains unsupported v0 metric(s): "
+            f"{sorted(unsupported_cost_metrics)}; supported metrics are "
+            f"{sorted(_SUPPORTED_V0_COST_METRICS)}"
+        )
+    if study.primary_outcome.name != "success_rate":
+        errors.append(
+            "primary_outcome.name must be 'success_rate' in v0 "
+            f"(got {study.primary_outcome.name!r})"
+        )
+    if study.primary_outcome.direction != "higher_is_better":
+        errors.append(
+            "primary_outcome.direction must be 'higher_is_better' in v0 "
+            f"(got {study.primary_outcome.direction!r})"
+        )
+    return errors
+
+
+def _claim_errors(
+    claims: list[Claim],
+    *,
+    agent_ids: set[str],
+    primary_outcome_name: str,
+) -> list[str]:
+    errors: list[str] = []
+    claim_ids_seen: set[str] = set()
+    duplicate_claim_ids: set[str] = set()
+
+    for claim in claims:
+        if claim.id in claim_ids_seen:
+            duplicate_claim_ids.add(claim.id)
+        claim_ids_seen.add(claim.id)
+
+        if claim.treatment == claim.control:
+            errors.append(
+                f"claim {claim.id!r} has identical treatment and control ({claim.treatment!r})"
+            )
+        for role, agent_id in (
+            ("treatment", claim.treatment),
+            ("control", claim.control),
+        ):
+            if agent_id not in agent_ids:
+                errors.append(f"claim {claim.id!r} references unknown {role} agent_id {agent_id!r}")
+
+        if claim.outcome != primary_outcome_name:
+            errors.append(
+                f"claim {claim.id!r} outcome {claim.outcome!r} must match "
+                f"primary_outcome.name {primary_outcome_name!r}"
+            )
+        if claim.outcome != "success_rate":
+            errors.append(
+                f"claim {claim.id!r} outcome must be 'success_rate' in v0 (got {claim.outcome!r})"
+            )
+
+    if duplicate_claim_ids:
+        errors.append(f"duplicate claim id(s): {sorted(duplicate_claim_ids)}")
+    return errors
+
+
 class StudySpec(BaseModel):
     """Declared study and its claim family."""
 
@@ -84,91 +174,15 @@ class StudySpec(BaseModel):
 
     @model_validator(mode="after")
     def _validate_claim_family_and_v0_scope(self) -> StudySpec:
-        errors: list[str] = []
-
-        if self.schema_version != 1:
-            errors.append(
-                f"schema_version must be 1 (got {self.schema_version}); this version of "
-                f"eval-audit only supports schema_version=1"
-            )
-
-        if not self.agents:
-            errors.append("agents must contain at least one entry")
-        if not self.claims:
-            errors.append("claims must contain at least one entry")
-        if self.design.observed_runs_per_agent < 1:
-            errors.append(
-                "design.observed_runs_per_agent must be >= 1 "
-                f"(got {self.design.observed_runs_per_agent})"
-            )
-        if not 0.0 < self.inference.alpha < 1.0:
-            errors.append(f"inference.alpha must be > 0 and < 1 (got {self.inference.alpha})")
-        if self.inference.target_mde is not None and not (0.0 < self.inference.target_mde <= 1.0):
-            errors.append(
-                "inference.target_mde must be > 0 and <= 1 when declared "
-                f"(got {self.inference.target_mde})"
-            )
-        if self.cost.primary_view != "pareto_frontier":
-            errors.append(
-                "cost.primary_view must be 'pareto_frontier' in v0 "
-                f"(got {self.cost.primary_view!r})"
-            )
-        unsupported_cost_metrics = [
-            metric for metric in self.cost.metrics if metric not in _SUPPORTED_V0_COST_METRICS
-        ]
-        if unsupported_cost_metrics:
-            errors.append(
-                "cost.metrics contains unsupported v0 metric(s): "
-                f"{sorted(unsupported_cost_metrics)}; supported metrics are "
-                f"{sorted(_SUPPORTED_V0_COST_METRICS)}"
-            )
-
-        if self.primary_outcome.name != "success_rate":
-            errors.append(
-                "primary_outcome.name must be 'success_rate' in v0 "
-                f"(got {self.primary_outcome.name!r})"
-            )
-        if self.primary_outcome.direction != "higher_is_better":
-            errors.append(
-                "primary_outcome.direction must be 'higher_is_better' in v0 "
-                f"(got {self.primary_outcome.direction!r})"
-            )
-
+        errors = _study_invariant_errors(self)
         agent_ids = {agent.id for agent in self.agents}
-        claim_ids_seen: set[str] = set()
-        duplicate_claim_ids: set[str] = set()
-
-        for claim in self.claims:
-            if claim.id in claim_ids_seen:
-                duplicate_claim_ids.add(claim.id)
-            claim_ids_seen.add(claim.id)
-
-            if claim.treatment == claim.control:
-                errors.append(
-                    f"claim {claim.id!r} has identical treatment and control ({claim.treatment!r})"
-                )
-            for role, agent_id in (
-                ("treatment", claim.treatment),
-                ("control", claim.control),
-            ):
-                if agent_id not in agent_ids:
-                    errors.append(
-                        f"claim {claim.id!r} references unknown {role} agent_id {agent_id!r}"
-                    )
-
-            if claim.outcome != self.primary_outcome.name:
-                errors.append(
-                    f"claim {claim.id!r} outcome {claim.outcome!r} must match "
-                    f"primary_outcome.name {self.primary_outcome.name!r}"
-                )
-            if claim.outcome != "success_rate":
-                errors.append(
-                    f"claim {claim.id!r} outcome must be 'success_rate' in v0 "
-                    f"(got {claim.outcome!r})"
-                )
-
-        if duplicate_claim_ids:
-            errors.append(f"duplicate claim id(s): {sorted(duplicate_claim_ids)}")
+        errors.extend(
+            _claim_errors(
+                self.claims,
+                agent_ids=agent_ids,
+                primary_outcome_name=self.primary_outcome.name,
+            )
+        )
 
         if errors:
             raise ValueError("; ".join(errors))

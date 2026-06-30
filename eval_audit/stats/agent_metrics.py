@@ -19,14 +19,12 @@ class ErroredRowPolicy(StrEnum):
     graded_only = "graded_only"
 
 
-def summarize_agent(
-    agent_id: str,
+def _success_summary(
     rows: pl.DataFrame,
     alpha: float,
     *,
-    policy: ErroredRowPolicy = ErroredRowPolicy.headline,
-) -> AgentSummary:
-    """Summarize one agent's success rate, Wilson CI, and cost under a row policy."""
+    policy: ErroredRowPolicy,
+) -> tuple[pl.DataFrame, int, int, int, float, float, float]:
     graded = rows.filter(pl.col("outcome_status") == "graded")
     errored = rows.filter(pl.col("outcome_status") == "errored")
     n_graded = graded.height
@@ -41,19 +39,19 @@ def summarize_agent(
         point, lo, hi = wilson_interval(successes, n_total, alpha)
     else:
         point, lo, hi = 0.0, 0.0, 1.0
+    return graded, n_graded, n_errored, successes, point, lo, hi
 
+
+def _cost_summary(
+    agent_id: str,
+    rows: pl.DataFrame,
+    graded: pl.DataFrame,
+    *,
+    successes: int,
+) -> tuple[float | None, float | None]:
     provenance_values = set(rows["cost_provenance"].to_list())
     if provenance_values == {CostProvenance.COST_NOT_AVAILABLE.value}:
-        return AgentSummary(
-            agent_id=agent_id,
-            n_graded=n_graded,
-            n_errored=n_errored,
-            success_rate=point,
-            success_rate_ci_low=lo,
-            success_rate_ci_high=hi,
-            total_cost_usd=None,
-            cost_per_success_usd=None,
-        )
+        return None, None
     if CostProvenance.COST_NOT_AVAILABLE.value in provenance_values:
         raise CostProvenanceError(
             f"agent_id={agent_id!r} has mixed cost_provenance including "
@@ -61,6 +59,17 @@ def summarize_agent(
             "cost suppression must be whole-agent"
         )
 
+    total_cost = _total_cost_usd(agent_id, rows, graded, provenance_values)
+    cost_per_success = total_cost / successes if successes else None
+    return total_cost, cost_per_success
+
+
+def _total_cost_usd(
+    agent_id: str,
+    rows: pl.DataFrame,
+    graded: pl.DataFrame,
+    provenance_values: set[str],
+) -> float:
     graded_reconstructed_null_count = graded["reconstructed_per_task_cost_usd"].null_count()
     if 0 < graded_reconstructed_null_count < graded.height:
         provenance = sorted(provenance_values)
@@ -78,10 +87,29 @@ def summarize_agent(
         per_run = rows.group_by("run_id").agg(
             pl.col("reported_run_total_cost_usd").first().alias("_r")
         )
-        total_cost = float(per_run["_r"].sum())
-    else:
-        total_cost = float(graded["reconstructed_per_task_cost_usd"].sum())
-    cost_per_success = total_cost / successes if successes else None
+        return float(per_run["_r"].sum())
+    return float(graded["reconstructed_per_task_cost_usd"].sum())
+
+
+def summarize_agent(
+    agent_id: str,
+    rows: pl.DataFrame,
+    alpha: float,
+    *,
+    policy: ErroredRowPolicy = ErroredRowPolicy.headline,
+) -> AgentSummary:
+    """Summarize one agent's success rate, Wilson CI, and cost under a row policy."""
+    graded, n_graded, n_errored, successes, point, lo, hi = _success_summary(
+        rows,
+        alpha,
+        policy=policy,
+    )
+    total_cost, cost_per_success = _cost_summary(
+        agent_id,
+        rows,
+        graded,
+        successes=successes,
+    )
     return AgentSummary(
         agent_id=agent_id,
         n_graded=n_graded,

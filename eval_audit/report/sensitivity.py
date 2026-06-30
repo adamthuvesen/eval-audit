@@ -162,6 +162,84 @@ def verdict_with_cost_gap_threshold(
     return decision_impact(ctx, cost_gap_threshold=cost_gap_threshold)
 
 
+def _claim_errored_count(runs: pl.DataFrame, claim: ClaimResult) -> int:
+    return runs.filter(
+        pl.col("agent_id").is_in([claim.treatment, claim.control])
+        & (pl.col("outcome_status") == "errored")
+    ).height
+
+
+def _graded_common_task_rows(
+    runs: pl.DataFrame,
+    claim: ClaimResult,
+) -> tuple[pl.DataFrame, pl.DataFrame] | None:
+    graded = runs.filter(pl.col("outcome_status") == "graded")
+    treatment_rows = graded.filter(pl.col("agent_id") == claim.treatment)
+    control_rows = graded.filter(pl.col("agent_id") == claim.control)
+    if treatment_rows.height == 0 or control_rows.height == 0:
+        return None
+
+    # Recompute paired-task bootstrap on the graded-only frame after explicitly
+    # aligning task sets; the bootstrap helper refuses mismatched task ids.
+    common_tasks = set(treatment_rows["task_id"].to_list()) & set(control_rows["task_id"].to_list())
+    treatment_rows = treatment_rows.filter(pl.col("task_id").is_in(common_tasks))
+    control_rows = control_rows.filter(pl.col("task_id").is_in(common_tasks))
+    if treatment_rows.height < 2 or control_rows.height < 2:
+        return None
+    return treatment_rows, control_rows
+
+
+def _rejects_after_perturbed_p_value(
+    claim: ClaimResult,
+    result: AnalysisResult,
+    study: StudySpec,
+    perturbed_raw_p: float,
+) -> bool:
+    alpha = study.inference.alpha
+    raw_p_pairs: list[tuple[str, float]] = []
+    for candidate in result.claims:
+        raw_p = perturbed_raw_p if candidate.claim_id == claim.claim_id else candidate.raw_p_value
+        raw_p_pairs.append((candidate.claim_id, raw_p))
+    if study.inference.correction_method == "holm_bonferroni":
+        corrected = holm_bonferroni(raw_p_pairs, alpha=alpha)
+    elif study.inference.correction_method == "benjamini_hochberg":
+        corrected = benjamini_hochberg(raw_p_pairs, alpha=alpha)
+    else:
+        # Should never happen given the StudySpec validator; fall back conservatively.
+        corrected = [(claim_id, raw_p, raw_p, raw_p <= alpha) for (claim_id, raw_p) in raw_p_pairs]
+    perturbed_adj_p = next(
+        adjusted for (claim_id, _raw, adjusted, _rejects) in corrected if claim_id == claim.claim_id
+    )
+    return perturbed_adj_p <= alpha
+
+
+def _treatment_dominated_with_graded_only_policy(
+    claim: ClaimResult,
+    runs: pl.DataFrame,
+    study: StudySpec,
+    result: AnalysisResult,
+) -> bool:
+    # Pareto dominance: recompute against ALL agents in the study under
+    # graded-only stats, so the frontier definition matches analyze() at baseline.
+    # Skip the recompute under cost suppression; matches analyze()'s behavior.
+    if result.pareto_status == "suppressed_cost_not_available":
+        return False
+    per_agent_for_pareto = summarize_agents_for_pareto(
+        study,
+        runs,
+        study.inference.alpha,
+        policy=ErroredRowPolicy.graded_only,
+    )
+    if per_agent_for_pareto is None:
+        return False
+    frontier = pareto_frontier(
+        per_agent_for_pareto,
+        success_col="success_rate",
+        cost_col="cost",
+    )
+    return claim.treatment not in frontier
+
+
 def verdict_with_errored_excluded(
     claim: ClaimResult,
     runs: pl.DataFrame,
@@ -191,32 +269,17 @@ def verdict_with_errored_excluded(
     ``adjusted_p_value <= alpha`` — the same statistic the baseline uses.
     """
     alpha = study.inference.alpha
-    n_errored_in_claim = runs.filter(
-        pl.col("agent_id").is_in([claim.treatment, claim.control])
-        & (pl.col("outcome_status") == "errored")
-    ).height
-    if n_errored_in_claim == 0:
+    if _claim_errored_count(runs, claim) == 0:
         # No-op perturbation: excluding zero rows leaves the denominator,
         # paired p, bootstrap CI, Pareto frontier, and costs unchanged.
         return _baseline_verdict(claim, result, study)
 
-    graded = runs.filter(pl.col("outcome_status") == "graded")
-
-    treatment_rows = graded.filter(pl.col("agent_id") == claim.treatment)
-    control_rows = graded.filter(pl.col("agent_id") == claim.control)
-
-    if treatment_rows.height == 0 or control_rows.height == 0:
-        # Degenerate perturbation (every row errored on one arm). Fall back to
-        # the baseline verdict so the table renders without crashing.
+    common_rows = _graded_common_task_rows(runs, claim)
+    if common_rows is None:
+        # Degenerate perturbation (for example, every row errored on one arm).
+        # Fall back to the baseline verdict so the table renders without crashing.
         return _baseline_verdict(claim, result, study)
-
-    # Recompute paired-task bootstrap on the graded-only frame after explicitly
-    # aligning task sets; the bootstrap helper refuses mismatched task ids.
-    common_tasks = set(treatment_rows["task_id"].to_list()) & set(control_rows["task_id"].to_list())
-    treatment_rows = treatment_rows.filter(pl.col("task_id").is_in(common_tasks))
-    control_rows = control_rows.filter(pl.col("task_id").is_in(common_tasks))
-    if treatment_rows.height < 2 or control_rows.height < 2:
-        return _baseline_verdict(claim, result, study)
+    treatment_rows, control_rows = common_rows
 
     boot = paired_task_bootstrap(
         treatment_rows,
@@ -228,42 +291,6 @@ def verdict_with_errored_excluded(
     )
 
     perturbed_raw_p = paired_task_p_value(treatment_rows, control_rows)
-    raw_p_pairs: list[tuple[str, float]] = []
-    for c in result.claims:
-        rp = perturbed_raw_p if c.claim_id == claim.claim_id else c.raw_p_value
-        raw_p_pairs.append((c.claim_id, rp))
-    if study.inference.correction_method == "holm_bonferroni":
-        corrected = holm_bonferroni(raw_p_pairs, alpha=alpha)
-    elif study.inference.correction_method == "benjamini_hochberg":
-        corrected = benjamini_hochberg(raw_p_pairs, alpha=alpha)
-    else:
-        # Should never happen given the StudySpec validator; fall back conservatively.
-        corrected = [(cid, rp, rp, rp <= alpha) for (cid, rp) in raw_p_pairs]
-    perturbed_adj_p = next(adj for (cid, _rp, adj, _rej) in corrected if cid == claim.claim_id)
-    rejects = perturbed_adj_p <= alpha
-
-    # Pareto dominance: recompute against ALL agents in the study under
-    # graded-only stats, so the frontier definition matches analyze() at baseline.
-    # Skip the recompute under cost suppression; matches analyze()'s behavior.
-    if result.pareto_status == "suppressed_cost_not_available":
-        treatment_is_dominated = False
-    else:
-        per_agent_for_pareto = summarize_agents_for_pareto(
-            study,
-            runs,
-            alpha,
-            policy=ErroredRowPolicy.graded_only,
-        )
-        if per_agent_for_pareto is None:
-            treatment_is_dominated = False
-        else:
-            frontier = pareto_frontier(
-                per_agent_for_pareto,
-                success_col="success_rate",
-                cost_col="cost",
-            )
-            treatment_is_dominated = claim.treatment not in frontier
-
     direction_matches = direction_matches_claim(
         study.primary_outcome.direction,
         boot.delta_point_estimate,
@@ -272,11 +299,16 @@ def verdict_with_errored_excluded(
         claim,
         result,
         study,
-        rejects_null=rejects,
+        rejects_null=_rejects_after_perturbed_p_value(claim, result, study, perturbed_raw_p),
         delta_ci_low=boot.delta_ci_low,
         delta_ci_high=boot.delta_ci_high,
         delta_point_estimate=boot.delta_point_estimate,
-        treatment_is_dominated=treatment_is_dominated,
+        treatment_is_dominated=_treatment_dominated_with_graded_only_policy(
+            claim,
+            runs,
+            study,
+            result,
+        ),
         direction_matches=direction_matches,
     )
     return decision_impact(ctx)

@@ -16,7 +16,9 @@ import sys
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
+import polars as pl
 import typer
 from pydantic import ValidationError
 from yaml import YAMLError
@@ -298,6 +300,129 @@ def _readiness_meets_minimum(
     return _READINESS_RANK[readiness] >= _READINESS_RANK[minimum]
 
 
+def _validated_min_readiness(value: str) -> ReadinessStatus:
+    if value not in {"ready", "ready_with_warnings"}:
+        typer.echo(
+            "--min-readiness must be one of: ready, ready_with_warnings",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    return cast(ReadinessStatus, value)
+
+
+def _allowed_gate_verdicts(allow_verdict: list[str] | None) -> list[str]:
+    requested_verdicts = list(allow_verdict or DECISION_IMPACT_VOCAB)
+    unknown = sorted(set(requested_verdicts) - set(DECISION_IMPACT_VOCAB))
+    if unknown:
+        typer.echo(
+            "unsupported verdict name(s): "
+            f"{', '.join(unknown)}. Controlled vocabulary: "
+            f"{', '.join(DECISION_IMPACT_VOCAB)}",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    return requested_verdicts
+
+
+def _readiness_gate_failures(
+    readiness: ReadinessResult,
+    min_readiness: ReadinessStatus,
+) -> list[dict[str, object]]:
+    if readiness.status == "not_ready":
+        return [
+            {
+                "type": "readiness",
+                "check_id": check.id,
+                "severity": check.severity,
+                "message": check.message,
+                "fix_suggestion": check.fix_suggestion,
+            }
+            for check in _failed_checks(readiness)
+        ]
+    if not _readiness_meets_minimum(readiness.status, min_readiness):
+        return [
+            {
+                "type": "readiness",
+                "message": (f"readiness {readiness.status} does not meet minimum {min_readiness}"),
+            }
+        ]
+    return []
+
+
+def _verdict_gate_failures(
+    claims: list[dict[str, str]],
+    allowed_verdicts: list[str],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "type": "verdict",
+            "claim_id": claim["claim_id"],
+            "verdict": claim["verdict"],
+            "allowed_verdicts": allowed_verdicts,
+        }
+        for claim in claims
+        if claim["verdict"] not in allowed_verdicts
+    ]
+
+
+def _gate_claims_and_failures(
+    *,
+    study: StudySpec,
+    runs_frame: pl.DataFrame,
+    readiness: ReadinessResult,
+    min_readiness: ReadinessStatus,
+    allowed_verdicts: list[str],
+    bootstrap_iterations: int,
+    bootstrap_seed: int,
+) -> tuple[list[dict[str, str]], list[dict[str, object]]]:
+    readiness_failures = _readiness_gate_failures(readiness, min_readiness)
+    if readiness_failures:
+        return [], readiness_failures
+
+    result = run_analysis(
+        study,
+        runs_frame,
+        bootstrap_iterations=bootstrap_iterations,
+        bootstrap_seed=bootstrap_seed,
+    )
+    claims = claim_verdicts(result, study)
+    return claims, _verdict_gate_failures(claims, allowed_verdicts)
+
+
+def _emit_gate_output(payload: dict[str, object], *, json_output: bool) -> None:
+    if json_output:
+        typer.echo(
+            json.dumps(payload, allow_nan=False, indent=2, sort_keys=True) + "\n",
+            nl=False,
+        )
+        return
+
+    typer.echo(
+        f"gate {payload['status']}: study={payload['study_id']} readiness={payload['readiness']}"
+    )
+    claims = payload["claims"]
+    failures = payload["failures"]
+    if isinstance(claims, list):
+        for claim in claims:
+            typer.echo(f"claim {claim['claim_id']}: {claim['verdict']}")
+    if isinstance(failures, list):
+        for failure in failures:
+            if failure["type"] == "verdict":
+                typer.echo(
+                    "failure: claim "
+                    f"{failure['claim_id']} verdict {failure['verdict']} "
+                    "not in allowed verdicts "
+                    f"{', '.join(failure['allowed_verdicts'])}"
+                )
+            elif "check_id" in failure:
+                typer.echo(
+                    f"failure: {failure['check_id']}: "
+                    f"{failure['message']}; fix: {failure['fix_suggestion']}"
+                )
+            else:
+                typer.echo(f"failure: {failure['message']}")
+
+
 @app.command(name="analyze")
 def analyze_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
@@ -447,68 +572,21 @@ def gate_cmd(
     bootstrap_seed: int = typer.Option(42, "--bootstrap-seed"),
 ) -> None:
     """CI-friendly gate over evidence readiness and claim verdicts."""
-    if min_readiness not in {"ready", "ready_with_warnings"}:
-        typer.echo(
-            "--min-readiness must be one of: ready, ready_with_warnings",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-
-    requested_verdicts = list(allow_verdict or DECISION_IMPACT_VOCAB)
-    unknown = sorted(set(requested_verdicts) - set(DECISION_IMPACT_VOCAB))
-    if unknown:
-        typer.echo(
-            "unsupported verdict name(s): "
-            f"{', '.join(unknown)}. Controlled vocabulary: "
-            f"{', '.join(DECISION_IMPACT_VOCAB)}",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-    allowed_verdicts = requested_verdicts
-
+    minimum = _validated_min_readiness(min_readiness)
+    allowed_verdicts = _allowed_gate_verdicts(allow_verdict)
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
     runs_frame = _resolve_runs_frame(study, root, runs)
     readiness = run_readiness(study_yaml, runs, study, runs_frame, repo_root=root)
-
-    failures: list[dict[str, object]] = []
-    claims: list[dict[str, str]] = []
-    if readiness.status == "not_ready":
-        for check in _failed_checks(readiness):
-            failures.append(
-                {
-                    "type": "readiness",
-                    "check_id": check.id,
-                    "severity": check.severity,
-                    "message": check.message,
-                    "fix_suggestion": check.fix_suggestion,
-                }
-            )
-    elif not _readiness_meets_minimum(readiness.status, min_readiness):  # type: ignore[arg-type]
-        failures.append(
-            {
-                "type": "readiness",
-                "message": (f"readiness {readiness.status} does not meet minimum {min_readiness}"),
-            }
-        )
-    else:
-        result = run_analysis(
-            study,
-            runs_frame,
-            bootstrap_iterations=bootstrap_iterations,
-            bootstrap_seed=bootstrap_seed,
-        )
-        claims = claim_verdicts(result, study)
-        for claim in claims:
-            if claim["verdict"] not in allowed_verdicts:
-                failures.append(
-                    {
-                        "type": "verdict",
-                        "claim_id": claim["claim_id"],
-                        "verdict": claim["verdict"],
-                        "allowed_verdicts": allowed_verdicts,
-                    }
-                )
+    claims, failures = _gate_claims_and_failures(
+        study=study,
+        runs_frame=runs_frame,
+        readiness=readiness,
+        min_readiness=minimum,
+        allowed_verdicts=allowed_verdicts,
+        bootstrap_iterations=bootstrap_iterations,
+        bootstrap_seed=bootstrap_seed,
+    )
 
     status = "pass" if not failures else "fail"
     payload = {
@@ -520,32 +598,7 @@ def gate_cmd(
         "failures": failures,
     }
 
-    if json_output:
-        typer.echo(
-            json.dumps(payload, allow_nan=False, indent=2, sort_keys=True) + "\n",
-            nl=False,
-        )
-    else:
-        typer.echo(f"gate {status}: study={study.id} readiness={readiness.status}")
-        if claims:
-            for claim in claims:
-                typer.echo(f"claim {claim['claim_id']}: {claim['verdict']}")
-        if failures:
-            for failure in failures:
-                if failure["type"] == "verdict":
-                    typer.echo(
-                        "failure: claim "
-                        f"{failure['claim_id']} verdict {failure['verdict']} "
-                        "not in allowed verdicts "
-                        f"{', '.join(failure['allowed_verdicts'])}"
-                    )
-                elif "check_id" in failure:
-                    typer.echo(
-                        f"failure: {failure['check_id']}: "
-                        f"{failure['message']}; fix: {failure['fix_suggestion']}"
-                    )
-                else:
-                    typer.echo(f"failure: {failure['message']}")
+    _emit_gate_output(payload, json_output=json_output)
 
     if failures:
         raise typer.Exit(code=1)

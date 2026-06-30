@@ -124,6 +124,111 @@ def _rows_by_agent(runs: pl.DataFrame, agent_ids: set[str]) -> dict[str, pl.Data
     return {agent_id: runs.filter(pl.col("agent_id") == agent_id) for agent_id in sorted(agent_ids)}
 
 
+def _summarize_declared_agents(
+    agent_ids: list[str],
+    rows_by_agent: dict[str, pl.DataFrame],
+    alpha: float,
+) -> tuple[list[AgentSummary], dict[str, AgentSummary]]:
+    per_agent: list[AgentSummary] = []
+    by_id: dict[str, AgentSummary] = {}
+    for agent_id in agent_ids:
+        rows = rows_by_agent[agent_id]
+        if rows.height == 0:
+            raise AnalysisInputError(
+                f"agent_id={agent_id!r} declared in study.agents has no rows in loaded runs"
+            )
+        summary = summarize_agent(agent_id, rows, alpha, policy=ErroredRowPolicy.headline)
+        per_agent.append(summary)
+        by_id[agent_id] = summary
+    return per_agent, by_id
+
+
+def _pareto_status(per_agent: list[AgentSummary]) -> tuple[set[str], ParetoStatus]:
+    if any(summary.total_cost_usd is None for summary in per_agent):
+        return set(), "suppressed_cost_not_available"
+    per_agent_for_pareto = pl.DataFrame(
+        {
+            "agent_id": [summary.agent_id for summary in per_agent],
+            "success_rate": [summary.success_rate for summary in per_agent],
+            "cost": [summary.total_cost_usd for summary in per_agent],
+        }
+    )
+    return (
+        pareto_frontier(per_agent_for_pareto, success_col="success_rate", cost_col="cost"),
+        "computed",
+    )
+
+
+def _claim_statistics(
+    study: StudySpec,
+    rows_by_agent: dict[str, pl.DataFrame],
+    *,
+    outcome_col: str,
+    alpha: float,
+    bootstrap_iterations: int,
+    bootstrap_seed: int,
+) -> tuple[dict[str, BootstrapResult], list[tuple[str, float]]]:
+    raw_p_pairs: list[tuple[str, float]] = []
+    bootstraps: dict[str, BootstrapResult] = {}
+    for claim in study.claims:
+        treatment_rows = rows_by_agent[claim.treatment]
+        control_rows = rows_by_agent[claim.control]
+        bootstraps[claim.id] = paired_task_bootstrap(
+            treatment_rows,
+            control_rows,
+            outcome=outcome_col,
+            n_iter=bootstrap_iterations,
+            alpha=alpha,
+            seed=bootstrap_seed,
+        )
+        raw_p_pairs.append((claim.id, paired_task_p_value(treatment_rows, control_rows)))
+    return bootstraps, raw_p_pairs
+
+
+def _correct_claim_p_values(
+    study: StudySpec,
+    raw_p_pairs: list[tuple[str, float]],
+    *,
+    alpha: float,
+) -> list[tuple[str, float, float, bool]]:
+    if study.inference.correction_method == "holm_bonferroni":
+        return holm_bonferroni(raw_p_pairs, alpha=alpha)
+    if study.inference.correction_method == "benjamini_hochberg":
+        return benjamini_hochberg(raw_p_pairs, alpha=alpha)
+    raise ValueError(f"unsupported correction_method={study.inference.correction_method!r}")
+
+
+def _claim_results(
+    study: StudySpec,
+    bootstraps: dict[str, BootstrapResult],
+    corrected: list[tuple[str, float, float, bool]],
+    by_agent_id: dict[str, AgentSummary],
+) -> list[ClaimResult]:
+    by_claim_id = {cid: (rp, ap, rej) for cid, rp, ap, rej in corrected}
+    claim_results: list[ClaimResult] = []
+    for claim in study.claims:
+        boot = bootstraps[claim.id]
+        raw_p_value, adjusted_p_value, rejects_null = by_claim_id[claim.id]
+        claim_results.append(
+            ClaimResult(
+                claim_id=claim.id,
+                text=claim.text,
+                treatment=claim.treatment,
+                control=claim.control,
+                delta_point_estimate=boot.delta_point_estimate,
+                delta_ci_low=boot.delta_ci_low,
+                delta_ci_high=boot.delta_ci_high,
+                raw_p_value=raw_p_value,
+                adjusted_p_value=adjusted_p_value,
+                rejects_null=rejects_null,
+                treatment_total_cost_usd=by_agent_id[claim.treatment].total_cost_usd,
+                control_total_cost_usd=by_agent_id[claim.control].total_cost_usd,
+                bootstrap=boot,
+            )
+        )
+    return claim_results
+
+
 def analyze(
     study: StudySpec,
     runs: pl.DataFrame,
@@ -143,87 +248,22 @@ def analyze(
 
     _check_harness_consistency(study, rows_by_agent)
 
-    per_agent: list[AgentSummary] = []
-    by_id: dict[str, AgentSummary] = {}
-    for agent_id in agent_ids:
-        rows = rows_by_agent[agent_id]
-        if rows.height == 0:
-            raise AnalysisInputError(
-                f"agent_id={agent_id!r} declared in study.agents has no rows in loaded runs"
-            )
-        summary = summarize_agent(agent_id, rows, alpha, policy=ErroredRowPolicy.headline)
-        per_agent.append(summary)
-        by_id[agent_id] = summary
-
-    if any(s.total_cost_usd is None for s in per_agent):
-        frontier: set[str] = set()
-        pareto_status: ParetoStatus = "suppressed_cost_not_available"
-    else:
-        per_agent_for_pareto = pl.DataFrame(
-            {
-                "agent_id": [s.agent_id for s in per_agent],
-                "success_rate": [s.success_rate for s in per_agent],
-                "cost": [s.total_cost_usd for s in per_agent],
-            }
-        )
-        frontier = pareto_frontier(
-            per_agent_for_pareto, success_col="success_rate", cost_col="cost"
-        )
-        pareto_status = "computed"
-
-    raw_p_pairs: list[tuple[str, float]] = []
-    bootstraps: dict[str, BootstrapResult] = {}
-    for claim in study.claims:
-        treatment_rows = rows_by_agent[claim.treatment]
-        control_rows = rows_by_agent[claim.control]
-        boot = paired_task_bootstrap(
-            treatment_rows,
-            control_rows,
-            outcome=outcome_col,
-            n_iter=bootstrap_iterations,
-            alpha=alpha,
-            seed=bootstrap_seed,
-        )
-        bootstraps[claim.id] = boot
-
-        raw_p = paired_task_p_value(treatment_rows, control_rows)
-        raw_p_pairs.append((claim.id, raw_p))
-
-    if study.inference.correction_method == "holm_bonferroni":
-        corrected = holm_bonferroni(raw_p_pairs, alpha=alpha)
-    elif study.inference.correction_method == "benjamini_hochberg":
-        corrected = benjamini_hochberg(raw_p_pairs, alpha=alpha)
-    else:
-        raise ValueError(f"unsupported correction_method={study.inference.correction_method!r}")
-
-    by_claim_id = {cid: (rp, ap, rej) for cid, rp, ap, rej in corrected}
-
-    claim_results: list[ClaimResult] = []
-    for claim in study.claims:
-        boot = bootstraps[claim.id]
-        rp, ap, rej = by_claim_id[claim.id]
-        claim_results.append(
-            ClaimResult(
-                claim_id=claim.id,
-                text=claim.text,
-                treatment=claim.treatment,
-                control=claim.control,
-                delta_point_estimate=boot.delta_point_estimate,
-                delta_ci_low=boot.delta_ci_low,
-                delta_ci_high=boot.delta_ci_high,
-                raw_p_value=rp,
-                adjusted_p_value=ap,
-                rejects_null=rej,
-                treatment_total_cost_usd=by_id[claim.treatment].total_cost_usd,
-                control_total_cost_usd=by_id[claim.control].total_cost_usd,
-                bootstrap=boot,
-            )
-        )
+    per_agent, by_agent_id = _summarize_declared_agents(agent_ids, rows_by_agent, alpha)
+    frontier, pareto_status = _pareto_status(per_agent)
+    bootstraps, raw_p_pairs = _claim_statistics(
+        study,
+        rows_by_agent,
+        outcome_col=outcome_col,
+        alpha=alpha,
+        bootstrap_iterations=bootstrap_iterations,
+        bootstrap_seed=bootstrap_seed,
+    )
+    corrected = _correct_claim_p_values(study, raw_p_pairs, alpha=alpha)
 
     return AnalysisResult(
         study_id=study.id,
         per_agent=per_agent,
-        claims=claim_results,
+        claims=_claim_results(study, bootstraps, corrected, by_agent_id),
         pareto_frontier=frontier,
         bootstrap_seed=bootstrap_seed,
         pareto_status=pareto_status,
