@@ -18,20 +18,14 @@ class BootstrapResult(NamedTuple):
     seed: int
 
 
-def paired_task_bootstrap(
+def _validate_bootstrap_inputs(
     arm_a: pl.DataFrame,
     arm_b: pl.DataFrame,
     *,
     outcome: str,
-    n_iter: int = 10_000,
-    alpha: float = 0.05,
-    seed: int = 42,
-) -> BootstrapResult:
-    """Resample task_id values with replacement and recompute the delta of mean(outcome).
-
-    Both arms must share the exact same set of task_id values; the function refuses
-    to silently align mismatched task sets.
-    """
+    n_iter: int,
+    alpha: float,
+) -> None:
     if n_iter < 1:
         raise ValueError(f"n_iter must be >= 1 (got {n_iter})")
     if not 0.0 < alpha < 1.0:
@@ -56,6 +50,13 @@ def paired_task_bootstrap(
             f"symmetric difference has {len(diff)} task_id(s)"
         )
 
+
+def _paired_outcome_vectors(
+    arm_a: pl.DataFrame,
+    arm_b: pl.DataFrame,
+    *,
+    outcome: str,
+) -> tuple[np.ndarray, np.ndarray]:
     # Aggregate per-task means so each task contributes one value per arm.
     # Sort by task_id so the index space the rng samples over is stable across runs;
     # polars group_by returns rows in hash order by default, which makes seeded
@@ -76,15 +77,46 @@ def paired_task_bootstrap(
     paired = a_means.join(b_means, on="task_id", how="inner").sort("task_id")
     if paired.height == 0:
         raise ValueError("paired task bootstrap requires at least one paired task")
-    a_vec = paired["_a"].to_numpy()
-    b_vec = paired["_b"].to_numpy()
+    return paired["_a"].to_numpy(), paired["_b"].to_numpy()
+
+
+def _bootstrap_deltas(
+    a_vec: np.ndarray,
+    b_vec: np.ndarray,
+    *,
+    n_iter: int,
+    seed: int,
+) -> np.ndarray:
     n_tasks = len(a_vec)
-
-    point = float(a_vec.mean() - b_vec.mean())
-
     rng = np.random.default_rng(seed)
     indices = rng.integers(0, n_tasks, size=(n_iter, n_tasks))
-    deltas = a_vec[indices].mean(axis=1) - b_vec[indices].mean(axis=1)
+    return a_vec[indices].mean(axis=1) - b_vec[indices].mean(axis=1)
+
+
+def paired_task_bootstrap(
+    arm_a: pl.DataFrame,
+    arm_b: pl.DataFrame,
+    *,
+    outcome: str,
+    n_iter: int = 10_000,
+    alpha: float = 0.05,
+    seed: int = 42,
+) -> BootstrapResult:
+    """Resample task_id values with replacement and recompute the delta of mean(outcome).
+
+    Both arms must share the exact same set of task_id values; the function refuses
+    to silently align mismatched task sets.
+    """
+    _validate_bootstrap_inputs(
+        arm_a,
+        arm_b,
+        outcome=outcome,
+        n_iter=n_iter,
+        alpha=alpha,
+    )
+    a_vec, b_vec = _paired_outcome_vectors(arm_a, arm_b, outcome=outcome)
+    point = float(a_vec.mean() - b_vec.mean())
+    deltas = _bootstrap_deltas(a_vec, b_vec, n_iter=n_iter, seed=seed)
     lo = float(np.quantile(deltas, alpha / 2))
     hi = float(np.quantile(deltas, 1 - alpha / 2))
 

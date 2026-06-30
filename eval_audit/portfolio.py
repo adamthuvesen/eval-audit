@@ -59,6 +59,13 @@ class PortfolioRow:
         }
 
 
+class _PortfolioSummaryError(ValueError):
+    def __init__(self, status: str, note: str) -> None:
+        super().__init__(note)
+        self.status = status
+        self.note = note
+
+
 def _candidate_report_dirs(reports_dir: Path) -> list[Path]:
     if (reports_dir / "summary.json").exists():
         return [reports_dir]
@@ -150,68 +157,58 @@ def _complete_claim_row(report_dir: Path, claim: object) -> PortfolioRow:
     )
 
 
+def _has_partial_artifacts(report_dir: Path) -> bool:
+    return any(
+        (report_dir / name).exists() for name in ("report.md", "analysis.json", "check.json")
+    )
+
+
+def _validated_summary_payload(report_dir: Path) -> dict[str, Any]:
+    summary_path = report_dir / "summary.json"
+    try:
+        raw_payload = json.loads(summary_path.read_text())
+    except json.JSONDecodeError as exc:
+        raise _PortfolioSummaryError("invalid_summary", str(exc)) from exc
+    if not isinstance(raw_payload, dict):
+        raise _PortfolioSummaryError("invalid_summary", "summary.json root must be an object")
+    try:
+        payload = AuditSummary.model_validate(raw_payload).to_json_dict()
+    except (ValidationError, ValueError, TypeError) as exc:
+        raise _PortfolioSummaryError("invalid_summary", str(exc)) from exc
+    if stale_note := _staleness_note(report_dir, payload):
+        raise _PortfolioSummaryError("stale_summary", stale_note)
+    return payload
+
+
+def _complete_claim_rows(report_dir: Path, claims: object) -> list[PortfolioRow]:
+    if not isinstance(claims, list) or not claims:
+        raise _PortfolioSummaryError("invalid_summary", "summary.json has no claim records")
+    try:
+        return [_complete_claim_row(report_dir, claim) for claim in claims]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise _PortfolioSummaryError(
+            "invalid_summary",
+            f"summary.json has invalid claim record: {exc}",
+        ) from exc
+
+
+def _report_dir_rows(report_dir: Path) -> list[PortfolioRow]:
+    summary_path = report_dir / "summary.json"
+    if not summary_path.exists():
+        if _has_partial_artifacts(report_dir):
+            return [_incomplete_row(report_dir, "missing_summary", "summary.json is missing")]
+        return []
+    try:
+        payload = _validated_summary_payload(report_dir)
+        return _complete_claim_rows(report_dir, payload.get("claims"))
+    except _PortfolioSummaryError as exc:
+        return [_incomplete_row(report_dir, exc.status, exc.note)]
+
+
 def load_portfolio_rows(reports_dir: Path) -> list[PortfolioRow]:
     rows: list[PortfolioRow] = []
     for report_dir in _candidate_report_dirs(reports_dir):
-        summary_path = report_dir / "summary.json"
-        if not summary_path.exists():
-            if any(
-                (report_dir / name).exists()
-                for name in ("report.md", "analysis.json", "check.json")
-            ):
-                rows.append(
-                    _incomplete_row(
-                        report_dir,
-                        "missing_summary",
-                        "summary.json is missing",
-                    )
-                )
-            continue
-        try:
-            raw_payload = json.loads(summary_path.read_text())
-        except json.JSONDecodeError as exc:
-            rows.append(_incomplete_row(report_dir, "invalid_summary", str(exc)))
-            continue
-        if not isinstance(raw_payload, dict):
-            rows.append(
-                _incomplete_row(
-                    report_dir,
-                    "invalid_summary",
-                    "summary.json root must be an object",
-                )
-            )
-            continue
-        try:
-            payload = AuditSummary.model_validate(raw_payload).to_json_dict()
-        except (ValidationError, ValueError, TypeError) as exc:
-            rows.append(_incomplete_row(report_dir, "invalid_summary", str(exc)))
-            continue
-        stale_note = _staleness_note(report_dir, payload)
-        if stale_note is not None:
-            rows.append(_incomplete_row(report_dir, "stale_summary", stale_note))
-            continue
-        claims = payload.get("claims")
-        if not isinstance(claims, list) or not claims:
-            rows.append(
-                _incomplete_row(
-                    report_dir,
-                    "invalid_summary",
-                    "summary.json has no claim records",
-                )
-            )
-            continue
-        try:
-            claim_rows = [_complete_claim_row(report_dir, claim) for claim in claims]
-        except (KeyError, TypeError, ValueError) as exc:
-            rows.append(
-                _incomplete_row(
-                    report_dir,
-                    "invalid_summary",
-                    f"summary.json has invalid claim record: {exc}",
-                )
-            )
-        else:
-            rows.extend(claim_rows)
+        rows.extend(_report_dir_rows(report_dir))
     return sorted(
         rows,
         key=lambda row: (
@@ -231,6 +228,21 @@ def _format_pp(value: float | None) -> str:
     return "n/a" if value is None else f"{value * 100:+.2f} pp"
 
 
+def _format_ci(row: PortfolioRow) -> str:
+    if row.ci_low is None or row.ci_high is None:
+        return "n/a"
+    return f"[{_format_pp(row.ci_low)}, {_format_pp(row.ci_high)}]"
+
+
+def _markdown_row(row: PortfolioRow) -> str:
+    return (
+        f"| {row.study_id} | {row.claim_id or 'n/a'} | {row.treatment or 'n/a'} | "
+        f"{row.control or 'n/a'} | {row.verdict or 'n/a'} | {row.readiness or 'n/a'} | "
+        f"{_format_pp(row.delta)} | {_format_ci(row)} | {row.cost_provenance or 'n/a'} | "
+        f"{row.artifact_status} |"
+    )
+
+
 def render_portfolio_markdown(rows: list[PortfolioRow], reports_dir: Path) -> str:
     parts = [
         "# Audit Portfolio",
@@ -246,17 +258,7 @@ def render_portfolio_markdown(rows: list[PortfolioRow], reports_dir: Path) -> st
         "|---|---|---|---|---|---|---:|---|---|---|",
     ]
     for row in rows:
-        ci = (
-            "n/a"
-            if row.ci_low is None or row.ci_high is None
-            else f"[{_format_pp(row.ci_low)}, {_format_pp(row.ci_high)}]"
-        )
-        parts.append(
-            f"| {row.study_id} | {row.claim_id or 'n/a'} | {row.treatment or 'n/a'} | "
-            f"{row.control or 'n/a'} | {row.verdict or 'n/a'} | {row.readiness or 'n/a'} | "
-            f"{_format_pp(row.delta)} | {ci} | {row.cost_provenance or 'n/a'} | "
-            f"{row.artifact_status} |"
-        )
+        parts.append(_markdown_row(row))
     incomplete = [row for row in rows if row.artifact_status != "complete"]
     if incomplete:
         parts.extend(["", "## Incomplete Artifacts", ""])
