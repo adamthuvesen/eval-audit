@@ -2,6 +2,7 @@
   "checks": [
     {
       "details": {},
+      "fix_suggestion": null,
       "id": "study_loads",
       "message": "study YAML loaded",
       "severity": "error",
@@ -11,6 +12,7 @@
       "details": {
         "rows": 150
       },
+      "fix_suggestion": null,
       "id": "runs_load",
       "message": "runs parquet loaded",
       "severity": "error",
@@ -24,6 +26,7 @@
           "claude_vs_o3"
         ]
       },
+      "fix_suggestion": null,
       "id": "claim_agents_present",
       "message": "all claimed agents have rows",
       "severity": "error",
@@ -33,6 +36,7 @@
       "details": {
         "study_harness": "tau_bench_tool_calling"
       },
+      "fix_suggestion": null,
       "id": "claimed_rows_match_study_harness",
       "message": "claimed rows match study.harness",
       "severity": "error",
@@ -71,6 +75,7 @@
           50
         ]
       },
+      "fix_suggestion": null,
       "id": "paired_tasks_complete",
       "message": "declared claims have complete paired task observations",
       "severity": "error",
@@ -81,6 +86,7 @@
         "direction": "higher_is_better",
         "outcome": "success_rate"
       },
+      "fix_suggestion": null,
       "id": "outcome_supported",
       "message": "v0 outcome contract is supported",
       "severity": "error",
@@ -95,6 +101,7 @@
           "cost provenance is as_reported_only"
         ]
       },
+      "fix_suggestion": "Record the reported run totals and provenance notes that justify as_reported_only cost handling, or provide reconciled per-task costs.",
       "id": "cost_provenance_explicit",
       "message": "cost provenance is as_reported_only",
       "severity": "warning",
@@ -104,6 +111,7 @@
       "details": {
         "target_mde": 0.05
       },
+      "fix_suggestion": null,
       "id": "target_mde_declared",
       "message": "inference.target_mde is declared",
       "severity": "warning",
@@ -113,6 +121,7 @@
       "details": {
         "path": "scouting/tau-bench-airline-tool-calling-decision.md"
       },
+      "fix_suggestion": null,
       "id": "residual_risks_source",
       "message": "residual-risk/scouting decision document found",
       "severity": "info",

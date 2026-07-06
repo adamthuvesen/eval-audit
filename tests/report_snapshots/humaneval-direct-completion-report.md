@@ -92,9 +92,9 @@ All agents are on the frontier; no dominance to report.
 
 1. **HumanEval is in training data.** Both Haiku 4.5 and Sonnet 4.6 have almost certainly seen HumanEval during pretraining. The audit demonstrates audit methodology, not frontier-capability claims. The report's Residual Risks section calls this out.
 
-2. **Provider non-determinism at temperature=0.** The Anthropic Messages API at temperature=0 is approximately but not strictly deterministic. The 2 reruns capture provider-level run-to-run variance and contribute to the bootstrap CIs. If reruns within an arm disagree on a task, both rows are kept; the existing analysis engine aggregates per task.
+2. **Provider non-determinism at temperature=0.** The Anthropic Messages API at temperature=0 is roughly deterministic, but not strictly. The 2 reruns capture provider-level run-to-run variance and contribute to the bootstrap CIs. If reruns within an arm disagree on a task, both rows are kept; the existing analysis engine aggregates per task.
 
-3. **No tools, no scaffold.** HumanEval Direct Completion deliberately uses the thinnest possible harness — a single API call per task, no tool use, no agent framework. This is the cleanest possible audit but is not representative of how either model would perform under a richer scaffold. The exhibit is explicitly "controlled original evidence under harness `eval-audit/humaneval-direct-completion-v1`", not a frontier-capability comparison.
+3. **No tools, no scaffold.** HumanEval Direct Completion uses a thin harness: a single API call per task, no tool use, no agent framework. This gives a clean audit, but it does not represent how either model would perform under a richer scaffold. The exhibit is explicitly "controlled original evidence under harness `eval-audit/humaneval-direct-completion-v1`", not a frontier-capability comparison.
 
 4. **Small N.** n=30 tasks gives a target MDE of ~0.10. Effects smaller than 10 percentage points may be detectable only as wide CIs; the report surfaces this in Verdict Sensitivity.
 

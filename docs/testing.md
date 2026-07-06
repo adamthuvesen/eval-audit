@@ -16,7 +16,7 @@ work, run `make check` plus the synthetic-validation gate when relevant.
 
 ## Snapshots
 
-Report snapshots are intentional artifacts, not incidental churn. Update them
+Report snapshots are expected artifacts, not incidental churn. Update them
 only when the rendered change is intended and you have reviewed the diff:
 
 ```bash

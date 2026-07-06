@@ -1,4 +1,4 @@
-# HumanEval Direct Completion — Pre-Outcome Run Plan
+# HumanEval Direct Completion Pre-Outcome Run Plan
 
 **Locked:** 2026-05-03 (before any model API call has been made for this audit)
 
@@ -17,7 +17,7 @@ This artifact is the predeclared run plan. It exists to make the controlled-evid
 
 ## Study path (planned)
 
-`studies/humaneval-direct-completion.yaml` — committed alongside this run-plan.
+`studies/humaneval-direct-completion.yaml` is committed alongside this run-plan.
 
 ---
 
@@ -88,7 +88,7 @@ print('\n'.join(sorted([f'HumanEval/{i}' for i in random.Random(42).sample(range
 | version pin | git commit hash of `scouting/humaneval-direct-completion/run.py` at run time, written into `rerun_metadata.harness_commit` |
 | transport | Anthropic Messages API |
 | tools | none |
-| system prompt | `Complete the following Python function. Output only the function body — no triple backticks, no \`def\` line, no surrounding prose.` |
+| system prompt | `Complete the following Python function. Output only the function body. No triple backticks, no \`def\` line, no surrounding prose.` |
 | user prompt | the HumanEval `prompt` field verbatim |
 | temperature | `0` |
 | max_tokens | `1024` |
@@ -113,7 +113,7 @@ Both arms run on the same 30 task IDs above.
 | runs per (agent, task) | 2 |
 | total rows in canonical parquet | 30 × 2 × 2 = 120 |
 | run_id | `run-{agent_short}-1` and `run-{agent_short}-2` (e.g. `run-sonnet46-1`) |
-| seed | none — Anthropic Messages API does not honor `seed`; temperature=0 is the only determinism lever |
+| seed | none; Anthropic Messages API does not honor `seed`; temperature=0 is the only determinism lever |
 | rerun policy id | `capture_provider_nondeterminism` |
 
 If the two reruns disagree on a task, both rows are preserved; the existing analysis engine aggregates per task.
@@ -148,7 +148,7 @@ If a model arm's API errors out catastrophically (e.g., entire run fails), the p
 | field | value |
 |---|---|
 | α | 0.05 |
-| correction | Holm–Bonferroni |
+| correction | Holm-Bonferroni |
 | comparison family | declared_claims |
 | target MDE | 0.10 |
 | bootstrap iterations | 8000 |
@@ -158,11 +158,11 @@ If a model arm's API errors out catastrophically (e.g., entire run fails), the p
 
 ## Order of operations
 
-1. **NOW** — this run-plan, [`../humaneval-direct-completion-decision.md`](../humaneval-direct-completion-decision.md), and [`../../studies/humaneval-direct-completion.yaml`](../../studies/humaneval-direct-completion.yaml) are committed. No API calls have been made.
-2. **Next** — vendor the 30-task subset to `scouting/humaneval-direct-completion/humaneval-tasks-30.jsonl` from upstream HumanEval.
-3. **Next** — commit `scouting/humaneval-direct-completion/run.py`, `grade.py`, `normalize.py`.
-4. **Then** — run `run.py`. *First outcome contact.*
-5. **Then** — grade, normalize, validate, analyze, render.
+1. **NOW:** this run-plan, [`../humaneval-direct-completion-decision.md`](../humaneval-direct-completion-decision.md), and [`../../studies/humaneval-direct-completion.yaml`](../../studies/humaneval-direct-completion.yaml) are committed. No API calls have been made.
+2. **Next:** vendor the 30-task subset to `scouting/humaneval-direct-completion/humaneval-tasks-30.jsonl` from upstream HumanEval.
+3. **Next:** commit `scouting/humaneval-direct-completion/run.py`, `grade.py`, `normalize.py`.
+4. **Then:** run `run.py`. *First outcome contact.*
+5. **Then:** grade, normalize, validate, analyze, render.
 
 ---
 

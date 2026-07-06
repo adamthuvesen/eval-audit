@@ -1,4 +1,4 @@
-# HumanEval Direct Completion — Decision
+# HumanEval Direct Completion Decision
 
 **Decided:** 2026-05-03
 
@@ -20,7 +20,7 @@ This is a typo correction to the API endpoint string, not a redesign:
 
 - Intent ("Claude Sonnet 4.6 via the Anthropic Messages API at temperature=0,
   max_tokens=1024") is unchanged.
-- No Sonnet outcomes had been graded when the typo was caught — every Sonnet
+- No Sonnet outcomes had been graded when the typo was caught. Every Sonnet
   call returned an HTTP 404 error, producing no completions and no token usage
   attributable to the model under test.
 - Haiku 4.5 outcomes had been collected (60 raw API responses) but not yet
@@ -36,7 +36,7 @@ treatment/control roles are all unchanged.
 The original `grade.py` concatenated `prompt + completion` directly. Models
 respond to "output only the function body" in three observed shapes:
 
-1. body with the first line at column 0 and subsequent lines at column 4,
+1. body with the first line at column 0 and following lines at column 4,
 2. fully unindented body that has its own 4-space nested indent
    (e.g. unindented `for ...:` over indented loop body),
 3. a complete `def <fn>(...):` redefinition (sometimes plus a top-level
@@ -68,7 +68,7 @@ outcome is `success=False`.
 
 - The raw API responses under `scouting/humaneval-direct-completion/raw/` are the source of
   truth and are unchanged. Only the grader's interpretation changed.
-- No analysis ran against any buggy grade — `eval-audit analyze` and
+- No analysis ran against any buggy grade. `eval-audit analyze` and
   `eval-audit report` had not yet been invoked when the bug was identified.
 - The harness id `eval-audit/humaneval-direct-completion-v1` is unchanged. The
   multi-strategy normalization is part of v1's defined grader behavior;
@@ -84,8 +84,8 @@ Selected as the smallest credible controlled-evidence audit:
 
 - HumanEval has fully public prompts + ground-truth tests under MIT, so no contamination-of-process risk for distribution.
 - A base-LLM-no-tools harness is meaningful for HumanEval (whereas it would be near-uninformative on agent benchmarks like GAIA).
-- Execution-based grading is deterministic and local — no LLM-as-judge variance to absorb into the audit.
-- 30 tasks × 2 arms × 2 reruns = 120 API calls — cheap (<\$2 estimated) and small enough to render in <10 minutes.
+- Execution-based grading is deterministic and local, with no LLM-as-judge variance to absorb into the audit.
+- 30 tasks × 2 arms × 2 reruns = 120 API calls. Estimated cost is <\$2, and the run should finish in <10 minutes.
 
 GAIA was the first instinct but rejected: GAIA tasks require a tool-using agent harness (web browsing, file IO, multi-step reasoning); a thin direct-API call would produce near-zero scores for both arms and a degenerate comparison. Building a real GAIA agent would expand this change well beyond a single controlled audit.
 
@@ -99,7 +99,7 @@ GAIA was the first instinct but rejected: GAIA tasks require a tool-using agent 
 |---|---|
 | benchmark | `humaneval` |
 | source | `openai/human-eval` (MIT) |
-| sampling | `random.Random(42).sample(range(164), 30)` over `HumanEval/0`–`HumanEval/163`, sorted ascending |
+| sampling | `random.Random(42).sample(range(164), 30)` over `HumanEval/0` through `HumanEval/163`, sorted ascending |
 | n_tasks | 30 |
 | committed task IDs | see `scouting/humaneval-direct-completion/run-plan.md` |
 
@@ -110,7 +110,7 @@ GAIA was the first instinct but rejected: GAIA tasks require a tool-using agent 
 | harness id | `eval-audit/humaneval-direct-completion-v1` |
 | version pin | git commit hash of `scouting/humaneval-direct-completion/run.py` at run time, captured in `rerun_metadata` |
 | tools | none |
-| system prompt | "Complete the following Python function. Output only the function body — no triple backticks, no `def` line, no surrounding prose." |
+| system prompt | "Complete the following Python function. Output only the function body. No triple backticks, no `def` line, no surrounding prose." |
 | user prompt | the HumanEval `prompt` field verbatim |
 | temperature | `0` |
 | max_tokens | `1024` |
@@ -131,7 +131,7 @@ Both arms hit the Anthropic Messages API. Both arms run on the same 30 task IDs.
 | runs per (agent, task) | 2 |
 | run_id format | `run-{agent_short}-{1\|2}` |
 | seed | none (Anthropic API does not honor a seed parameter as of price-table date); temperature=0 is the only determinism lever available |
-| rerun policy | `capture_provider_nondeterminism` — both runs preserved; analysis aggregates per task per the existing engine |
+| rerun policy | `capture_provider_nondeterminism`; both runs preserved; analysis aggregates per task per the existing engine |
 
 ### Grader
 
@@ -165,7 +165,7 @@ API error / parse failure / timeout / non-zero unrelated exception → `outcome_
 | field | value |
 |---|---|
 | α | 0.05 |
-| correction | Holm–Bonferroni |
+| correction | Holm-Bonferroni |
 | comparison family | declared_claims |
 | target MDE | 0.10 (small N) |
 | bootstrap iterations | 8000 |
@@ -192,9 +192,9 @@ This claim is **predeclared** before any outcome is observed, in contrast with G
 
 1. **HumanEval is in training data.** Both Haiku 4.5 and Sonnet 4.6 have almost certainly seen HumanEval during pretraining. The audit demonstrates audit methodology, not frontier-capability claims. The report's Residual Risks section calls this out.
 
-2. **Provider non-determinism at temperature=0.** The Anthropic Messages API at temperature=0 is approximately but not strictly deterministic. The 2 reruns capture provider-level run-to-run variance and contribute to the bootstrap CIs. If reruns within an arm disagree on a task, both rows are kept; the existing analysis engine aggregates per task.
+2. **Provider non-determinism at temperature=0.** The Anthropic Messages API at temperature=0 is roughly deterministic, but not strictly. The 2 reruns capture provider-level run-to-run variance and contribute to the bootstrap CIs. If reruns within an arm disagree on a task, both rows are kept; the existing analysis engine aggregates per task.
 
-3. **No tools, no scaffold.** HumanEval Direct Completion deliberately uses the thinnest possible harness — a single API call per task, no tool use, no agent framework. This is the cleanest possible audit but is not representative of how either model would perform under a richer scaffold. The exhibit is explicitly "controlled original evidence under harness `eval-audit/humaneval-direct-completion-v1`", not a frontier-capability comparison.
+3. **No tools, no scaffold.** HumanEval Direct Completion uses a thin harness: a single API call per task, no tool use, no agent framework. This gives a clean audit, but it does not represent how either model would perform under a richer scaffold. The exhibit is explicitly "controlled original evidence under harness `eval-audit/humaneval-direct-completion-v1`", not a frontier-capability comparison.
 
 4. **Small N.** n=30 tasks gives a target MDE of ~0.10. Effects smaller than 10 percentage points may be detectable only as wide CIs; the report surfaces this in Verdict Sensitivity.
 
@@ -206,10 +206,10 @@ This claim is **predeclared** before any outcome is observed, in contrast with G
 
 The following order MUST be respected to honor the predeclared design:
 
-1. Commit `scouting/humaneval-direct-completion-decision.md`, `scouting/humaneval-direct-completion/run-plan.md`, `studies/humaneval-direct-completion.yaml` (this file and its siblings) — *no API calls have been made.*
+1. Commit `scouting/humaneval-direct-completion-decision.md`, `scouting/humaneval-direct-completion/run-plan.md`, `studies/humaneval-direct-completion.yaml` (this file and its siblings). *No API calls have been made.*
 2. Vendor the 30-task HumanEval subset to `scouting/humaneval-direct-completion/humaneval-tasks-30.jsonl` from `openai/human-eval`'s release JSONL. *Still no outcomes.*
 3. Commit the harness scripts (`run.py`, `grade.py`, `normalize.py`).
-4. Run `scouting/humaneval-direct-completion/run.py` — *first contact with outcomes.*
+4. Run `scouting/humaneval-direct-completion/run.py`. *First contact with outcomes.*
 5. Grade, normalize, validate, analyze, render.
 
 If any locked field above changes after step 4, the change is a new exhibit (HumanEval Direct Completion-2) with its own decision document, not an in-place edit.

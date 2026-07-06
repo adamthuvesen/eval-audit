@@ -12,7 +12,7 @@ This note scouts a potential public-audience audit:
 The benchmark itself is the strongest fit we have evaluated so far for the
 existing public-submission shape (SWE-bench Verified OpenHands, Terminal-Bench
 2-mux): deterministic evaluators, single canonical task universe, audited
-templates, structured JSON outputs. The blocker is evidence — public
+templates, structured JSON outputs. The blocker is evidence: public
 **per-task** outcomes for two same-harness agents do not exist as of today.
 
 ## Decision
@@ -21,7 +21,7 @@ templates, structured JSON outputs. The blocker is evidence — public
 implementable today because no public source exposes per-task agent outcomes
 under the Verified evaluator. The benchmark infrastructure exists and is
 healthy; the leaderboard backend is provisioned but empty. Re-scout in
-4–8 weeks against the watch items below.
+4-8 weeks against the watch items below.
 
 This decision is consistent with the project rule: cautious refusal is better
 than a polished but unsupported benchmark conclusion. The eval-audit v0
@@ -45,26 +45,26 @@ Per-task evidence for ≥2 same-harness agents:
   cross-harness audit and would hit the existing
   `CrossHarnessComparisonError` refusal.
 
-Cost would have been declared `cost_not_available` regardless — the web-agent
+Cost would have been declared `cost_not_available` regardless. The web-agent
 tooling does not consistently publish per-task tokens or reconciled run
 totals in a stable shape, and fabricating zeros is explicitly prohibited.
 
 ## Source artifacts checked (2026-05-04)
 
-### ServiceNow/webarena-verified — partial
+### ServiceNow/webarena-verified (partial)
 
 The repo at tag `v1.2.3` (2026-02-07) is a **runner**, not a results store.
 
 - Top-level layout: `src/`, `examples/`, `dev/`, `tests/`, `docs/`. No
   `results/`, `runs/`, or `logs/` directory.
 - `examples/agent_logs/demo/` contains fixtures for tasks `107` and `108`
-  only — demo material, not a population of runs.
+  only. Demo material, not a population of runs.
 - 8 releases, none with attached run-log archives.
 - `src/webarena_verified/types/eval.py` defines a clean per-task `result`
-  contract (`result.score`, `result.status`) — the schema for honest per-task
+  contract (`result.score`, `result.status`). The schema for honest per-task
   records exists; nobody has published populated logs to it.
 
-### ServiceNow/BrowserGym — partial
+### ServiceNow/BrowserGym (partial)
 
 - PR [#377](https://github.com/ServiceNow/BrowserGym/pull/377) (merged
   2026-01-20) ships `browsergym/webarena_verified/` and `webarena_verified.csv`
@@ -77,10 +77,10 @@ The repo at tag `v1.2.3` (2026-02-07) is a **runner**, not a results store.
 - Each agent dir contains only `webarena.json` (original WebArena, aggregate);
   **no `webarena_verified.json` exists in any agent dir**.
 - Confirmed shape of `webarena.json`: a single aggregate row keyed by
-  `agent_name` with `study_id` (UUID), `score`, `std_err` — no per-task
+  `agent_name` with `study_id` (UUID), `score`, `std_err`. No per-task
   array. The leaderboard schema discards per-task rows by construction.
 
-### ServiceNow/AgentLab — partial
+### ServiceNow/AgentLab (partial)
 
 - `reproducibility_journal.csv` records same-harness original-WebArena
   GenericAgent runs (gpt-4o-mini 0.174, gpt-4o 0.314, claude-3.5-sonnet 0.362,
@@ -93,7 +93,7 @@ The repo at tag `v1.2.3` (2026-02-07) is a **runner**, not a results store.
   the TMLR-paper trace splits (`tmlr_traces_part_a[a-e]`); no WebArena split
   is surfaced.
 
-### OpenReview supplementary — miss
+### OpenReview supplementary (miss)
 
 - Two forums: `94tlGxmqkN` (workshop) and `CSIo4D7xBG` (ICLR 2026,
   **withdrawn**).
@@ -103,7 +103,7 @@ The repo at tag `v1.2.3` (2026-02-07) is a **runner**, not a results store.
   package release is on a slower cadence than the public release of the
   runner.
 
-### Hugging Face Hub — miss (with one notable empty placeholder)
+### Hugging Face Hub (miss, with one notable empty placeholder)
 
 - [`AmineHA/Webarena-Verified-Submissions`](https://huggingface.co/datasets/AmineHA/Webarena-Verified-Submissions):
   created 2026-02-07 by the WebArena Verified lead author. **Empty** as of
@@ -114,12 +114,12 @@ The repo at tag `v1.2.3` (2026-02-07) is a **runner**, not a results store.
 - [`AmineHA/WebArena-Verified`](https://huggingface.co/datasets/AmineHA/WebArena-Verified):
   task definitions only (full 812, hard 258).
 - `OpenHandsCommunity/eval-output-webarena`: original WebArena, single agent
-  (`BrowsingAgent`) — useful for OpenHands-on-WebArena work but not Verified
+  (`BrowsingAgent`). Useful for OpenHands-on-WebArena work but not Verified
   and not paired.
 - `webarena-x/webarena-infinity-trajectories`: training trajectories, not
   evaluation results.
 
-### Author repos — miss
+### Author repos (miss)
 
 - Authors: Amine El hattami (`Am1n3e` / `AmineHA`), Megh Thakkar, Nicolas
   Chapados, Christopher Pal.
@@ -134,7 +134,7 @@ For a future adapter, mirror `eval_audit/ingest/swe_bench_verified.py`:
 - `task_id`: canonical WebArena task config name (the `task_name` column in
   `webarena_verified.csv`).
 - `success=True`: `result.status == "pass"` under the Verified evaluator
-  (substring → type-aware exact match — distinct from the original
+  (substring to type-aware exact match, distinct from the original
   WebArena evaluator).
 - `success=False`: any non-pass Verified status with a graded run.
 - `outcome_status="errored"`: ungraded harness error (no Verified evaluator
@@ -143,7 +143,7 @@ For a future adapter, mirror `eval_audit/ingest/swe_bench_verified.py`:
   encoded with the `{"upstream_tokens_unavailable": 0}` sentinel mirror
   the SWE-bench Verified adapter.
 - Harness identity must include the BrowserGym version and scaffold name
-  (e.g. `browsergym==0.13.3 + GenericAgent`) — Verified-vs-original is a
+  (e.g. `browsergym==0.13.3 + GenericAgent`). Verified-vs-original is a
   benchmark difference, not a harness difference.
 
 ## Residual risks / gaps blocking us
@@ -168,20 +168,20 @@ For a future adapter, mirror `eval_audit/ingest/swe_bench_verified.py`:
    consistently publish reconciled cost. Plan on
    `cost_not_available` and Pareto suppression from day one.
 
-## Watch list — re-scout in 4–8 weeks
+## Watch list: re-scout in 4-8 weeks
 
-1. **`huggingface.co/datasets/AmineHA/Webarena-Verified-Submissions`** —
+1. **`huggingface.co/datasets/AmineHA/Webarena-Verified-Submissions`**:
    first uploads here are the canonical signal. Re-check populated state
    and per-row schema (look for a `task_name` / `result.status` shape).
-2. **`ServiceNow/webarena-verified-leaderboard`** — leaderboard repo with
+2. **`ServiceNow/webarena-verified-leaderboard`**: leaderboard repo with
    active intake-validation work (issues #27 "Feature/add leaderboard",
-   #33–35 building lanes D/E/F). When this ships, submissions are expected
-   to carry per-task evaluator output by design.
-3. **AgentLab `reproducibility_journal.csv`** — first appearance of any
+   #33-35 building lanes D/E/F). When this ships, submissions are expected
+   to carry per-task evaluator output as part of intake.
+3. **AgentLab `reproducibility_journal.csv`**: first appearance of any
    `benchmark=webarena_verified` row (full or hard). The 258-task hard
    subset is the natural first target (lower compute) and is where models
    still differentiate.
-4. **OpenReview forum `94tlGxmqkN` and the next paper venue** — supplementary
+4. **OpenReview forum `94tlGxmqkN` and the next paper venue**: supplementary
    archive attachments.
 
 ## Reproducibility commands (negative results)

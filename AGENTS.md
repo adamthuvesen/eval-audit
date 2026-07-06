@@ -1,9 +1,9 @@
-# AGENTS.md — eval-audit
+# AGENTS.md: eval-audit
 
 `eval-audit` is a small Python methodology toolkit for deciding whether
 benchmark score differences are large, reliable, and cost-aware enough to
 justify switching models. It is not a benchmark runner, leaderboard, tracing
-system, composite-score factory, or causal model of scaffolds — keep that shape.
+system, composite-score factory, or causal model of scaffolds. Keep that shape.
 
 User-level guidance (tone, principles, git etiquette) lives in
 `~/.claude/CLAUDE.md` and `~/dotfiles/agents/AGENTS.md` and is *not* duplicated
@@ -25,7 +25,7 @@ reports/         committed demo reports and analysis JSON
 scouting/        fixture provenance, candidate inventories, decisions
 examples/        BYO worked example (byo-minimal/)
 tests/           schema, ingest, stats, report, CLI, snapshot, doc-parity, synthetic
-docs/            field references + per-subsystem design docs — see Index
+docs/            field references + per-subsystem design docs; see Index
 ```
 
 ## Quickstart
@@ -41,7 +41,7 @@ uv run eval-audit analyze studies/gaia-hal-generalist.yaml
 uv run eval-audit report studies/gaia-hal-generalist.yaml
 ```
 
-`make check` is the single source of truth for CI — the workflow invokes it
+`make check` is the single source of truth for CI. The workflow invokes it
 directly. If it passes locally, CI passes.
 
 ## Critical Conventions
@@ -52,7 +52,7 @@ Non-obvious rules; verify each against code before relying on it.
   `success_rate`, `higher_is_better`, task-level paired comparisons within one
   harness, frequentist intervals/corrections, markdown reports. Broadening to
   latency, cost, lower-is-better, partial credit, or composite scores needs
-  metric-specific schema, inference, report semantics, and tests — never a
+  metric-specific schema, inference, report semantics, and tests. Never a
   silent widen.
 - **Never make cross-harness comparisons look causal.** If harnesses differ,
   say so plainly and keep the existing refusal behavior.
@@ -86,7 +86,7 @@ Before editing a subsystem, read the matching doc:
 
 The field references ([STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md),
 [INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md)) are pinned to the code by
-doc-parity tests in `tests/docs/` — a schema change without a matching doc edit
+doc-parity tests in `tests/docs/`. A schema change without a matching doc edit
 fails CI. If a doc disagrees with code, fix the doc in the same change.
 
 ## Verification

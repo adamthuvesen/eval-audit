@@ -4,7 +4,11 @@
 
 Claude 3.7 Sonnet on **TAU-bench Airline** sits at **44%** under the public Tool Calling harness and at **56%** under the HAL Generalist Agent harness. The benchmark is the same 50-task airline set; the model is the same; the gap is the harness.
 
-That gap is roughly the size of the difference between two different frontier models — but it is *not* a model effect. The TAU-bench public leaderboard mixes Tool Calling, HAL Generalist, and TAU few-shot rows in a single ranking, so a reader doing model selection from the leaderboard cannot tell whether a higher row reflects the *model* or the *scaffold the model was wrapped in*.
+That gap is roughly the size of the difference between two different frontier
+models, but it is *not* a model effect. The TAU-bench public leaderboard mixes
+Tool Calling, HAL Generalist, and TAU few-shot rows in a single ranking, so a
+reader doing model selection from the leaderboard cannot tell whether a higher
+row reflects the *model* or the *scaffold the model was wrapped in*.
 
 This writeup pulls the Tool Calling number from our TAU-bench Airline Tool Calling reanalysis (data) and **cites** the HAL Generalist number from the upstream leaderboard (public record we trust but did not re-derive).
 
@@ -46,7 +50,14 @@ We do **not** re-derive 56% from a local fixture: HAL's TAU-bench Generalist Age
 
 ## The framing
 
-The 12 pp gap is best read as **a scaffold effect coexisting with sampling-decision differences the public leaderboard does not separate**. HAL's Generalist Agent harness and the Tool Calling harness are not just two wrappers around the same call sequence; they differ in `reasoning_effort`, prompt boilerplate, retry policy, tool-result handling, and (likely) other knobs that the upstream leaderboard reports under the same model name. Some of the 12 pp is scaffold; some is sampling-decision drift baked into "scaffold". The leaderboard does not separate those.
+The 12 pp gap is best read as **a scaffold effect coexisting with
+sampling-decision differences the public leaderboard does not separate**. HAL's
+Generalist Agent harness and the Tool Calling harness are not two wrappers
+around the same call sequence. They differ in `reasoning_effort`, prompt
+boilerplate, retry policy, tool-result handling, and likely other knobs that the
+upstream leaderboard reports under the same model name. Some of the 12 pp is
+scaffold; some is sampling-decision drift baked into "scaffold". The leaderboard
+does not separate those.
 
 What the writeup *does* claim:
 
@@ -56,14 +67,19 @@ What the writeup *does* claim:
 
 What the writeup does *not* claim:
 
-- That the 12 pp is "scaffold effect, full stop." HAL's two harnesses likely also differ in reasoning effort, prompt layout, and retry budget — confounds the leaderboard does not break out.
+- That the 12 pp is "scaffold effect, full stop." HAL's two harnesses likely
+  also differ in reasoning effort, prompt layout, and retry budget. The
+  leaderboard does not break out those confounds.
 - That HAL Generalist is "better" or "worse" than Tool Calling. Better/worse is downstream of which scaffold matches the deployment context.
 
 ## Why this matters for `eval-audit`
 
 This is the project's strongest scouting finding. The toolkit's response is procedural: every study spec is locked to a single harness; the analyze step refuses to compare agents across harnesses (`CrossHarnessComparisonError`). A user trying to cross harnesses inside a `StudySpec` is told to open a separate change. The writeup above is what the procedural rule is *protecting against*: it is one number on a leaderboard, and changing the scaffold changes it by ~12 pp without changing the model.
 
-The same-benchmark, cross-harness comparison is the only honest framing. The reverse — comparing GAIA HAL Generalist (GAIA, HAL Generalist) to TAU-bench Airline Tool Calling (TAU-bench, Tool Calling) — would mix a benchmark difference with a scaffold difference and tell the reader nothing.
+The same-benchmark, cross-harness comparison is the only honest framing. The
+reverse, comparing GAIA HAL Generalist (GAIA, HAL Generalist) to TAU-bench
+Airline Tool Calling (TAU-bench, Tool Calling), would mix a benchmark difference
+with a scaffold difference and tell the reader nothing.
 
 ---
 

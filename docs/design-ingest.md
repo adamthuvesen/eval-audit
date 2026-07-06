@@ -11,10 +11,10 @@ artifacts into canonical task-level `RunRecord` rows.
 
 Cost provenance is first-class. Each adapter declares exactly one mode:
 
-- **`reconciled`** — reconstructed per-task cost matches reported totals.
-- **`as_reported_only`** — reconstruction does not reconcile; this state MUST
+- **`reconciled`**: reconstructed per-task cost matches reported totals.
+- **`as_reported_only`**: reconstruction does not reconcile; this state MUST
   stay visible in reports rather than being smoothed away.
-- **`cost_not_available`** — the explicit "no honest cost data" mode for public
+- **`cost_not_available`**: the explicit "no honest cost data" mode for public
   artifacts that expose neither tokens nor reported totals (e.g. SWE-bench
   Verified OpenHands submissions). Both cost fields MUST be null on every row;
   the report suppresses Pareto and per-success cost columns; `analyze()` sets

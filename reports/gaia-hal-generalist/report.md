@@ -36,6 +36,17 @@
 |---|---|---|---|---|---|---|
 | claude37_vs_o4mini_high_on_gaia | declared_reanalysis | inconclusive | +1.82 pp | +3.00 pp | 0.7021 | hedge_on_cost |
 
+**Copyable summary** — `claude37_vs_o4mini_high_on_gaia`
+
+Claim `claude37_vs_o4mini_high_on_gaia` verdict `hedge_on_cost` for `HAL Generalist Agent (claude-3-7-sonnet-20250219)` vs `HAL Generalist Agent (o4-mini-2025-04-16 high)`: delta +1.82 pp with bootstrap CI [-7.27 pp, +10.91 pp]; evidence readiness `ready`. Cost note: treatment cost is 2.20x control.
+
+**Verdict explainer** — `claude37_vs_o4mini_high_on_gaia`
+
+- **First matching branch:** `uncertainty_with_material_cost_gap` → `hedge_on_cost`
+- **Rule path:** The quality interval crosses zero and the cost gap meets the material threshold.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=False; effect direction matches claim=True; quality CI crosses zero=True; cost gap ratio=120.03%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
 **MDE context**
 
 - `claude37_vs_o4mini_high_on_gaia`: bootstrap CI half-width = 9.09 pp vs target_mde = 3.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
@@ -72,13 +83,13 @@ All agents are on the frontier; no dominance to report.
 
 **Inherited from scouting decision** (verbatim from `scouting/gaia-hal-generalist-decision.md`):
 
-1. **Single-run-per-agent on HAL.** GAIA exposes one run per (agent, model) — there are no published seed-replications for the chosen pair. The reanalysis will treat task as the unit and use task-level bootstrap to express uncertainty. This is methodologically defensible but should be called out: we cannot disentangle agent-skill variance from run-to-run variance without additional reruns, and HAL traces do not provide them.
+1. **Single-run-per-agent on HAL.** GAIA exposes one run per (agent, model). There are no published seed-replications for the chosen pair. The reanalysis will treat task as the unit and use task-level bootstrap to express uncertainty. This is methodologically defensible but should be called out: we cannot disentangle agent-skill variance from run-to-run variance without additional reruns, and HAL traces do not provide them.
 
 2. **Per-task difficulty Level metadata is upstream-gated.** GAIA tasks have Levels 1/2/3 in the source `gaia-benchmark/GAIA` dataset (gated on Hugging Face), but HAL's `raw_eval_results` drops the field. Stratified per-level analysis requires re-joining the gated dataset. The toolkit should make this join first-class rather than hidden.
 
 3. **HAL traces may regenerate.** The `agent-evals/hal_traces` Hugging Face dataset is updated as new agents are uploaded. The two zips selected for GAIA HAL Generalist (`gaia_hal_generalist_agent_o4mini20250416_high_1745167285_UPLOAD.zip` and `gaia_hal_generalist_agent_claude37sonnet20250219_1744772193_UPLOAD.zip`) are pinned by filename in [scouting/candidates/gaia/provenance.json](candidates/gaia/provenance.json). If those filenames change, the next change MUST detect the drift and either re-pin or open a follow-up scout.
 
-4. **Within-harness only.** The GAIA HAL Generalist claim compares two models WITHIN the HAL Generalist agent harness on GAIA. Cross-harness comparisons (HAL Generalist vs HF Open Deep Research, or HAL Generalist on GAIA vs Tool Calling on TAU-bench) are out of scope for v0 — the cross-harness confound observed during scouting (Claude 3.7 Sonnet at 56% under HAL Generalist vs 44% under Tool Calling on TAU-bench) is the exact reason.
+4. **Within-harness only.** The GAIA HAL Generalist claim compares two models WITHIN the HAL Generalist agent harness on GAIA. Cross-harness comparisons (HAL Generalist vs HF Open Deep Research, or HAL Generalist on GAIA vs Tool Calling on TAU-bench) are out of scope for v0. The cross-harness confound observed during scouting (Claude 3.7 Sonnet at 56% under HAL Generalist vs 44% under Tool Calling on TAU-bench) is the exact reason.
 
 5. **Reanalysis inherits HAL's sampling decisions.** HAL ran o4-mini at `reasoning_effort=high` and Claude 3.7 Sonnet at default. The reanalysis cannot disentangle "reasoning effort" from "model" within this GAIA HAL Generalist; this is documented but not corrected.
 
@@ -86,9 +97,9 @@ All agents are on the frontier; no dominance to report.
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-06T17:20:06.132705+00:00`
-- **git_commit:** `cebaf8b`
+- **rendered_at:** `2026-07-06T09:02:15.600265+00:00`
+- **git_commit:** `acb63d5`
 - **fixture_sha256:** `83d4a0ce9d82d23c7563e66e03f50350d245a8537ddc3b2f6a25a3bae9619720`
 - **bootstrap_seed:** `42`
 - **evidence_readiness:** `ready`
-- **check_sha256:** `aa77e3f2e694bfb465dbd77e817c5c87cf32075b61ee27fb9b0d416ee12749b5`
+- **check_sha256:** `92faf18a783724c07ef17a49c3dd5386f6257c66c7e9e861316898bcd73b1a33`
