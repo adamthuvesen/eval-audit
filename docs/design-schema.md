@@ -13,5 +13,5 @@ both are pinned to the code by doc-parity tests under `tests/docs/`.
 - Keep schema declarations aligned with engine behavior. Never accept a field
   that the engine ignores in a decision-relevant way.
 - When expanding v0 scope, update schema, analysis, report rendering,
-  snapshots, CLI behavior, and docs together — including the parity-checked
+  snapshots, CLI behavior, and docs together, including the parity-checked
   field reference docs.

@@ -4,8 +4,8 @@ Markdown rendering, decision rules, and sensitivity tables live in
 [eval_audit/report](../eval_audit/report). Output is snapshot-tested by
 [tests/report/test_snapshot.py](../tests/report/test_snapshot.py).
 
-- Reports are decision artifacts. They should answer what a model selector
-  should do, not just list numbers.
+- Reports are decision artifacts. They should tell a model selector what to do,
+  not stop at the numbers.
 - Keep output deterministic: stable ordering, stable formatting, stable clocks
   in tests, and reviewed snapshots.
 - Surface caveats near the claims they affect. Do not bury cost or provenance

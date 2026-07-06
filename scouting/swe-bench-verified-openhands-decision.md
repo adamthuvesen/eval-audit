@@ -27,7 +27,7 @@ The public result artifacts pass the task-level evidence gate:
 - Both submissions publish S3-backed artifacts under
   `s3://swe-bench-submissions/verified/<submission>/`, including
   `all_preds.jsonl`, per-instance logs, and trajectories.
-- The paired task analysis is materially different from just reading the
+- The paired task analysis is materially different from reading only the
   headline rates: OpenHands + Opus 4.5 resolves 388/500 and OpenHands + GPT-5
   resolves 359/500, but the paired discordants are 45 Opus-only solves vs 16
   GPT-5-only solves.

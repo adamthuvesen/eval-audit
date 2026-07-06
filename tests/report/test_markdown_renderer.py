@@ -363,22 +363,22 @@ def _extract_audit_summary(text: str) -> str:
 
 
 def test_verdict_rationale__covers_every_decision_token() -> None:
-    """`_VERDICT_RATIONALE` MUST cover exactly the six tokens in DECISION_IMPACT_VOCAB."""
+    """`VERDICT_RATIONALE` MUST cover exactly the six tokens in DECISION_IMPACT_VOCAB."""
     from eval_audit.report.decisions import DECISION_IMPACT_VOCAB
-    from eval_audit.report.markdown import _VERDICT_RATIONALE
+    from eval_audit.report.vocabulary import VERDICT_RATIONALE
 
     declared = set(DECISION_IMPACT_VOCAB)
-    documented = set(_VERDICT_RATIONALE.keys())
+    documented = set(VERDICT_RATIONALE.keys())
 
     missing = declared - documented
     extra = documented - declared
 
     assert not missing, (
-        f"_VERDICT_RATIONALE is missing rationale text for tokens: {sorted(missing)}. "
+        f"VERDICT_RATIONALE is missing rationale text for tokens: {sorted(missing)}. "
         f"Every value in DECISION_IMPACT_VOCAB must have a corresponding rationale."
     )
     assert not extra, (
-        f"_VERDICT_RATIONALE has stale tokens not in DECISION_IMPACT_VOCAB: {sorted(extra)}."
+        f"VERDICT_RATIONALE has stale tokens not in DECISION_IMPACT_VOCAB: {sorted(extra)}."
     )
 
 
@@ -388,14 +388,14 @@ def test_verdict_rationale__values_are_substantive_strings() -> None:
     Light guard against a future regression to one-liner glosses without
     breaking when wording is tightened.
     """
-    from eval_audit.report.markdown import _VERDICT_RATIONALE
+    from eval_audit.report.vocabulary import VERDICT_RATIONALE
 
-    for token, rationale in _VERDICT_RATIONALE.items():
+    for token, rationale in VERDICT_RATIONALE.items():
         assert isinstance(rationale, str) and rationale, (
-            f"_VERDICT_RATIONALE[{token!r}] must be a non-empty string"
+            f"VERDICT_RATIONALE[{token!r}] must be a non-empty string"
         )
         assert len(rationale) >= 50, (
-            f"_VERDICT_RATIONALE[{token!r}] is only {len(rationale)} chars; "
+            f"VERDICT_RATIONALE[{token!r}] is only {len(rationale)} chars; "
             f"rationale should cover the rule, its meaning, and an action implication"
         )
 
@@ -403,14 +403,14 @@ def test_verdict_rationale__values_are_substantive_strings() -> None:
 def test_render_audit_summary_stanza__unknown_decision_token_raises() -> None:
     """Rendering a stanza with a verdict not in the gloss table fails loudly."""
     from eval_audit.report import ReportContractError
-    from eval_audit.report.markdown import _render_audit_summary_stanza
+    from eval_audit.report.sections.audit_summary import render_audit_summary_stanza
 
     fake_claim = type(
         "C", (), {"delta_point_estimate": 0.0, "delta_ci_low": -0.05, "delta_ci_high": 0.05}
     )()
 
     with pytest.raises(ReportContractError) as exc_info:
-        _render_audit_summary_stanza(
+        render_audit_summary_stanza(
             fake_claim,
             "not_a_real_token",
             "inconclusive",
@@ -426,10 +426,10 @@ def test_render_audit_summary_stanza__unknown_decision_token_raises() -> None:
 
 def test_what_would_change_it__ci_wider_than_mde_renders_quantitative_n() -> None:
     """Wider-than-MDE branch surfaces a concrete N with the variance-fixed marker."""
-    from eval_audit.report.markdown import _what_would_change_it
+    from eval_audit.report.sections.audit_summary import what_would_change_it
     from eval_audit.stats.resolution import estimate_required_paired_tasks
 
-    line = _what_would_change_it(target_mde=0.03, ci_half_width=0.09, n_paired=100)
+    line = what_would_change_it(target_mde=0.03, ci_half_width=0.09, n_paired=100)
     expected_n = estimate_required_paired_tasks(100, 0.09, 0.03).additional_tasks
 
     assert line == (
@@ -442,9 +442,9 @@ def test_what_would_change_it__ci_wider_than_mde_renders_quantitative_n() -> Non
 
 def test_what_would_change_it__ci_inside_mde_surfaces_half_width_and_mde_numbers() -> None:
     """Inside-MDE branch names both numbers as percentage-points to two decimals."""
-    from eval_audit.report.markdown import _what_would_change_it
+    from eval_audit.report.sections.audit_summary import what_would_change_it
 
-    line = _what_would_change_it(target_mde=0.03, ci_half_width=0.015, n_paired=100)
+    line = what_would_change_it(target_mde=0.03, ci_half_width=0.015, n_paired=100)
 
     assert line == (
         "the study already resolves below the declared MDE "
@@ -455,23 +455,23 @@ def test_what_would_change_it__ci_inside_mde_surfaces_half_width_and_mde_numbers
 
 def test_what_would_change_it__null_target_mde_picks_encouragement() -> None:
     """Null-target-mde branch is unchanged from Change 1's wording."""
-    from eval_audit.report.markdown import _what_would_change_it
+    from eval_audit.report.sections.audit_summary import what_would_change_it
 
-    assert _what_would_change_it(target_mde=None, ci_half_width=0.10, n_paired=100) == (
+    assert what_would_change_it(target_mde=None, ci_half_width=0.10, n_paired=100) == (
         "declaring an inference.target_mde would let this report estimate required sample size"
     )
 
 
 def test_what_would_change_it__renderer_n_matches_resolution_function() -> None:
     """The N surfaced in the rendered line equals the function's direct return."""
-    from eval_audit.report.markdown import _what_would_change_it
+    from eval_audit.report.sections.audit_summary import what_would_change_it
     from eval_audit.stats.resolution import estimate_required_paired_tasks
 
     n_paired = 165
     ci_half_width = 0.09395
     target_mde = 0.03
 
-    line = _what_would_change_it(target_mde, ci_half_width, n_paired)
+    line = what_would_change_it(target_mde, ci_half_width, n_paired)
     direct = estimate_required_paired_tasks(n_paired, ci_half_width, target_mde)
 
     assert f"~{direct.additional_tasks} " in line
@@ -493,11 +493,29 @@ def test_paired_task_count__includes_errored_rows_as_paired_tasks() -> None:
     assert paired_task_count(runs, "treatment", "control") == 2
 
 
+def _pushback_presentation(cost_provenance_class: str, residual_risks_text: str):
+    from eval_audit.report.presentation import StudyPresentation
+
+    return StudyPresentation(
+        cost_provenance=cost_provenance_class,
+        pareto_suppressed=cost_provenance_class == "cost_not_available",
+        show_cost_columns=cost_provenance_class != "cost_not_available",
+        cost_gap_sensitivity_applicable=cost_provenance_class != "cost_not_available",
+        hedge_on_cost_allowed=False,
+        source_fixture_rel="",
+        source_url="",
+        retrieved_at="",
+        residual_risks_text=residual_risks_text,
+        decision_md_label="",
+        cost_recon_data={},
+    )
+
+
 def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
     """Errored rows -> cost provenance -> residual risks, comma-separated."""
     from dataclasses import dataclass
 
-    from eval_audit.report.markdown import _reviewer_pushback
+    from eval_audit.report.sections.audit_summary import reviewer_pushback
 
     @dataclass
     class FakeAgent:
@@ -507,10 +525,12 @@ def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
     per_agent = [FakeAgent("a", 3), FakeAgent("b", 0)]
     residual = "1. risk one\n2. risk two\n"
 
-    line = _reviewer_pushback(
+    line = reviewer_pushback(
         per_agent,
-        cost_provenance_class="as_reported_only",
-        residual_risks_text=residual,
+        _pushback_presentation(
+            cost_provenance_class="as_reported_only",
+            residual_risks_text=residual,
+        ),
     )
 
     assert line == (
@@ -523,7 +543,7 @@ def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
 def test_reviewer_pushback__none_flagged_when_no_caveats_apply() -> None:
     from dataclasses import dataclass
 
-    from eval_audit.report.markdown import _reviewer_pushback
+    from eval_audit.report.sections.audit_summary import reviewer_pushback
 
     @dataclass
     class FakeAgent:
@@ -536,10 +556,12 @@ def test_reviewer_pushback__none_flagged_when_no_caveats_apply() -> None:
         "residual risks not surfaced.)_"
     )
 
-    line = _reviewer_pushback(
+    line = reviewer_pushback(
         per_agent,
-        cost_provenance_class="reconciled",
-        residual_risks_text=placeholder,
+        _pushback_presentation(
+            cost_provenance_class="reconciled",
+            residual_risks_text=placeholder,
+        ),
     )
 
     assert line == "none flagged at this stage"
@@ -687,16 +709,16 @@ def test_audit_summary__verdict_rationale_no_per_claim_numbers() -> None:
     """
     import re
 
-    from eval_audit.report.markdown import _VERDICT_RATIONALE
+    from eval_audit.report.vocabulary import VERDICT_RATIONALE
 
     # Allow the literal "10%" / "≥10%" cost-threshold mention (it's a rule
     # parameter, not a per-claim number) and the literal "α" symbol; reject
     # other digit patterns that would imply specific claim values.
     digit_pattern = re.compile(r"\b\d+(?:\.\d+)?\s*pp\b|\bn\s*=\s*\d+\b|\$\d")
-    for token, rationale in _VERDICT_RATIONALE.items():
+    for token, rationale in VERDICT_RATIONALE.items():
         match = digit_pattern.search(rationale)
         assert match is None, (
-            f"_VERDICT_RATIONALE[{token!r}] cites per-claim numbers ({match.group(0)!r}); "
+            f"VERDICT_RATIONALE[{token!r}] cites per-claim numbers ({match.group(0)!r}); "
             f"rule-explanation rationale should not include pp/n=/dollar values — those "
             f"belong in the **Why** bullet."
         )
@@ -715,9 +737,9 @@ def _row(dim: str, val: str, verdict: str):
 
 
 def test_robustness_dimensions__exact_five_in_fixed_order() -> None:
-    from eval_audit.report.markdown import _ROBUSTNESS_DIMENSIONS
+    from eval_audit.report.sections.robustness import ROBUSTNESS_DIMENSIONS
 
-    assert _ROBUSTNESS_DIMENSIONS == (
+    assert ROBUSTNESS_DIMENSIONS == (
         "Multiple-comparison correction",
         "Errored-row policy",
         "Cost-threshold sensitivity",
@@ -727,7 +749,7 @@ def test_robustness_dimensions__exact_five_in_fixed_order() -> None:
 
 
 def test_robustness_multiple_comparison__all_match_baseline_survives() -> None:
-    from eval_audit.report.markdown import _robustness_multiple_comparison
+    from eval_audit.report.sections.robustness import robustness_multiple_comparison
 
     rows = [
         _row("baseline", "locked", "hedge_on_cost"),
@@ -735,55 +757,55 @@ def test_robustness_multiple_comparison__all_match_baseline_survives() -> None:
         _row("alpha", "0.10", "hedge_on_cost"),
         _row("correction_method", "none", "hedge_on_cost"),
     ]
-    assert _robustness_multiple_comparison(rows, "hedge_on_cost") == (
+    assert robustness_multiple_comparison(rows, "hedge_on_cost") == (
         "survives",
         "verdict unchanged at α∈{0.01, 0.10} and with correction=none",
     )
 
 
 def test_robustness_multiple_comparison__only_alpha_001_flips() -> None:
-    from eval_audit.report.markdown import _robustness_multiple_comparison
+    from eval_audit.report.sections.robustness import robustness_multiple_comparison
 
     rows = [
         _row("alpha", "0.01", "switch"),
         _row("alpha", "0.10", "hedge_on_cost"),
         _row("correction_method", "none", "hedge_on_cost"),
     ]
-    assert _robustness_multiple_comparison(rows, "hedge_on_cost") == (
+    assert robustness_multiple_comparison(rows, "hedge_on_cost") == (
         "does not survive",
         "verdict flips at α=0.01",
     )
 
 
 def test_robustness_multiple_comparison__alpha_010_and_correction_flip() -> None:
-    from eval_audit.report.markdown import _robustness_multiple_comparison
+    from eval_audit.report.sections.robustness import robustness_multiple_comparison
 
     rows = [
         _row("alpha", "0.01", "hedge_on_cost"),
         _row("alpha", "0.10", "switch"),
         _row("correction_method", "none", "switch"),
     ]
-    assert _robustness_multiple_comparison(rows, "hedge_on_cost") == (
+    assert robustness_multiple_comparison(rows, "hedge_on_cost") == (
         "does not survive",
         "verdict flips at α=0.10, correction=none",
     )
 
 
 def test_robustness_errored_policy__match_baseline_survives() -> None:
-    from eval_audit.report.markdown import _robustness_errored_policy
+    from eval_audit.report.sections.robustness import robustness_errored_policy
 
     rows = [_row("errored_policy", "excluded", "hedge_on_cost")]
-    assert _robustness_errored_policy(rows, "hedge_on_cost") == (
+    assert robustness_errored_policy(rows, "hedge_on_cost") == (
         "survives",
         "verdict unchanged when errored rows excluded",
     )
 
 
 def test_robustness_errored_policy__flip_includes_baseline_and_flipped_tokens() -> None:
-    from eval_audit.report.markdown import _robustness_errored_policy
+    from eval_audit.report.sections.robustness import robustness_errored_policy
 
     rows = [_row("errored_policy", "excluded", "rerun_more_n")]
-    assert _robustness_errored_policy(rows, "hedge_on_cost") == (
+    assert robustness_errored_policy(rows, "hedge_on_cost") == (
         "does not survive",
         "verdict flips when errored rows excluded (hedge_on_cost → rerun_more_n)",
     )
@@ -791,75 +813,75 @@ def test_robustness_errored_policy__flip_includes_baseline_and_flipped_tokens() 
 
 def test_robustness_errored_policy__missing_row_raises() -> None:
     from eval_audit.report import ReportContractError
-    from eval_audit.report.markdown import _robustness_errored_policy
+    from eval_audit.report.sections.robustness import robustness_errored_policy
 
     with pytest.raises(ReportContractError):
-        _robustness_errored_policy([], "hedge_on_cost")
+        robustness_errored_policy([], "hedge_on_cost")
 
 
 def test_robustness_cost_threshold__both_match_baseline_survives() -> None:
-    from eval_audit.report.markdown import _robustness_cost_threshold
+    from eval_audit.report.sections.robustness import robustness_cost_threshold
 
     rows = [
         _row("cost_gap_threshold", "0.05", "hedge_on_cost"),
         _row("cost_gap_threshold", "0.20", "hedge_on_cost"),
     ]
-    assert _robustness_cost_threshold(rows, "hedge_on_cost") == (
+    assert robustness_cost_threshold(rows, "hedge_on_cost") == (
         "survives",
         "verdict unchanged at cost_gap_threshold∈{0.05, 0.20}",
     )
 
 
 def test_robustness_cost_threshold__only_020_flips() -> None:
-    from eval_audit.report.markdown import _robustness_cost_threshold
+    from eval_audit.report.sections.robustness import robustness_cost_threshold
 
     rows = [
         _row("cost_gap_threshold", "0.05", "hedge_on_cost"),
         _row("cost_gap_threshold", "0.20", "rerun_more_n"),
     ]
-    assert _robustness_cost_threshold(rows, "hedge_on_cost") == (
+    assert robustness_cost_threshold(rows, "hedge_on_cost") == (
         "does not survive",
         "verdict flips at cost_gap_threshold=0.20",
     )
 
 
 def test_robustness_target_mde__null_target_returns_not_assessed() -> None:
-    from eval_audit.report.markdown import _robustness_target_mde
+    from eval_audit.report.sections.robustness import robustness_target_mde
 
-    assert _robustness_target_mde(None, 0.05) == (
+    assert robustness_target_mde(None, 0.05) == (
         "not assessed",
         "inference.target_mde not declared",
     )
 
 
 def test_robustness_target_mde__ci_inside_mde_survives() -> None:
-    from eval_audit.report.markdown import _robustness_target_mde
+    from eval_audit.report.sections.robustness import robustness_target_mde
 
-    assert _robustness_target_mde(0.03, 0.02) == (
+    assert robustness_target_mde(0.03, 0.02) == (
         "survives",
         "CI half-width 2.00 pp ≤ MDE 3.00 pp; sufficiently resolved",
     )
 
 
 def test_robustness_target_mde__ci_outside_mde_does_not_survive() -> None:
-    from eval_audit.report.markdown import _robustness_target_mde
+    from eval_audit.report.sections.robustness import robustness_target_mde
 
-    assert _robustness_target_mde(0.03, 0.09) == (
+    assert robustness_target_mde(0.03, 0.09) == (
         "does not survive",
         "CI half-width 9.00 pp > MDE 3.00 pp; under-resolved",
     )
 
 
 def test_robustness_cost_provenance__class_to_vocabulary_mapping() -> None:
-    from eval_audit.report.markdown import _robustness_cost_provenance
+    from eval_audit.report.sections.robustness import robustness_cost_provenance
 
-    assert _robustness_cost_provenance("reconciled") == ("survives", "reconciled")
-    assert _robustness_cost_provenance("as_reported_only") == (
+    assert robustness_cost_provenance("reconciled") == ("survives", "reconciled")
+    assert robustness_cost_provenance("as_reported_only") == (
         "caveat",
         "as_reported_only",
     )
-    assert _robustness_cost_provenance("partial") == ("caveat", "partial")
-    assert _robustness_cost_provenance("not_applicable") == (
+    assert robustness_cost_provenance("partial") == ("caveat", "partial")
+    assert robustness_cost_provenance("not_applicable") == (
         "does not survive",
         "not_applicable",
     )

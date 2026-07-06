@@ -22,7 +22,7 @@ same task set and the per-task outcomes are paired. Given that:
   resample `task_id`s with replacement (seeded), recompute the delta of mean
   outcomes each time, and take percentiles of the resampled deltas as the
   confidence interval. Per-agent success rates carry Wilson score intervals.
-- **Multiple comparisons** within a declared claim family are corrected —
+- **Multiple comparisons** within a declared claim family are corrected with
   Holm-Bonferroni (step-down) for family-wise error, or Benjamini-Hochberg for
   FDR. The decision uses the adjusted p-value, never the raw one.
 - **Resolution** is checked against a declared target MDE: a comparison whose
@@ -33,7 +33,7 @@ same task set and the per-task outcomes are paired. Given that:
   source artifacts, cost-based verdicts are suppressed rather than fabricated.
 
 A deterministic decision rule maps that evidence to one of six verdicts. Same
-inputs in, same report out — snapshot-tested.
+inputs in, same report out. Snapshot-tested.
 
 | Verdict | Meaning |
 | --- | --- |
@@ -44,15 +44,15 @@ inputs in, same report out — snapshot-tested.
 | `hedge_on_cost` | Quality is unclear, so cost should drive the choice. |
 | `inconclusive_no_action` | The audit does not support a change. |
 
-Alongside `report.md`, a completed audit writes `summary.json` — a deterministic
+Alongside `report.md`, a completed audit writes `summary.json`: a deterministic
 machine-readable claim summary the portfolio/index views read.
 
 ## Scope
 
-Current scope is intentionally narrow: `success_rate`, `higher_is_better`,
+Current scope stays narrow: `success_rate`, `higher_is_better`,
 paired task-level comparisons within **one** harness, frequentist
 intervals/corrections, cost provenance, and Markdown reports. Cross-harness
-comparisons are refused as confounded, not papered over — see
+comparisons are refused as confounded, not papered over. See
 [reports/cross-harness-confound/notes.md](reports/cross-harness-confound/notes.md).
 
 ## Install
@@ -66,9 +66,9 @@ eval-audit --version
 
 Two files describe an audit:
 
-- `study.yaml` — benchmark/task family, harness, agents, outcome, claims,
+- `study.yaml`: benchmark/task family, harness, agents, outcome, claims,
   inference settings, and cost view.
-- `runs.parquet` — one row per agent-task observation, with `agent_id`,
+- `runs.parquet`: one row per agent-task observation, with `agent_id`,
   `harness`, `task_id`, `success`, `outcome_status`, token/cost fields, and
   `cost_provenance`.
 
@@ -125,9 +125,9 @@ fixture, and reproducible analysis path.
 
 ## Decision pattern gallery
 
-The decision gallery is synthetic, not benchmark evidence. It exists so readers
-can see the remaining verdict patterns — `hold`, `rerun_more_n`, and
-`inconclusive_no_action` — render in a full report.
+The decision gallery is synthetic, not benchmark evidence. It shows how the
+remaining verdict patterns (`hold`, `rerun_more_n`, and
+`inconclusive_no_action`) render in a full report.
 
 - [reports/decision-gallery/report.md](reports/decision-gallery/report.md)
 - [examples/decision-gallery/README.md](examples/decision-gallery/README.md)
@@ -161,7 +161,7 @@ eval-audit gate my-study/study.yaml --runs my-study/runs.parquet \
 ```
 
 Review multiple completed audits as an evidence index. The portfolio reads
-existing `summary.json` artifacts — it does not recompute analyses, and its rows
+existing `summary.json` artifacts. It does not recompute analyses, and its rows
 are declared audits rather than a universal model ordering:
 
 ```bash
@@ -191,9 +191,9 @@ reproducibility artifact either way.
 
 References:
 
-- [examples/byo-minimal/README.md](examples/byo-minimal/README.md) — worked example
-- [docs/INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md) — `runs.parquet` field reference
-- [docs/STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md) — `study.yaml` field reference
+- [examples/byo-minimal/README.md](examples/byo-minimal/README.md): worked example
+- [docs/INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md): `runs.parquet` field reference
+- [docs/STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md): `study.yaml` field reference
 
 ## Work from source
 

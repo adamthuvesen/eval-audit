@@ -2,13 +2,13 @@
 
 This document is the formal field-by-field reference for `RunRecord`, the canonical task-level row that every `eval-audit` audit consumes. Read this when you are bringing your own evaluation data and want to know exactly what `analyze` and `report` expect.
 
-The narrative worked example lives in [`examples/byo-minimal/`](../examples/byo-minimal/). Open the parquet and the `make_runs.py` script alongside this doc — they show the contract in action.
+The narrative worked example lives in [`examples/byo-minimal/`](../examples/byo-minimal/). Open the parquet and the `make_runs.py` script alongside this doc; they show the contract in action.
 
 > **Doc parity invariant.** The `## Fields` section below is parsed by `tests/docs/test_input_contract.py` and asserted to match `RunRecord.model_fields` from `eval_audit/schema/run_record.py`. Add or rename a `### <field>` sub-heading whenever the schema changes, or CI will fail.
 
 ## Two ways to feed `eval-audit` data
 
-`eval-audit` accepts run-level data through two deliberately different conventions:
+`eval-audit` accepts run-level data through two different conventions:
 
 - **Adapter path (existing benchmarks, demos):**
 
@@ -27,7 +27,7 @@ The narrative worked example lives in [`examples/byo-minimal/`](../examples/byo-
 
   Reads from a single parquet file; no auxiliary files are needed.
 
-The directory convention exists because real benchmark fixtures need provenance, cost reconciliation, and column-mapping receipts. The `--runs <file>` convention is for users whose data is already canonical — they have one parquet, not a directory of receipts.
+The directory convention exists because real benchmark fixtures need provenance, cost reconciliation, and column-mapping receipts. The `--runs <file>` convention is for users whose data is already canonical; they have one parquet, not a directory of receipts.
 
 ## Format
 
@@ -42,31 +42,31 @@ Every row in your parquet must populate every field listed below. Optional field
 ### agent_id
 
 - **Type:** `str` (required, non-null)
-- **Used by analysis:** yes — filters per-agent slices, drives Pareto frontier, joins claim treatment/control to rows.
+- **Used by analysis:** yes; filters per-agent slices, drives Pareto frontier, joins claim treatment/control to rows.
 - **BYO guidance:** any stable identifier. The example uses `"alice"` and `"bob"`.
 
 ### model_id
 
 - **Type:** `str` (required, non-null)
 - **Used by analysis:** no (preserved provenance).
-- **BYO guidance:** the model name behind the agent, e.g. `"claude-3-7-sonnet-20250219"` or just `"alice"` if your agent identity is the model. Distinct from `agent_id` so a single model can serve multiple harnesses.
+- **BYO guidance:** the model name behind the agent, e.g. `"claude-3-7-sonnet-20250219"` or `"alice"` if your agent identity is the model. Distinct from `agent_id` so a single model can serve multiple harnesses.
 
 ### harness
 
 - **Type:** `str` (required, non-null)
-- **Used by analysis:** yes — cross-harness comparison refusal. `analyze()` raises `CrossHarnessComparisonError` if a claim's treatment and control run under different harnesses; other harness or missing-row failures raise `AnalysisInputError`.
+- **Used by analysis:** yes; cross-harness comparison refusal. `analyze()` raises `CrossHarnessComparisonError` if a claim's treatment and control run under different harnesses; other harness or missing-row failures raise `AnalysisInputError`.
 - **BYO guidance:** all rows in a single audit must share one harness value. Pick a string that names the scaffold (e.g. `"my-harness"`).
 
 ### run_id
 
 - **Type:** `str` (required, non-null)
-- **Used by analysis:** yes — used to compute `reported_run_total_cost_usd` per (agent, run) when cost provenance is `as_reported_only`.
+- **Used by analysis:** yes; used to compute `reported_run_total_cost_usd` per (agent, run) when cost provenance is `as_reported_only`.
 - **BYO guidance:** identifies one execution of an agent over the task set. If you only have one run per agent, a stable per-agent string works.
 
 ### task_id
 
 - **Type:** `str` (required, non-null)
-- **Used by analysis:** yes — paired-task analysis joins treatment and control rows on this column.
+- **Used by analysis:** yes; paired-task analysis joins treatment and control rows on this column.
 - **BYO guidance:** must be identical between treatment and control for the same task. Use a stable identifier (e.g. the task's index or hash).
 
 ### task_category
@@ -78,25 +78,25 @@ Every row in your parquet must populate every field listed below. Optional field
 ### seed
 
 - **Type:** `int | None` (optional)
-- **Used by analysis:** no in v1.x (replication support is roadmapped for later).
+- **Used by analysis:** no (preserved provenance).
 - **BYO guidance:** the random seed used for the run, if any. `null` if your runs are not seed-reproducible.
 
 ### success
 
 - **Type:** `bool | None` (required field; null only when `outcome_status="errored"`)
-- **Used by analysis:** yes — the headline outcome for the v1 contract (`success_rate` only).
+- **Used by analysis:** yes; the headline outcome for the current contract (`success_rate` only).
 - **BYO guidance:** `True` if the agent solved the task, `False` if it failed. Use `null` when the task errored upstream (`outcome_status="errored"`); the schema will reject `True`/`False` paired with `outcome_status="errored"`.
 
 ### partial_credit
 
 - **Type:** `float | int | bool | None` (optional)
-- **Used by analysis:** no in v1.x (`partial_credit` as an outcome is roadmapped).
+- **Used by analysis:** no (validated provenance; not a supported outcome).
 - **BYO guidance:** validated for shape but ignored by analysis. Pass `null`, or `float(success)` if you want a placeholder. Must be `null` when `outcome_status="errored"`.
 
 ### outcome_status
 
 - **Type:** `Literal["graded", "errored"]` (required)
-- **Used by analysis:** yes — `errored` rows count as failures in the headline denominator and are surfaced in `n_errored`. `graded` rows feed the bootstrap and per-task analysis.
+- **Used by analysis:** yes; `errored` rows count as failures in the headline denominator and are surfaced in `n_errored`. `graded` rows feed the bootstrap and per-task analysis.
 - **BYO guidance:** `"graded"` for normal task outcomes; `"errored"` when the agent's run errored before producing a gradable result. The schema enforces that `outcome_status="graded"` requires non-null `success`, and `outcome_status="errored"` requires `success` and `partial_credit` to be `null`.
 
 ### tokens_in
@@ -126,7 +126,7 @@ Every row in your parquet must populate every field listed below. Optional field
 ### latency_s
 
 - **Type:** `float | None` with `>= 0` (optional)
-- **Used by analysis:** no in v1.x (`latency_s` as an outcome is roadmapped).
+- **Used by analysis:** no (preserved provenance).
 - **BYO guidance:** wall-clock time for the task, in seconds. `null` if not tracked.
 
 ### timestamp
@@ -138,19 +138,19 @@ Every row in your parquet must populate every field listed below. Optional field
 ### reconstructed_per_task_cost_usd
 
 - **Type:** `float | None` with `>= 0` (required when `cost_provenance="reconciled"`, may be `null` otherwise)
-- **Used by analysis:** yes — feeds the per-agent total cost and the Pareto frontier when `cost_provenance="reconciled"`.
+- **Used by analysis:** yes; feeds the per-agent total cost and the Pareto frontier when `cost_provenance="reconciled"`.
 - **BYO guidance:** the per-task cost reconstructed from token counts × pinned model prices, in USD. Required for `reconciled` provenance. `null` for `as_reported_only` (the schema enforces consistency).
 
 ### reported_run_total_cost_usd
 
 - **Type:** `float | None` with `>= 0` (optional)
-- **Used by analysis:** yes — used as the cost basis when `cost_provenance="as_reported_only"` (typically equal across all rows of the same `(agent_id, run_id)`).
+- **Used by analysis:** yes; used as the cost basis when `cost_provenance="as_reported_only"` (typically equal across all rows of the same `(agent_id, run_id)`).
 - **BYO guidance:** the run-level total cost reported by your harness, if available.
 
 ### cost_provenance
 
 - **Type:** `Literal["reconciled", "partial", "as_reported_only"]` (required)
-- **Used by analysis:** yes — drives the cost-summary code path AND the Robustness Review's "Cost provenance" row.
+- **Used by analysis:** yes; drives the cost-summary code path AND the Robustness Review's "Cost provenance" row.
 - **BYO guidance:**
   - `"reconciled"` when your `reconstructed_per_task_cost_usd` agrees with the harness's reported run total within ~1%. Most BYO data is `reconciled` because you control the price table.
   - `"as_reported_only"` when per-task reconstruction does not reconcile and the audit must use the run-level reported total instead.
@@ -174,6 +174,6 @@ These are checked row-by-row at load time. A failure raises `IngestContractError
 
 ## Where to go next
 
-- [`examples/byo-minimal/study.yaml`](../examples/byo-minimal/study.yaml) — the smallest valid `StudySpec` declaration.
-- [`examples/byo-minimal/make_runs.py`](../examples/byo-minimal/make_runs.py) — the construction pattern most BYO users will follow.
+- [`examples/byo-minimal/study.yaml`](../examples/byo-minimal/study.yaml): the smallest valid `StudySpec` declaration.
+- [`examples/byo-minimal/make_runs.py`](../examples/byo-minimal/make_runs.py): the construction pattern most BYO users will follow.
 - The schema source of truth lives in [`eval_audit/schema/run_record.py`](../eval_audit/schema/run_record.py).

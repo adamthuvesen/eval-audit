@@ -1,4 +1,4 @@
-# HumanEval Direct Completion — Reproduction Recipe
+# HumanEval Direct Completion Reproduction Recipe
 
 This directory contains the predeclared design and the harness for the
 controlled-evidence audit known as HumanEval Direct Completion. See
@@ -11,7 +11,7 @@ decision and [`./run-plan.md`](./run-plan.md) for the pre-outcome run plan.
 scouting/humaneval-direct-completion/
 ├── README.md                 (this file)
 ├── NOTICE                    (HumanEval MIT attribution)
-├── run-plan.md               (predeclared run plan — task IDs, harness, settings)
+├── run-plan.md               (predeclared run plan: task IDs, harness, settings)
 ├── price-table.yaml          (per-model rates dated 2026-05-03)
 ├── humaneval-tasks-30.jsonl  (vendored 30-task subset; sampled with seed=42)
 ├── run.py                    (calls Anthropic Messages API; writes raw/)
@@ -31,7 +31,7 @@ harness does not call any other provider). Estimated cost: <\$2.
 uv run eval-audit spec validate studies/humaneval-direct-completion.yaml
 
 # 2. Run the controlled evidence collection.
-uv run python scouting/humaneval-direct-completion/run.py     # 120 API calls, ~5–10 minutes
+uv run python scouting/humaneval-direct-completion/run.py     # 120 API calls, ~5-10 minutes
 
 # 3. Grade the raw outputs in subprocess (no eval in parent).
 uv run python scouting/humaneval-direct-completion/grade.py
@@ -61,25 +61,25 @@ Committed:
 Gitignored:
 
 - `scouting/humaneval-direct-completion/raw/` and `scouting/humaneval-direct-completion/graded/` (verbose per-call
-  payloads — regeneratable from the API + the deterministic grader).
+  payloads; regeneratable from the API + the deterministic grader).
 
 ## Provider non-determinism
 
-The Anthropic Messages API at `temperature=0` is approximately but not
-strictly deterministic. The 2 reruns per (agent, task) are intentional; they
+The Anthropic Messages API at `temperature=0` is roughly deterministic, but not
+strictly. The 2 reruns per (agent, task) are intentional; they
 capture provider-level run-to-run variance. If you re-run `run.py` on a
 different day, `examples/humaneval-direct-completion/runs.parquet` may shift slightly and the
 snapshot test will diff. That is the expected behavior of a controlled
-*original* run — the report's Reproducibility section documents that the
+*original* run. The report's Reproducibility section documents that the
 parquet is the canonical artifact, not the raw API responses.
 
 ## Grader trust boundary
 
 The grader executes untrusted model-generated code. The v0 sandbox is:
 
-- **Sanitized environment** — only `PATH` is forwarded; `ANTHROPIC_API_KEY`,
+- **Sanitized environment**: only `PATH` is forwarded; `ANTHROPIC_API_KEY`,
   `HOME`, and other parent-process variables are scrubbed.
-- **Python isolated mode** (`-I`) — ignores `PYTHONPATH`, `PYTHONHOME`, and
+- **Python isolated mode** (`-I`): ignores `PYTHONPATH`, `PYTHONHOME`, and
   user site-packages, so the candidate cannot import repo-local code.
 - **10-second timeout** per candidate.
 - **Temporary working directory**.

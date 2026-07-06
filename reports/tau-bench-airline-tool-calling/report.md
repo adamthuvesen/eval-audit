@@ -31,7 +31,9 @@
 - **harness:** `tau_bench_tool_calling`
 - **analysis_mode:** `declared_reanalysis`
 - **data_observation:** `summary_seen`
-- **claim:** Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and Claude 3.7 Sonnet at 44% (folding errored rows in as failures). This reanalysis evaluates whether that 12 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 1.8x cost gap ($8.38 vs $15.45).
+- **claim `o4mini_vs_claude`:** Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and Claude 3.7 Sonnet at 44% (folding errored rows in as failures). This reanalysis evaluates whether that 12 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 1.8x cost gap ($8.38 vs $15.45).
+- **claim `o4mini_vs_o3`:** Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and o3 Medium at 54%. This reanalysis evaluates whether that 2 percentage point gap supports a model-selection decision once uncertainty and the 3.8x cost gap ($8.38 vs $32.24) are shown.
+- **claim `claude_vs_o3`:** Within TAU-bench Airline under the Tool Calling harness, Claude 3.7 Sonnet is reported at 44% (with 3 of 50 errored rows folded in as failures) and o3 Medium at 54%. This reanalysis evaluates whether that 10 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 2.1x cost gap ($15.45 vs $32.24).
 
 ## Provenance
 
@@ -72,6 +74,39 @@ HAL's reported run-total cost is used directly because per-task cost reconstruct
 | o4mini_vs_claude | declared_reanalysis | inconclusive | +12.00 pp | +5.00 pp | 0.5471 | hedge_on_cost |
 | o4mini_vs_o3 | declared_reanalysis | inconclusive | +2.00 pp | +5.00 pp | 0.7992 | hedge_on_cost |
 | claude_vs_o3 | declared_reanalysis | inconclusive | -10.00 pp | +5.00 pp | 0.5471 | drop_from_shortlist |
+
+**Copyable summary** — `o4mini_vs_claude`
+
+Claim `o4mini_vs_claude` verdict `hedge_on_cost` for `Taubench ToolCalling (o4-mini-2025-04-16 high)` vs `Taubench ToolCalling (claude-3.7-sonnet)`: delta +12.00 pp with bootstrap CI [-6.00 pp, +28.00 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is as_reported_only, so costs come from reported totals rather than reconciled per-task reconstruction.
+
+**Verdict explainer** — `o4mini_vs_claude`
+
+- **First matching branch:** `uncertainty_with_material_cost_gap` → `hedge_on_cost`
+- **Rule path:** The quality interval crosses zero and the cost gap meets the material threshold.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=False; effect direction matches claim=True; quality CI crosses zero=True; cost gap ratio=84.32%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
+**Copyable summary** — `o4mini_vs_o3`
+
+Claim `o4mini_vs_o3` verdict `hedge_on_cost` for `Taubench ToolCalling (o4-mini-2025-04-16 high)` vs `Taubench ToolCalling (o3-2025-04-16)`: delta +2.00 pp with bootstrap CI [-12.05 pp, +18.00 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is as_reported_only, so costs come from reported totals rather than reconciled per-task reconstruction.
+
+**Verdict explainer** — `o4mini_vs_o3`
+
+- **First matching branch:** `uncertainty_with_material_cost_gap` → `hedge_on_cost`
+- **Rule path:** The quality interval crosses zero and the cost gap meets the material threshold.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=False; effect direction matches claim=True; quality CI crosses zero=True; cost gap ratio=284.69%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
+**Copyable summary** — `claude_vs_o3`
+
+Claim `claude_vs_o3` verdict `drop_from_shortlist` for `Taubench ToolCalling (claude-3.7-sonnet)` vs `Taubench ToolCalling (o3-2025-04-16)`: delta -10.00 pp with bootstrap CI [-26.00 pp, +6.00 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is as_reported_only, so costs come from reported totals rather than reconciled per-task reconstruction.
+
+**Verdict explainer** — `claude_vs_o3`
+
+- **First matching branch:** `pareto_domination` → `drop_from_shortlist`
+- **Rule path:** Treatment is Pareto-dominated before statistical or cost-gap branches are considered.
+- **Evaluated conditions:** Pareto dominated=True; adjusted-p rejection=False; effect direction matches claim=False; quality CI crosses zero=True; cost gap ratio=108.70%; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
 
 **MDE context**
 
@@ -157,9 +192,9 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 
 **Inherited from scouting decision** (verbatim from `scouting/tau-bench-airline-tool-calling-decision.md`):
 
-1. **Cost is `as_reported_only` and the per-task estimate is coarse.** HAL's reported run-total cost is used directly; per-task cost reconstruction from `tokens_in_by_model × pinned prices` does not reconcile to the reported total within the toolkit's 1% tolerance. The renderer's Provenance section surfaces the per-run divergences and caveats from [scouting/candidates/tau-bench/cost-reconciliation.json](candidates/tau-bench/cost-reconciliation.json) verbatim. The `cost_per_success_usd` value is `reported_run_total_cost_usd / successes` — a coarser estimate than GAIA HAL Generalist's reconstructed per-task figure.
+1. **Cost is `as_reported_only` and the per-task estimate is coarse.** HAL's reported run-total cost is used directly; per-task cost reconstruction from `tokens_in_by_model × pinned prices` does not reconcile to the reported total within the toolkit's 1% tolerance. The renderer's Provenance section surfaces the per-run divergences and caveats from [scouting/candidates/tau-bench/cost-reconciliation.json](candidates/tau-bench/cost-reconciliation.json) verbatim. The `cost_per_success_usd` value is `reported_run_total_cost_usd / successes`, a coarser estimate than GAIA HAL Generalist's reconstructed per-task figure.
 
-2. **Cross-harness scaffold confound (the project's strongest scouting finding).** Within TAU-bench Airline, Claude 3.7 Sonnet sits at 56% under the HAL Generalist Agent harness and at 44% under the Tool Calling harness — a 12 percentage point gap on the same model and the same benchmark. The toolkit's `analyze()` refuses cross-harness comparisons (`CrossHarnessComparisonError`); the writeup at [reports/cross-harness-confound/notes.md](../reports/cross-harness-confound/notes.md) makes the finding explicit using TAU-bench Airline Tool Calling's Tool Calling number as data and the upstream leaderboard's HAL Generalist number as a citation. The 12 pp gap is best read as scaffold effect coexisting with sampling-decision drift the leaderboard does not separate, not as scaffold-effect-full-stop.
+2. **Cross-harness scaffold confound (the project's strongest scouting finding).** Within TAU-bench Airline, Claude 3.7 Sonnet sits at 56% under the HAL Generalist Agent harness and at 44% under the Tool Calling harness, a 12 percentage point gap on the same model and the same benchmark. The toolkit's `analyze()` refuses cross-harness comparisons (`CrossHarnessComparisonError`); the writeup at [reports/cross-harness-confound/notes.md](../reports/cross-harness-confound/notes.md) makes the finding explicit using TAU-bench Airline Tool Calling's Tool Calling number as data and the upstream leaderboard's HAL Generalist number as a citation. The 12 pp gap is best read as scaffold effect coexisting with sampling-decision drift the leaderboard does not separate.
 
 3. **Errored vs failed are structurally distinct, denominator-collapsed.** TAU-bench Airline grades 50 tasks per run; some return error strings instead of a graded reward. Within Tool Calling, Claude 3.7 Sonnet has 3/50 errored rows. The leaderboard's headline "44%" folds those errored rows in as failures, and the toolkit does the same at the `analyze()` level so paired-task sets stay aligned across arms. The `n_errored` column in the per-agent summary preserves the structural distinction so a reader can always see "this agent's 44% includes 3 upstream errors that the harness could not grade."
 
@@ -173,9 +208,9 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-06T17:20:12.506464+00:00`
-- **git_commit:** `cebaf8b`
+- **rendered_at:** `2026-07-06T09:02:15.610952+00:00`
+- **git_commit:** `acb63d5`
 - **fixture_sha256:** `3d8a0434b5ce3eb32735a767758a9c0281148a25e2956dad7d8c886416ffa7b3`
 - **bootstrap_seed:** `42`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `c8f3227aec77024c5e09373696de2e086a46bb046277d7ffed5626db2b55244e`
+- **check_sha256:** `6e6185c7d654d247eb492eeb4ef0c11d819489da49c99efdb1718d133ebf4681`

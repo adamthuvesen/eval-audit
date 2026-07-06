@@ -13,7 +13,7 @@ scouting/
   candidates/
     tau-bench/
       columns.json             # raw column inventory
-      sample.parquet           # 100–5000 row representative sample
+      sample.parquet           # 100-5000 row representative sample
       cost-reconciliation.json # reconciled | partial | as_reported_only | not_applicable
       provenance.json          # source URL, retrieval timestamp, sampling seed
     gaia/
@@ -33,7 +33,7 @@ Three candidates are inventoried per the spec:
 
 | Candidate     | Source family                                  | Why included                                                |
 |---------------|------------------------------------------------|-------------------------------------------------------------|
-| `tau-bench`   | HAL (Princeton)                                | Strong contender — agent-oriented, cost data plausibly available |
+| `tau-bench`   | HAL (Princeton)                                | Strong contender; agent-oriented, cost data plausibly available |
 | `gaia`        | HAL (Princeton)                                | Different task shape from TAU-bench; tests gate calibration |
 | `browsecomp`  | Non-HAL fallback (OpenAI / public results)     | Confirms gates aren't HAL-specific                          |
 
@@ -41,7 +41,12 @@ Three candidates are inventoried per the spec:
 
 **Selected fallback: `browsecomp`** (default per the design's open question).
 
-If, during scouting, BrowseComp's public artifact turns out to expose only aggregate leaderboard numbers with no per-task or per-run granularity, downgrade gate 1 (run-level data) to fail and document this in the candidate's `columns.json`. Do **not** silently swap to a different non-HAL source mid-scout — instead, record the failure, complete the inventory with whatever is available, and proceed. The decision document records gate failures, not just successes.
+If, during scouting, BrowseComp's public artifact exposes only aggregate
+leaderboard numbers with no per-task or per-run granularity, downgrade gate 1
+(run-level data) to fail and document this in the candidate's `columns.json`.
+Do **not** silently swap to a different non-HAL source mid-scout. Record the
+failure, complete the inventory with whatever is available, and proceed. The
+decision document records gate failures as well as successes.
 
 ## Conventions
 

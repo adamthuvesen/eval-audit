@@ -14,10 +14,3 @@ models:
   claude-sonnet-4-6:
     input_per_mtok: 3.00
     output_per_mtok: 15.00
-
-# reconciliation_tolerance_usd is unused in v0: the Anthropic Messages API
-# does not expose an independent provider-side run total, so HumanEval Direct Completion rows
-# carry cost_provenance="partial" and no reconciliation tolerance is applied.
-# Retained for forward compatibility with a future provider that exposes a
-# billing total (see scouting/humaneval-direct-completion/normalize.py module docstring).
-reconciliation_tolerance_usd: 0.005

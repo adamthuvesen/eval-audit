@@ -11,11 +11,8 @@ total, so reconciliation is impossible by construction:
 ``reconstructed_per_task_cost_usd`` is the per-call cost reconstructed from
 API-reported tokens × the pinned price table, and
 ``reported_run_total_cost_usd`` is the per-(agent, run) sum of those same
-per-call costs (not a provider total). ``partial`` is the honest label —
-we have one side of the reconciliation, not both. The
-``reconciliation_tolerance_usd`` field in ``price-table.yaml`` is unused
-in v0; retained for forward compatibility with a future provider that
-exposes a billing total.
+per-call costs (not a provider total). ``partial`` is the honest label:
+we have one side of the reconciliation, not both.
 
 Usage:
 
@@ -59,7 +56,6 @@ def main() -> None:
     if not GRADED_DIR.exists():
         raise SystemExit(f"missing graded dir: {GRADED_DIR}; run grade.py first.")
     price_table = yaml.safe_load(PRICE_TABLE_PATH.read_text())
-    tolerance = float(price_table.get("reconciliation_tolerance_usd", 0.005))
     rates_by_model = price_table["models"]
 
     files = sorted(GRADED_DIR.rglob("*.json"))
@@ -127,7 +123,6 @@ def main() -> None:
             "rerun_policy": "capture_provider_nondeterminism",
             "task_source": "openai/human-eval (MIT)",
             "price_table_date": str(price_table["date"]),
-            "reconciliation_tolerance_usd": f"{tolerance:.4f}",
         }
         if outcome_status == "errored":
             rerun_metadata["error_detail_tail"] = record.get("grader", {}).get("detail", "")[:200]

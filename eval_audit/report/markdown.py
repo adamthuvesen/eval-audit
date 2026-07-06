@@ -15,14 +15,10 @@ from eval_audit.report.caveats import (
 from eval_audit.report.decisions import decision_impact
 from eval_audit.report.formatters import format_pp
 from eval_audit.report.presentation import StudyPresentation, resolve_study_presentation
-from eval_audit.report.sections import audit_summary as audit_summary_section
 from eval_audit.report.sections.audit_summary import (
     render_audit_summary,
-    render_audit_summary_stanza,
-    what_would_change_it,
 )
 from eval_audit.report.sections.claims_table import (
-    copyable_claim_summary,
     render_claim_row,
     render_verdict_explainer,
 )
@@ -35,14 +31,7 @@ from eval_audit.report.sections.provenance_section import (
     render_public_provenance,
 )
 from eval_audit.report.sections.robustness import (
-    ROBUSTNESS_DIMENSIONS,
     render_robustness_review,
-    render_robustness_review_table,
-    robustness_cost_provenance,
-    robustness_cost_threshold,
-    robustness_errored_policy,
-    robustness_multiple_comparison,
-    robustness_target_mde,
 )
 from eval_audit.report.sensitivity import (
     SensitivityRow,
@@ -50,52 +39,9 @@ from eval_audit.report.sensitivity import (
     compute_sensitivity_rows,
 )
 from eval_audit.report.summary import claim_status
-from eval_audit.report.vocabulary import STATUS_VOCAB, VERDICT_RATIONALE
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import CostProvenance
 from eval_audit.stats import AnalysisResult, analyze
-
-# Test and snapshot stability: legacy private names re-exported from section modules.
-_STATUS_VOCAB = STATUS_VOCAB
-_VERDICT_RATIONALE = VERDICT_RATIONALE
-_ROBUSTNESS_DIMENSIONS = ROBUSTNESS_DIMENSIONS
-_what_would_change_it = what_would_change_it
-_render_audit_summary_stanza = render_audit_summary_stanza
-
-
-def _reviewer_pushback(
-    per_agent: list,
-    cost_provenance_class: str,
-    residual_risks_text: str,
-) -> str:
-    presentation = StudyPresentation(
-        cost_provenance=cost_provenance_class,
-        pareto_suppressed=cost_provenance_class == "cost_not_available",
-        show_cost_columns=cost_provenance_class != "cost_not_available",
-        cost_gap_sensitivity_applicable=cost_provenance_class != "cost_not_available",
-        hedge_on_cost_allowed=False,
-        source_fixture_rel="",
-        source_url="",
-        retrieved_at="",
-        residual_risks_text=residual_risks_text,
-        decision_md_label="",
-        cost_recon_data={},
-    )
-    return audit_summary_section.reviewer_pushback(per_agent, presentation)
-
-
-_copyable_claim_summary = copyable_claim_summary
-_render_verdict_explainer = render_verdict_explainer
-_robustness_multiple_comparison = robustness_multiple_comparison
-_robustness_errored_policy = robustness_errored_policy
-_robustness_cost_threshold = robustness_cost_threshold
-_robustness_target_mde = robustness_target_mde
-_robustness_cost_provenance = robustness_cost_provenance
-_render_audit_summary = render_audit_summary
-_render_per_agent_summary = render_per_agent_summary
-_render_cost_quality_view = render_cost_quality_view
-_render_robustness_review = render_robustness_review
-_render_robustness_review_table = render_robustness_review_table
 
 
 def _validate_report_outcome(study: StudySpec) -> None:
