@@ -88,10 +88,10 @@ def test_runs_flag__report_with_byo_parquet_writes_nine_section_report(
         last = pos
 
 
-def test_runs_flag__no_flag_preserves_adapter_path_for_existing_exhibits(
+def test_runs_flag__no_flag_uses_adapter_path_for_declared_studies(
     runner: CliRunner, repo_root: Path, tmp_path: Path
 ) -> None:
-    """Backward compat regression guard: existing studies still work without --runs."""
+    """Declared studies still load through their fixture adapters without --runs."""
     from eval_audit.cli import app
 
     out_dir = tmp_path / "reports"

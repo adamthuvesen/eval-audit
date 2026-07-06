@@ -146,7 +146,7 @@ def decision_impact(
 
     Rule order is significant: first match wins. The `cost_gap_threshold`
     kwarg is exposed so the verdict-sensitivity table can perturb it; the
-    default reproduces the v0 behavior.
+    default is the report's baseline material-cost threshold.
     """
     return explain_decision_impact(ctx, cost_gap_threshold=cost_gap_threshold).verdict
 

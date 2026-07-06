@@ -78,19 +78,19 @@ Every row in your parquet must populate every field listed below. Optional field
 ### seed
 
 - **Type:** `int | None` (optional)
-- **Used by analysis:** no in v1.x (replication support is roadmapped for later).
+- **Used by analysis:** no (preserved provenance).
 - **BYO guidance:** the random seed used for the run, if any. `null` if your runs are not seed-reproducible.
 
 ### success
 
 - **Type:** `bool | None` (required field; null only when `outcome_status="errored"`)
-- **Used by analysis:** yes — the headline outcome for the v1 contract (`success_rate` only).
+- **Used by analysis:** yes — the headline outcome for the current contract (`success_rate` only).
 - **BYO guidance:** `True` if the agent solved the task, `False` if it failed. Use `null` when the task errored upstream (`outcome_status="errored"`); the schema will reject `True`/`False` paired with `outcome_status="errored"`.
 
 ### partial_credit
 
 - **Type:** `float | int | bool | None` (optional)
-- **Used by analysis:** no in v1.x (`partial_credit` as an outcome is roadmapped).
+- **Used by analysis:** no (validated provenance; not a supported outcome).
 - **BYO guidance:** validated for shape but ignored by analysis. Pass `null`, or `float(success)` if you want a placeholder. Must be `null` when `outcome_status="errored"`.
 
 ### outcome_status
@@ -126,7 +126,7 @@ Every row in your parquet must populate every field listed below. Optional field
 ### latency_s
 
 - **Type:** `float | None` with `>= 0` (optional)
-- **Used by analysis:** no in v1.x (`latency_s` as an outcome is roadmapped).
+- **Used by analysis:** no (preserved provenance).
 - **BYO guidance:** wall-clock time for the task, in seconds. `null` if not tracked.
 
 ### timestamp

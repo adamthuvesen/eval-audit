@@ -10,7 +10,7 @@ The narrative worked example lives in [`examples/byo-minimal/study.yaml`](../exa
 
 `StudySpec` carries a `schema_version` field, defaulting to `1`. Every `study.yaml` that `eval-audit init` scaffolds emits `schema_version: 1` explicitly. Existing YAMLs without the field continue to validate (the default supplies it), but new and scaffolded YAMLs MUST emit it so users see the version stamp inline.
 
-This version of `eval-audit` only supports `schema_version=1`. A future major break in the contract will raise the accepted set; until then, any other value fails validation with an error that names both the field and the offending value.
+This version of `eval-audit` only supports `schema_version=1`. Any other value fails validation with an error that names both the field and the offending value.
 
 ## Fields
 
@@ -20,7 +20,7 @@ Every `study.yaml` MUST populate every required field listed below. Optional fie
 
 - **Type:** `int` (default `1`)
 - **Used by analysis:** no (versioning metadata).
-- **BYO guidance:** emit `schema_version: 1` explicitly even though the default supplies it. This version of `eval-audit` rejects any value other than `1`. The field exists so future schema breaks can migrate cleanly.
+- **BYO guidance:** emit `schema_version: 1` explicitly even though the default supplies it. This version of `eval-audit` rejects any value other than `1`.
 
 ### id
 
@@ -133,7 +133,7 @@ How the run data was produced.
 ### observed_runs_per_agent
 
 - **Type:** `int` (required, MUST be ≥ 1)
-- **BYO guidance:** number of runs per agent that the audit observes. v1 expects the same value across agents.
+- **BYO guidance:** number of runs per agent that the audit observes. The current contract expects the same value across agents.
 
 ### rerun_policy
 
@@ -177,7 +177,7 @@ How costs are summarized in the cost-quality view.
 ### primary_view
 
 - **Type:** `Literal["pareto_frontier"]` (required)
-- **v0 constraint:** MUST be `"pareto_frontier"`. Other views are deferred.
+- **v0 constraint:** MUST be `"pareto_frontier"`.
 
 ## Claim
 
