@@ -1,5 +1,7 @@
 # eval-audit
 
+![License](https://img.shields.io/github/license/adamthuvesen/eval-audit) ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+
 `eval-audit` audits a benchmark comparison you have already run and answers one
 question:
 
