@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from eval_audit.report import ReportContractError
 from eval_audit.report.presentation import StudyPresentation
+from eval_audit.report.sensitivity import SensitivityRow
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import CostProvenance
 from eval_audit.stats.results import AnalysisResult
@@ -17,7 +18,7 @@ ROBUSTNESS_DIMENSIONS: tuple[str, ...] = (
 )
 
 
-def robustness_multiple_comparison(rows, baseline: str) -> tuple[str, str]:
+def robustness_multiple_comparison(rows: list[SensitivityRow], baseline: str) -> tuple[str, str]:
     flipped: list[str] = []
     for r in rows:
         if r.dimension == "alpha" and r.value == "0.01" and r.verdict != baseline:
@@ -34,7 +35,7 @@ def robustness_multiple_comparison(rows, baseline: str) -> tuple[str, str]:
     return ("does not survive", f"verdict flips at {', '.join(flipped)}")
 
 
-def robustness_errored_policy(rows, baseline: str) -> tuple[str, str]:
+def robustness_errored_policy(rows: list[SensitivityRow], baseline: str) -> tuple[str, str]:
     for r in rows:
         if r.dimension == "errored_policy" and r.value == "excluded":
             if r.verdict == baseline:
@@ -47,7 +48,7 @@ def robustness_errored_policy(rows, baseline: str) -> tuple[str, str]:
 
 
 def robustness_cost_threshold(
-    rows, baseline: str, *, pareto_suppressed: bool = False
+    rows: list[SensitivityRow], baseline: str, *, pareto_suppressed: bool = False
 ) -> tuple[str, str]:
     if pareto_suppressed:
         return (
@@ -101,7 +102,7 @@ def robustness_cost_provenance(cost_provenance: str) -> tuple[str, str]:
 
 
 def render_robustness_review_table(
-    rows,
+    rows: list[SensitivityRow],
     baseline: str,
     target_mde: float | None,
     ci_half_width: float,
@@ -126,7 +127,7 @@ def render_robustness_review_table(
 def render_robustness_review(
     result: AnalysisResult,
     study: StudySpec,
-    sensitivity_rows_by_claim: dict,
+    sensitivity_rows_by_claim: dict[str, list[SensitivityRow]],
     presentation: StudyPresentation,
 ) -> list[str]:
     parts: list[str] = ["## Robustness Review\n"]

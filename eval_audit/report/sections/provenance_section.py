@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 import polars as pl
 
@@ -96,8 +98,8 @@ def _run_dates_line(runs: pl.DataFrame) -> str | None:
     with_ts = runs.filter(pl.col("timestamp").is_not_null())
     if with_ts.is_empty():
         return None
-    ts_min = with_ts["timestamp"].min()
-    ts_max = with_ts["timestamp"].max()
+    ts_min = cast(datetime, with_ts["timestamp"].min())
+    ts_max = cast(datetime, with_ts["timestamp"].max())
     if ts_min == ts_max:
         return f"- **run_dates:** `{ts_min.date().isoformat()}` (UTC)"
     return f"- **run_dates:** `{ts_min.date().isoformat()}` to `{ts_max.date().isoformat()}` (UTC)"

@@ -143,14 +143,14 @@ def _render_blocks(lines: list[str]) -> str:
             parts.append(_render_bullets(items))
             continue
         if _ORDERED_BULLET_RE.match(stripped):
-            items: list[str] = []
+            ordered_items: list[str] = []
             while index < len(lines):
                 match = _ORDERED_BULLET_RE.match(lines[index].strip())
                 if match is None:
                     break
-                items.append(match.group("text"))
+                ordered_items.append(match.group("text"))
                 index += 1
-            parts.append(_render_ordered(items))
+            parts.append(_render_ordered(ordered_items))
             continue
         bold = _BOLD_LINE_RE.match(stripped)
         if bold is not None:

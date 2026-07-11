@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from eval_audit.report import ReportContractError
 from eval_audit.report.formatters import format_currency, format_rate
 from eval_audit.report.presentation import StudyPresentation
 from eval_audit.stats.results import AnalysisResult
@@ -30,6 +31,10 @@ def render_per_agent_summary(result: AnalysisResult, presentation: StudyPresenta
         )
         parts.append("|---|---:|---:|---:|---:|---:|---:|---:|")
         for s in result.per_agent:
+            if s.total_cost_usd is None:
+                raise ReportContractError(
+                    f"cost columns requested but agent {s.agent_id!r} has no total cost"
+                )
             cps = (
                 "n/a" if s.cost_per_success_usd is None else format_currency(s.cost_per_success_usd)
             )

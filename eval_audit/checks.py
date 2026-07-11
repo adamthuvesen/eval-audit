@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -22,6 +23,14 @@ CheckSeverity = Literal["error", "warning", "info"]
 CheckStatus = Literal["pass", "fail"]
 JsonScalar = str | int | float | bool | None
 Json = JsonScalar | list["Json"] | dict[str, "Json"]
+
+
+def _json_array(values: Iterable[JsonScalar]) -> list[Json]:
+    items: list[Json] = []
+    items.extend(values)
+    return items
+
+
 _STATIC_FIX_SUGGESTIONS = {
     "study_loads": (
         "Fix the study YAML path or schema errors so StudySpec.from_yaml() "
@@ -288,7 +297,7 @@ def _claim_agents_present(study: StudySpec, runs: pl.DataFrame) -> ReadinessChec
             "error",
             "fail",
             "one or more claimed agents have no rows in the run data",
-            {"missing": sorted(missing)},
+            {"missing": _json_array(sorted(missing))},
         )
     return _check(
         "claim_agents_present",
@@ -319,7 +328,10 @@ def _claimed_rows_match_study_harness(study: StudySpec, runs: pl.DataFrame) -> R
             "error",
             "fail",
             "claimed rows must all match study.harness",
-            {"study_harness": study.harness, "mismatches": sorted(mismatches)},
+            {
+                "study_harness": study.harness,
+                "mismatches": _json_array(sorted(mismatches)),
+            },
         )
     return _check(
         "claimed_rows_match_study_harness",
@@ -339,7 +351,7 @@ def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessChe
         key for details in claim_details for key in details.invalid_task_run_count_keys
     ]
 
-    details = {
+    details: dict[str, Json] = {
         "claims": [details.claim_id for details in claim_details],
         "treatment_task_counts": [details.treatment_task_count for details in claim_details],
         "control_task_counts": [details.control_task_count for details in claim_details],
@@ -350,12 +362,12 @@ def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessChe
         "missing_control_task_counts": [details.missing_control_count for details in claim_details],
     }
     if duplicate_observation_keys:
-        details["duplicate_observation_keys"] = sorted(set(duplicate_observation_keys))
+        details["duplicate_observation_keys"] = _json_array(sorted(set(duplicate_observation_keys)))
     if invalid_run_count_keys:
-        details["invalid_task_run_counts"] = sorted(set(invalid_run_count_keys))
+        details["invalid_task_run_counts"] = _json_array(sorted(set(invalid_run_count_keys)))
     failures = [details.claim_id for details in claim_details if details.has_failures]
     if failures:
-        details["failed_claims"] = sorted(set(failures))
+        details["failed_claims"] = _json_array(sorted(set(failures)))
         return _check(
             "paired_tasks_complete",
             "error",
@@ -467,7 +479,7 @@ def _outcome_supported(study: StudySpec) -> ReadinessCheck:
             "error",
             "fail",
             "v0 supports only higher-is-better success_rate outcomes",
-            {"unsupported": sorted(failures)},
+            {"unsupported": _json_array(sorted(failures))},
         )
     return _check(
         "outcome_supported",
@@ -487,7 +499,7 @@ def _cost_provenance_explicit(study: StudySpec, runs: pl.DataFrame) -> Readiness
             "error",
             "fail",
             "no claimed rows are available for cost-provenance checks",
-            {"claimed_agents": claimed_agents},
+            {"claimed_agents": _json_array(claimed_agents)},
         )
 
     provenance_values = sorted(
@@ -556,9 +568,9 @@ def _cost_provenance_check(
     errors: list[str],
     warnings: list[str],
 ) -> ReadinessCheck:
-    details = {"cost_provenance": provenance_values}
+    details: dict[str, Json] = {"cost_provenance": _json_array(provenance_values)}
     if errors:
-        details["errors"] = sorted(errors)
+        details["errors"] = _json_array(sorted(errors))
         return _check(
             "cost_provenance_explicit",
             "error",
@@ -567,7 +579,7 @@ def _cost_provenance_check(
             details,
         )
     if warnings:
-        details["warnings"] = sorted(warnings)
+        details["warnings"] = _json_array(sorted(warnings))
         return _check(
             "cost_provenance_explicit",
             "warning",

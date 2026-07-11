@@ -33,7 +33,7 @@ from eval_audit.checks import (
 )
 from eval_audit.cli_templates import SLUG_RE, ScaffoldError, scaffold_byo_study
 from eval_audit.fixtures import benchmark_dir_name
-from eval_audit.ingest import IngestContractError
+from eval_audit.ingest import IngestAdapter, IngestContractError
 from eval_audit.ingest.generic import load_run_records
 from eval_audit.ingest.hal_gaia import HalGaiaAdapter
 from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
@@ -133,7 +133,7 @@ def spec_render_cmd(
     typer.echo(f"wrote {out}")
 
 
-_ADAPTERS: dict[str, Callable[[], object]] = {
+_ADAPTERS: dict[str, Callable[[], IngestAdapter]] = {
     "gaia": HalGaiaAdapter,
     "synthetic": SyntheticAdapter,
     "tau_bench": HalTauBenchAdapter,
@@ -151,7 +151,7 @@ _EXAMPLES_BACKED_BENCHMARKS: frozenset[str] = frozenset({"swe-bench-verified", "
 
 @dataclasses.dataclass(frozen=True)
 class _FixtureSource:
-    adapter_factory: Callable[[], object]
+    adapter_factory: Callable[[], IngestAdapter]
     source_dir: Path
     parquet_path: Path
 
@@ -186,13 +186,15 @@ def _fixture_source(study: StudySpec, repo_root: Path) -> _FixtureSource:
     )
 
 
-def _load_runs(study: StudySpec, repo_root: Path):
+def _load_runs(study: StudySpec, repo_root: Path) -> pl.DataFrame:
     source = _fixture_source(study, repo_root)
     adapter = source.adapter_factory()
     return adapter.load(source.source_dir)
 
 
-def _resolve_runs_frame(study: StudySpec, repo_root: Path, runs_override: Path | None):
+def _resolve_runs_frame(
+    study: StudySpec, repo_root: Path, runs_override: Path | None
+) -> pl.DataFrame:
     """Pick between the BYO --runs file and the benchmark-keyed adapter path."""
     if runs_override is None:
         return _load_runs(study, repo_root)
@@ -588,7 +590,7 @@ def gate_cmd(
     )
 
     status = "pass" if not failures else "fail"
-    payload = {
+    payload: dict[str, object] = {
         "study_id": study.id,
         "status": status,
         "readiness": readiness.status,
