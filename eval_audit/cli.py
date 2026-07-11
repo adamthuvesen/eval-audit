@@ -60,7 +60,6 @@ from eval_audit.report.markdown import render_report_to
 from eval_audit.schema import StudySpec
 from eval_audit.spec import render_study_spec
 
-_DETERMINISTIC_AUDIT_CLOCK = datetime(1970, 1, 1, tzinfo=UTC)
 _READINESS_RANK: dict[ReadinessStatus, int] = {
     "not_ready": 0,
     "ready_with_warnings": 1,

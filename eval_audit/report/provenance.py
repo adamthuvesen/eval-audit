@@ -72,8 +72,8 @@ def load_scouting_artifacts(study: StudySpec, repo_root: Path) -> ScoutingArtifa
     )
 
 
-def resolve_decision_artifacts(repo_root: Path, study: StudySpec) -> tuple[Path, str, str]:
-    """Return decision doc path, repo-relative label, and residual risks text."""
+def resolve_decision_artifacts(repo_root: Path, study: StudySpec) -> tuple[str, str]:
+    """Return the decision doc's repo-relative label and residual risks text."""
     decision_md, decision_md_label = resolve_decision_doc(repo_root, study.benchmark, study.id)
     residual_risks_text = extract_residual_risks(decision_md, decision_md_label)
-    return decision_md, decision_md_label, residual_risks_text
+    return decision_md_label, residual_risks_text
