@@ -12,7 +12,7 @@ from eval_audit.report.summary import claim_status, paired_task_count
 from eval_audit.report.vocabulary import VERDICT_RATIONALE
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import CostProvenance
-from eval_audit.stats.results import AnalysisResult
+from eval_audit.stats.results import AgentSummary, AnalysisResult, ClaimResult
 
 
 def what_would_change_it(
@@ -53,7 +53,7 @@ def count_residual_risks(residual_risks_text: str) -> int:
 
 
 def reviewer_pushback(
-    per_agent: list,
+    per_agent: list[AgentSummary],
     presentation: StudyPresentation,
 ) -> str:
     caveats: list[str] = []
@@ -76,7 +76,7 @@ def reviewer_pushback(
 
 
 def render_audit_summary_stanza(
-    claim,
+    claim: ClaimResult,
     decision_token: str,
     status: str,
     target_mde: float | None,

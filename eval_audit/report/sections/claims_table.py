@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from eval_audit.report import ReportContractError
-from eval_audit.report.decisions import DECISION_IMPACT_VOCAB, explain_decision_impact
+from eval_audit.report.decisions import DECISION_IMPACT_VOCAB, ClaimContext, explain_decision_impact
 from eval_audit.report.presentation import StudyPresentation
 from eval_audit.report.vocabulary import STATUS_VOCAB
 from eval_audit.schema.enums import CostProvenance
@@ -57,7 +57,7 @@ def render_verdict_explainer(
     claim: ClaimResult,
     presentation: StudyPresentation,
     evidence_readiness: str,
-    ctx,
+    ctx: ClaimContext,
 ) -> list[str]:
     explanation = explain_decision_impact(ctx)
     cost_gap_ratio = explanation.conditions["cost_gap_ratio"]

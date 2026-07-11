@@ -32,7 +32,7 @@ docs/            field references + per-subsystem design docs; see Index
 
 ```bash
 uv sync --extra dev
-make check        # ruff check + ruff format --check + pytest (the CI gate)
+make check        # ruff check + format check + mypy + pytest (the CI gate)
 make test         # pytest only
 make lint         # ruff check only
 

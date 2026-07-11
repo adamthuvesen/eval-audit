@@ -1,4 +1,4 @@
-.PHONY: test lint format format-check check analyze report
+.PHONY: test lint format format-check typecheck check analyze report
 
 test:
 	uv run pytest
@@ -12,9 +12,13 @@ format:
 format-check:
 	uv run ruff format --check .
 
+typecheck:
+	uv run mypy
+
 check:
 	uv run ruff check .
 	uv run ruff format --check .
+	uv run mypy
 	uv run pytest
 
 analyze:

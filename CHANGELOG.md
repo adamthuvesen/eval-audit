@@ -11,6 +11,10 @@ SemVer tags so a reader can navigate the methodology history.
 
 ## [Unreleased]
 
+### Added
+
+- Mypy type checking to the local and CI `make check` gate.
+
 ### Removed
 
 - Unused report-pipeline internals and a decision-document path that the report
