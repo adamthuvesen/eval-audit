@@ -13,15 +13,8 @@ SemVer tags so a reader can navigate the methodology history.
 
 ### Removed
 
-- `eval_audit/pipeline.py`: unused `AuditArtifacts` dataclass, which was defined
-  but never constructed (the `audit` command builds its artifacts inline).
-- `eval_audit/cli.py`: duplicate `_DETERMINISTIC_AUDIT_CLOCK` constant that
-  nothing referenced; the live copy stays in `eval_audit/pipeline.py`.
-- `eval_audit/report/provenance.py`: discarded decision-doc `Path` from
-  `resolve_decision_artifacts`, which now returns only the repo-relative label
-  and residual-risks text its caller uses.
-
-No public interface or report output changed.
+- Unused report-pipeline internals and a decision-document path that the report
+  discarded. Report output is unchanged.
 
 ## [1.0.0] - 2026-05-03
 
