@@ -66,9 +66,7 @@ def resolve_study_presentation(
 ) -> StudyPresentation:
     """Build presentation flags and provenance metadata for one audit render."""
     repo_root = Path(repo_root)
-    _decision_md, decision_md_label, residual_risks_text = resolve_decision_artifacts(
-        repo_root, study
-    )
+    decision_md_label, residual_risks_text = resolve_decision_artifacts(repo_root, study)
     scouting = load_scouting_artifacts(study, repo_root)
     cost_provenance = resolve_report_cost_provenance(study, runs, scouting.cost_recon_data)
     pareto_suppressed = result.pareto_status == "suppressed_cost_not_available"

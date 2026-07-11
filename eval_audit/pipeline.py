@@ -6,7 +6,6 @@ import dataclasses
 import hashlib
 import json
 from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -22,17 +21,6 @@ from eval_audit.schema import StudySpec
 from eval_audit.stats import AnalysisResult, analyze
 
 _DETERMINISTIC_AUDIT_CLOCK = datetime(1970, 1, 1, tzinfo=UTC)
-
-
-@dataclass(frozen=True)
-class AuditArtifacts:
-    readiness: ReadinessResult
-    result: AnalysisResult
-    check_path: Path
-    analysis_path: Path
-    report_path: Path
-    summary_path: Path
-    html_path: Path | None = None
 
 
 def serialise_result(result: AnalysisResult) -> dict:
