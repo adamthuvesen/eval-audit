@@ -35,7 +35,6 @@ def test_sdist__excludes_local_caches_and_build_outputs(repo_root: Path, tmp_pat
         ".scout-cache",
         ".venv",
         "dist",
-        "openspec",
         "worktrees",
     }
     forbidden_files = {".env", ".env.local"}

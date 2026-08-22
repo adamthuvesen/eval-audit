@@ -76,7 +76,6 @@ exclude = [
     "/.scout-cache",
     "/.venv",
     "/dist",
-    "/openspec",
     "/worktrees",
 ]
 
