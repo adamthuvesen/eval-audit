@@ -263,3 +263,27 @@ def test_gate__cross_harness_refusal_is_not_eligible(
 
     assert result.exit_code != 0
     assert "Cross-harness comparisons are not audit-ready" in result.output
+
+
+@pytest.mark.parametrize("defect", ["missing_study", "malformed_study", "missing_runs"])
+def test_gate_input_failures_are_machine_readable(
+    runner: CliRunner, repo_root: Path, tmp_path: Path, defect: str
+) -> None:
+    from eval_audit.cli import app
+
+    study = repo_root / "examples/byo-minimal/study.yaml"
+    runs = repo_root / "examples/byo-minimal/runs.parquet"
+    if defect == "missing_study":
+        study = tmp_path / "missing.yaml"
+    elif defect == "malformed_study":
+        study = tmp_path / "malformed.yaml"
+        study.write_text("id: [unterminated")
+    else:
+        runs = tmp_path / "missing.parquet"
+    result = runner.invoke(app, ["gate", str(study), "--runs", str(runs), "--json"])
+    assert result.exit_code != 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "fail"
+    assert payload["failures"][0]["type"] == "input"
+    assert str(study if defect != "missing_runs" else runs) in payload["failures"][0]["message"]
+    assert "Traceback" not in result.output

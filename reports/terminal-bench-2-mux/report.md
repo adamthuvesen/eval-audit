@@ -20,7 +20,6 @@
 - **source_fixture:** `examples/terminal-bench-2-mux/runs.parquet`
 - **source_url:** https://www.tbench.ai/leaderboard/terminal-bench/2.0
 - **retrieved_at:** `2026-05-04T04:51:34Z`
-- **price_table_pinned_at:** `2026-05-02`
 - **cost_provenance:** `cost_not_available`
 
 ### Cost provenance caveat
@@ -51,9 +50,20 @@ _Cost columns suppressed: cost provenance is `cost_not_available`._
 |---|---|---|---|---|---|---|
 | mux_gpt53_codex_vs_opus46_submission | declared_reanalysis | supported | +8.09 pp | +5.00 pp | 0.0057 | switch |
 
+**Copyable summary** — `mux_gpt53_codex_vs_opus46_submission`
+
+Claim `mux_gpt53_codex_vs_opus46_submission` verdict `switch` for `Mux__GPT-5.3-Codex` vs `Mux__Claude-Opus-4.6`: delta +8.09 pp with bootstrap CI [+2.47 pp, +13.93 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is cost_not_available, so cost-derived views and cost-driven verdict branches are suppressed.
+
+**Verdict explainer** — `mux_gpt53_codex_vs_opus46_submission`
+
+- **First matching branch:** `rejecting_adjusted_p_value_claim_direction` → `switch`
+- **Rule path:** The correction-adjusted p-value rejects the null and the effect direction matches the declared claim.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=True; effect direction matches claim=True; quality CI crosses zero=False; cost gap ratio=n/a; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
 **MDE context**
 
-- `mux_gpt53_codex_vs_opus46_submission`: bootstrap CI half-width = 5.73 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
+- `mux_gpt53_codex_vs_opus46_submission`: bootstrap CI half-width = 5.73 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; more paired tasks could improve precision under the variance-fixed assumption.
 
 **Verdict sensitivity** — `mux_gpt53_codex_vs_opus46_submission`
 
@@ -110,9 +120,11 @@ _Cost-quality view suppressed: cost provenance is `cost_not_available`. See the 
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-06T17:20:14.179178+00:00`
-- **git_commit:** `cebaf8b`
+- **rendered_at:** `1970-01-01T00:00:00+00:00`
+- **git_commit:** `6138a03`
 - **fixture_sha256:** `3e381bed2a70dcf85959142fdb8c379aabf7a206de9034019ad95cc6cc7153ae`
 - **bootstrap_seed:** `42`
+- **bootstrap_iterations:** `10000`
+- **alpha:** `0.05`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `3fbb9f54c864772bfdfa99737bc231ba195d4ff856a341892d2149e9f3ba0d5d`
+- **check_sha256:** `e19608a3231716a2f07108612f4dd69c4423b44e9f12539e4bb0ec94a5c9a3c1`

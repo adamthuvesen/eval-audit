@@ -8,7 +8,11 @@ from pathlib import Path
 import polars as pl
 
 from eval_audit.report import ReportContractError
-from eval_audit.report.provenance import load_scouting_artifacts, resolve_decision_artifacts
+from eval_audit.report.provenance import (
+    EvidenceSource,
+    load_scouting_artifacts,
+    resolve_decision_artifacts,
+)
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import CostProvenance
 from eval_audit.stats.results import AnalysisResult
@@ -25,7 +29,7 @@ class StudyPresentation:
     source_url: str
     retrieved_at: str
     residual_risks_text: str
-    decision_md_label: str
+    decision_md_label: str | None
     cost_recon_data: dict
 
 
@@ -45,17 +49,15 @@ def resolve_report_cost_provenance(
     cost_recon_data: dict,
 ) -> str:
     """Resolve headline cost provenance with the same priority as render_report."""
-    if cost_recon_data:
-        return str(cost_recon_data.get("outcome", "n/a"))
-    if study.analysis_mode == "preregistered":
-        return row_level_cost_provenance(runs)
-    try:
-        row_level = row_level_cost_provenance(runs)
-    except ReportContractError:
-        return "n/a"
-    if row_level == CostProvenance.COST_NOT_AVAILABLE.value:
-        return row_level
-    return "n/a"
+    scoped = runs.filter(pl.col("agent_id").is_in([agent.id for agent in study.agents]))
+    values = sorted(str(value) for value in scoped["cost_provenance"].unique().to_list())
+    row_level = values[0] if len(values) == 1 else "mixed"
+    outcome = cost_recon_data.get("outcome")
+    if outcome is not None and outcome != row_level:
+        raise ReportContractError(
+            f"cost receipt declares {outcome!r}, but analyzed rows declare {row_level!r}"
+        )
+    return row_level
 
 
 def resolve_study_presentation(
@@ -63,11 +65,12 @@ def resolve_study_presentation(
     runs: pl.DataFrame,
     result: AnalysisResult,
     repo_root: Path,
+    source: EvidenceSource | None = None,
 ) -> StudyPresentation:
     """Build presentation flags and provenance metadata for one audit render."""
     repo_root = Path(repo_root)
-    decision_md_label, residual_risks_text = resolve_decision_artifacts(repo_root, study)
-    scouting = load_scouting_artifacts(study, repo_root)
+    decision_md_label, residual_risks_text = resolve_decision_artifacts(repo_root, study, source)
+    scouting = load_scouting_artifacts(repo_root, source)
     cost_provenance = resolve_report_cost_provenance(study, runs, scouting.cost_recon_data)
     pareto_suppressed = result.pareto_status == "suppressed_cost_not_available"
     cost_suppressed = cost_provenance == CostProvenance.COST_NOT_AVAILABLE.value

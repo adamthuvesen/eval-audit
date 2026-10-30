@@ -134,8 +134,6 @@ def summarize_agents_for_pareto(
     for agent_ref in study.agents:
         agent_id = agent_ref.id
         rows = runs.filter(pl.col("agent_id") == agent_id)
-        if policy == ErroredRowPolicy.graded_only:
-            rows = rows.filter(pl.col("outcome_status") == "graded")
         if rows.height == 0:
             continue
         summary = summarize_agent(agent_id, rows, alpha, policy=policy)

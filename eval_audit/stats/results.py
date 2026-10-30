@@ -11,6 +11,19 @@ ParetoStatus = Literal["computed", "suppressed_cost_not_available"]
 
 
 @dataclass(frozen=True)
+class AnalysisSettings:
+    alpha: float = 0.05
+    bootstrap_iterations: int = 10_000
+    bootstrap_seed: int = 42
+
+    def __post_init__(self) -> None:
+        if not 0.0 < self.alpha < 1.0:
+            raise ValueError("alpha must be > 0 and < 1")
+        if self.bootstrap_iterations < 1:
+            raise ValueError("bootstrap_iterations must be >= 1")
+
+
+@dataclass(frozen=True)
 class AgentSummary:
     agent_id: str
     n_graded: int
@@ -45,5 +58,9 @@ class AnalysisResult:
     per_agent: list[AgentSummary]
     claims: list[ClaimResult]
     pareto_frontier: set[str]
-    bootstrap_seed: int
+    settings: AnalysisSettings
     pareto_status: ParetoStatus = "computed"
+
+    @property
+    def bootstrap_seed(self) -> int:
+        return self.settings.bootstrap_seed

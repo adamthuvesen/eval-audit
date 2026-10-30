@@ -1,0 +1,64 @@
+{
+  "artifact_hashes": {
+    "analysis_json": "41c8b3ccef3c65afd021504008ae14bd2daa21393484dd29111ad5d1871fdd42",
+    "check_json": "c7aa3e9286ae389af5543e50be589d3c6cd0d39b8ef024d0213d33ac1f928fb9",
+    "report_md": "db3b4fde4843188885b9ecba7f388df7ee06c4a6814ffa28b0b7050023188e6f"
+  },
+  "artifact_paths": {
+    "analysis_json": "analysis.json",
+    "check_json": "check.json",
+    "report_md": "report.md"
+  },
+  "claims": [
+    {
+      "adjusted_p_value": 0.00018887665699298818,
+      "artifact_hashes": {
+        "analysis_json": "41c8b3ccef3c65afd021504008ae14bd2daa21393484dd29111ad5d1871fdd42",
+        "check_json": "c7aa3e9286ae389af5543e50be589d3c6cd0d39b8ef024d0213d33ac1f928fb9",
+        "report_md": "db3b4fde4843188885b9ecba7f388df7ee06c4a6814ffa28b0b7050023188e6f"
+      },
+      "artifact_paths": {
+        "analysis_json": "analysis.json",
+        "check_json": "check.json",
+        "report_md": "report.md"
+      },
+      "ci_high": 0.08800000000000008,
+      "ci_low": 0.030000000000000027,
+      "claim_id": "opus45_vs_gpt5_submission",
+      "claim_status": "supported",
+      "claim_text": "On SWE-bench Verified (500 tasks), the public OpenHands + Claude Opus 4.5 submission (20251127_openhands_claude-opus-4-5) resolves 388/500 instances and the public OpenHands + GPT-5 submission (20250807_openhands_gpt5) resolves 359/500. This re-analysis evaluates whether the +5.8 pp headline gap is statistically distinguishable from noise once the paired discordants (45 treatment-only solves vs 16 control-only solves) are surfaced. The submissions differ in OpenHands runtime commit and `max_iterations` budget (500 vs 100); this is a submission-level audit, not a model-only effect.",
+      "control": "20250807_openhands_gpt5",
+      "control_total_cost_usd": null,
+      "cost_caveat": "cost provenance is cost_not_available; cost-derived views and cost-driven verdict branches are suppressed",
+      "cost_provenance": "cost_not_available",
+      "delta": 0.05800000000000005,
+      "human_summary": "Claim `opus45_vs_gpt5_submission` verdict `switch` for `20251127_openhands_claude-opus-4-5` vs `20250807_openhands_gpt5`: delta +5.80 pp with bootstrap CI [+3.00 pp, +8.80 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is cost_not_available; cost-derived views and cost-driven verdict branches are suppressed.",
+      "paired_tasks": 500,
+      "readiness": "ready_with_warnings",
+      "rejects_null": true,
+      "study_id": "swe-bench-verified-openhands",
+      "treatment": "20251127_openhands_claude-opus-4-5",
+      "treatment_total_cost_usd": null,
+      "verdict": "switch",
+      "verdict_explanation": {
+        "conditions": {
+          "ci_crosses_zero": false,
+          "cost_available": false,
+          "cost_gap_ratio": null,
+          "cost_gap_threshold": 0.1,
+          "effect_direction_matches_claim": true,
+          "has_material_cost_gap": false,
+          "rejects_adjusted_null": true,
+          "treatment_is_dominated": false
+        },
+        "first_matching_branch": "rejecting_adjusted_p_value_claim_direction",
+        "summary": "The correction-adjusted p-value rejects the null and the effect direction matches the declared claim.",
+        "suppressed_branches": [],
+        "verdict": "switch"
+      }
+    }
+  ],
+  "readiness": "ready_with_warnings",
+  "schema_version": 1,
+  "study_id": "swe-bench-verified-openhands"
+}

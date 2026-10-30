@@ -56,12 +56,11 @@ survives standard reviewer perturbations across five fixed dimensions.
    eval-audit validate runs.parquet study.yaml
    eval-audit check study.yaml --runs runs.parquet
    eval-audit analyze study.yaml --runs runs.parquet
-   eval-audit report study.yaml --runs runs.parquet --skip-validation
+   eval-audit report study.yaml --runs runs.parquet
    ```
 
-   The standalone report command warns when `--skip-validation` is used because
-   it bypasses the source-checkout synthetic-validation gate. Use `audit` for a
-   complete final artifact set.
+   Both `report` and `audit` validate evidence and publish a complete artifact set.
+   Synthetic recovery runs in `make check`, without requiring pytest in the installed CLI.
 
 For the formal field-by-field `RunRecord` reference (every column, what
 analysis uses it for, BYO guidance for awkward fields), see

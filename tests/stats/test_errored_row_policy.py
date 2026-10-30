@@ -217,11 +217,11 @@ def test_errored_row_policy__paired_bootstrap_task_set_aligned_with_errored() ->
     assert abs(claim.delta_point_estimate - (0.44 - 0.56)) < 1e-9
 
 
-def test_errored_row_policy__malformed_errored_success_treated_as_failure() -> None:
-    """WHEN analysis receives a bypassed frame with success=True on an errored row,
-    THEN both the headline summary and bootstrap treat that row as failure.
-    """
-    from eval_audit.stats import analyze
+def test_errored_row_policy__malformed_errored_success_rejected() -> None:
+    """Reject contradictory outcomes before statistical analysis."""
+    import pytest
+
+    from eval_audit.stats import AnalysisInputError, analyze
 
     rows = [
         _row(agent_id="agent", task_id="t0", outcome_status="errored", success=True),
@@ -232,11 +232,8 @@ def test_errored_row_policy__malformed_errored_success_treated_as_failure() -> N
     frame = pl.DataFrame(rows, strict=False)
     study = _stub_study("agent", "control")
 
-    result = analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
-
-    by_id = {s.agent_id: s for s in result.per_agent}
-    assert by_id["agent"].success_rate == 0.0
-    assert result.claims[0].delta_point_estimate == 0.0
+    with pytest.raises(AnalysisInputError, match="success"):
+        analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
 
 
 def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:

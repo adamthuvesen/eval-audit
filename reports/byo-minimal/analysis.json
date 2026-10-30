@@ -49,6 +49,11 @@
     "alice",
     "bob"
   ],
-  "bootstrap_seed": 42,
-  "pareto_status": "computed"
+  "settings": {
+    "alpha": 0.05,
+    "bootstrap_iterations": 10000,
+    "bootstrap_seed": 42
+  },
+  "pareto_status": "computed",
+  "bootstrap_seed": 42
 }

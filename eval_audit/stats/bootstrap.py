@@ -18,66 +18,42 @@ class BootstrapResult(NamedTuple):
     seed: int
 
 
-def _validate_bootstrap_inputs(
+def paired_outcome_vectors(
     arm_a: pl.DataFrame,
     arm_b: pl.DataFrame,
     *,
-    outcome: str,
-    n_iter: int,
-    alpha: float,
-) -> None:
-    if n_iter < 1:
-        raise ValueError(f"n_iter must be >= 1 (got {n_iter})")
-    if not 0.0 < alpha < 1.0:
-        raise ValueError(f"alpha must be > 0 and < 1 (got {alpha})")
+    outcome: str = "success",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return sorted task means, refusing empty or mismatched task populations."""
     for label, arm in (("arm_a", arm_a), ("arm_b", arm_b)):
         if "task_id" not in arm.columns:
             raise ValueError(f"{label} is missing required column 'task_id'")
         if arm.height == 0:
             raise ValueError(
-                f"paired task bootstrap requires at least one paired task ({label} is empty)"
+                f"paired analysis requires at least one paired task ({label} is empty)"
             )
-    for label, arm in (("arm_a", arm_a), ("arm_b", arm_b)):
         if outcome not in arm.columns:
             raise ValueError(f"{label} is missing outcome column {outcome!r}")
-
     tasks_a = set(arm_a["task_id"].to_list())
     tasks_b = set(arm_b["task_id"].to_list())
     if tasks_a != tasks_b:
         diff = tasks_a.symmetric_difference(tasks_b)
         raise ValueError(
-            f"paired bootstrap requires identical task sets; "
+            "paired analysis requires identical task sets; "
             f"symmetric difference has {len(diff)} task_id(s)"
         )
-
-
-def _paired_outcome_vectors(
-    arm_a: pl.DataFrame,
-    arm_b: pl.DataFrame,
-    *,
-    outcome: str,
-) -> tuple[np.ndarray, np.ndarray]:
-    # Aggregate per-task means so each task contributes one value per arm.
-    # Sort by task_id so the index space the rng samples over is stable across runs;
-    # polars group_by returns rows in hash order by default, which makes seeded
-    # bootstraps non-deterministic across processes.
-    # Errored rows (success == None) are coerced to 0.0 here so they contribute as
-    # failures to the per-task arm mean, matching the errored-row denominator policy.
+    use_outcome_status = (
+        outcome == "success"
+        and "outcome_status" in arm_a.columns
+        and "outcome_status" in arm_b.columns
+    )
+    outcome_expr = numeric_outcome_expr(outcome, use_outcome_status=use_outcome_status)
     try:
-        use_outcome_status = (
-            outcome == "success"
-            and "outcome_status" in arm_a.columns
-            and "outcome_status" in arm_b.columns
-        )
-        outcome_expr = numeric_outcome_expr(outcome, use_outcome_status=use_outcome_status)
         a_means = arm_a.group_by("task_id").agg(outcome_expr.mean().alias("_a")).sort("task_id")
         b_means = arm_b.group_by("task_id").agg(outcome_expr.mean().alias("_b")).sort("task_id")
-    except Exception as exc:
+    except (pl.exceptions.PolarsError, TypeError) as exc:
         raise ValueError(f"outcome column {outcome!r} cannot be used numerically") from exc
-    paired = a_means.join(b_means, on="task_id", how="inner").sort("task_id")
-    if paired.height == 0:
-        raise ValueError("paired task bootstrap requires at least one paired task")
-    return paired["_a"].to_numpy(), paired["_b"].to_numpy()
+    return a_means["_a"].to_numpy(), b_means["_b"].to_numpy()
 
 
 def _bootstrap_deltas(
@@ -107,14 +83,11 @@ def paired_task_bootstrap(
     Both arms must share the exact same set of task_id values; the function refuses
     to silently align mismatched task sets.
     """
-    _validate_bootstrap_inputs(
-        arm_a,
-        arm_b,
-        outcome=outcome,
-        n_iter=n_iter,
-        alpha=alpha,
-    )
-    a_vec, b_vec = _paired_outcome_vectors(arm_a, arm_b, outcome=outcome)
+    if n_iter < 1:
+        raise ValueError(f"n_iter must be >= 1 (got {n_iter})")
+    if not 0.0 < alpha < 1.0:
+        raise ValueError(f"alpha must be > 0 and < 1 (got {alpha})")
+    a_vec, b_vec = paired_outcome_vectors(arm_a, arm_b, outcome=outcome)
     point = float(a_vec.mean() - b_vec.mean())
     deltas = _bootstrap_deltas(a_vec, b_vec, n_iter=n_iter, seed=seed)
     lo = float(np.quantile(deltas, alpha / 2))

@@ -107,7 +107,23 @@ def test_report__inherited_residual_risks_are_not_edited(
     bullets in scouting/gaia-hal-generalist-decision.md byte-for-byte after whitespace normalization.
     """
     study, runs, result = gaia_hal_generalist_inputs
-    text = _render(study, runs, result, repo_root)
+    from eval_audit.report.markdown import render_report
+    from eval_audit.report.provenance import EvidenceSource
+
+    text = render_report(
+        result,
+        study,
+        runs,
+        clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
+        git_commit="deadbeef",
+        fixture_sha256="0" * 64,
+        repo_root=repo_root,
+        source=EvidenceSource.from_path(
+            repo_root / "scouting/candidates/gaia/sample.parquet",
+            source_kind="adapter",
+            source_dir=repo_root / "scouting/candidates/gaia",
+        ),
+    )
 
     # Extract the inherited block from the rendered report.
     marker = "Inherited from scouting decision"
@@ -449,7 +465,7 @@ def test_what_would_change_it__ci_inside_mde_surfaces_half_width_and_mde_numbers
     assert line == (
         "the study already resolves below the declared MDE "
         "(CI half-width 1.50 pp ≤ MDE 3.00 pp); "
-        "no additional N would change the verdict"
+        "new evidence can still change the verdict"
     )
 
 

@@ -18,6 +18,9 @@ eval_audit/
 ├── stats/       intervals, bootstrap, correction, paired analysis, Pareto
 ├── report/      markdown rendering, decision rules, sensitivity tables
 ├── spec/        deterministic study-spec rendering
+├── evidence.py  canonical validation, study scope, and comparability
+├── pipeline.py  prepare one audit artifact set without writes
+├── artifacts.py contained publication and completion state
 └── cli.py       Typer CLI (entry point eval-audit)
 
 studies/         declared study YAML files
@@ -31,7 +34,7 @@ docs/            field references + per-subsystem design docs; see Index
 ## Quickstart
 
 ```bash
-uv sync --extra dev
+make setup
 make check        # ruff check + format check + mypy + pytest (the CI gate)
 make test         # pytest only
 make lint         # ruff check only
@@ -42,7 +45,7 @@ uv run eval-audit report studies/gaia-hal-generalist.yaml
 ```
 
 `make check` is the single source of truth for CI. The workflow invokes it
-directly. If it passes locally, CI passes.
+directly. Local success covers the local environment. CI validates its own Python and OS environment.
 
 ## Critical Conventions
 
@@ -59,8 +62,8 @@ Non-obvious rules; verify each against code before relying on it.
 - **Never hide uncertainty.** Confidence intervals, adjusted p-values, target
   MDE, errored-row policy, cost provenance, and sensitivity tables are the
   product, not decorations.
-- **Cost provenance is first-class** and has three explicit modes
-  (`reconciled`, `as_reported_only`, `cost_not_available`); never fabricate
+- **Cost provenance is first-class** and has four explicit modes
+  (`reconciled`, `partial`, `as_reported_only`, `cost_not_available`); never fabricate
   cost to dodge the no-data mode. See [docs/design-ingest.md](docs/design-ingest.md).
 - **Reports are deterministic.** Snapshot changes are intentional artifacts, not
   incidental churn; regenerate them only after reviewing the diff. See
@@ -105,6 +108,7 @@ stop and name the uncertainty.
 
 ## Index
 
-Start with [docs/STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md) and
+Start with [docs/architecture.md](docs/architecture.md) for ownership and change recipes.
+Then read [docs/STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md) and
 [docs/INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md) for the data contract, then
 follow the per-subsystem design docs above.

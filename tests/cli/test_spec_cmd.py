@@ -99,3 +99,28 @@ def test_cli_spec_render__rejects_unsupported_format(
     )
     assert result.exit_code != 0
     assert "markdown" in result.output.lower()
+
+
+@pytest.mark.parametrize(
+    "model,field", [("study", "claims"), ("run", "success"), ("summary", "schema_version")]
+)
+def test_schema_command_exposes_authoritative_contract(
+    runner: CliRunner, model: str, field: str
+) -> None:
+    import json
+
+    from eval_audit.cli import app
+
+    result = runner.invoke(app, ["spec", "schema", "--model", model])
+    assert result.exit_code == 0, result.output
+    schema = json.loads(result.stdout)
+    assert field in schema["properties"]
+    assert schema["additionalProperties"] is False
+
+
+def test_schema_command_rejects_unknown_contract(runner: CliRunner) -> None:
+    from eval_audit.cli import app
+
+    result = runner.invoke(app, ["spec", "schema", "--model", "unknown"])
+    assert result.exit_code != 0
+    assert "study, run, or summary" in result.output

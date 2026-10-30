@@ -55,6 +55,7 @@ def _stub_study_for_taubench():
 def _render_taubench_report(repo_root: Path, readiness_kwargs) -> str:
     from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
     from eval_audit.report.markdown import render_report
+    from eval_audit.report.provenance import EvidenceSource
     from eval_audit.stats import analyze
 
     study = _stub_study_for_taubench()
@@ -77,6 +78,11 @@ def _render_taubench_report(repo_root: Path, readiness_kwargs) -> str:
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=repo_root,
+        source=EvidenceSource.from_path(
+            repo_root / "scouting/candidates/tau-bench/sample.parquet",
+            source_kind="adapter",
+            source_dir=repo_root / "scouting/candidates/tau-bench",
+        ),
         bootstrap_iterations=500,
         bootstrap_seed=42,
         **readiness_kwargs(study, runs, repo_root),
@@ -116,6 +122,7 @@ def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path, readiness_k
     """Reconciled fixtures do not get a cost-provenance caveat warning block."""
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.report.markdown import render_report
+    from eval_audit.report.provenance import EvidenceSource
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
@@ -130,6 +137,11 @@ def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path, readiness_k
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=repo_root,
+        source=EvidenceSource.from_path(
+            repo_root / "scouting/candidates/gaia/sample.parquet",
+            source_kind="adapter",
+            source_dir=repo_root / "scouting/candidates/gaia",
+        ),
         bootstrap_iterations=10_000,
         bootstrap_seed=42,
         **readiness_kwargs(study, runs, repo_root),
@@ -212,6 +224,7 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
 
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.report.markdown import render_report
+    from eval_audit.report.provenance import EvidenceSource
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
@@ -235,6 +248,11 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=shadow_root,
+        source=EvidenceSource.from_path(
+            shadow_root / "scouting/candidates/gaia/sample.parquet",
+            source_kind="adapter",
+            source_dir=shadow_root / "scouting/candidates/gaia",
+        ),
         bootstrap_iterations=200,
         bootstrap_seed=42,
     )

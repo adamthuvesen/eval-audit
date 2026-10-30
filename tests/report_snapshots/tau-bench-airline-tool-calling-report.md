@@ -40,7 +40,6 @@
 - **source_fixture:** `scouting/candidates/tau-bench/sample.parquet`
 - **source_url:** https://huggingface.co/datasets/agent-evals/hal_traces
 - **retrieved_at:** `2026-05-02T06:43:37.958388+00:00`
-- **price_table_pinned_at:** `2026-05-02`
 - **cost_provenance:** `as_reported_only`
 
 ### Cost provenance caveat
@@ -110,9 +109,9 @@ Claim `claude_vs_o3` verdict `drop_from_shortlist` for `Taubench ToolCalling (cl
 
 **MDE context**
 
-- `o4mini_vs_claude`: bootstrap CI half-width = 17.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
-- `o4mini_vs_o3`: bootstrap CI half-width = 15.02 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
-- `claude_vs_o3`: bootstrap CI half-width = 16.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
+- `o4mini_vs_claude`: bootstrap CI half-width = 17.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; more paired tasks could improve precision under the variance-fixed assumption.
+- `o4mini_vs_o3`: bootstrap CI half-width = 15.02 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; more paired tasks could improve precision under the variance-fixed assumption.
+- `claude_vs_o3`: bootstrap CI half-width = 16.00 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; more paired tasks could improve precision under the variance-fixed assumption.
 
 **Verdict sensitivity** — `o4mini_vs_claude`
 
@@ -212,5 +211,7 @@ Dominated agents: ['Taubench ToolCalling (claude-3.7-sonnet)', 'Taubench ToolCal
 - **git_commit:** `snapshot`
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
+- **bootstrap_iterations:** `10000`
+- **alpha:** `0.05`
 - **evidence_readiness:** `ready_with_warnings`
 - **check_sha256:** `6e6185c7d654d247eb492eeb4ef0c11d819489da49c99efdb1718d133ebf4681`

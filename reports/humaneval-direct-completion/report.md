@@ -56,14 +56,14 @@ Claim `sonnet46_vs_haiku45_on_humaneval30` verdict `inconclusive_no_action` for 
 
 **MDE context**
 
-- `sonnet46_vs_haiku45_on_humaneval30`: bootstrap CI half-width = 10.83 pp vs target_mde = 10.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
+- `sonnet46_vs_haiku45_on_humaneval30`: bootstrap CI half-width = 10.83 pp vs target_mde = 10.00 pp — the study has resolution coarser than the declared MDE; more paired tasks could improve precision under the variance-fixed assumption.
 
 **Verdict sensitivity** — `sonnet46_vs_haiku45_on_humaneval30`
 
 | dimension | value | verdict |
 |---|---|---|
 | baseline | locked | inconclusive_no_action |
-| alpha | 0.01 | inconclusive_no_action |
+| alpha | 0.01 | hedge_on_cost ← flips |
 | alpha | 0.10 | switch ← flips |
 | errored_policy | excluded | inconclusive_no_action |
 | correction_method | none | inconclusive_no_action |
@@ -74,7 +74,7 @@ Claim `sonnet46_vs_haiku45_on_humaneval30` verdict `inconclusive_no_action` for 
 
 | Dimension | Result | Notes |
 |---|---|---|
-| Multiple-comparison correction | does not survive | verdict flips at α=0.10 |
+| Multiple-comparison correction | does not survive | verdict flips at α=0.01, α=0.10 |
 | Errored-row policy | survives | verdict unchanged when errored rows excluded |
 | Cost-threshold sensitivity | survives | verdict unchanged at cost_gap_threshold∈{0.05, 0.20} |
 | Target MDE | does not survive | CI half-width 10.83 pp > MDE 10.00 pp; under-resolved |
@@ -104,9 +104,11 @@ All agents are on the frontier; no dominance to report.
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-07-06T09:02:15.593453+00:00`
-- **git_commit:** `acb63d5`
+- **rendered_at:** `1970-01-01T00:00:00+00:00`
+- **git_commit:** `6138a03`
 - **fixture_sha256:** `ac17a871afa796946946f63239ed57e609d6146d68e8f3cc1bf5b3e51575613d`
 - **bootstrap_seed:** `42`
+- **bootstrap_iterations:** `10000`
+- **alpha:** `0.05`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `dcf7f94aaf178c8c184aa85128c8553d227dc14cecc15aabd6f6372f02b467f8`
+- **check_sha256:** `546d89ebb8bcbf60beed1c34f47b82d456d589c9bf3269d7d3bd3fa8259f0876`

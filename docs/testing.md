@@ -31,3 +31,68 @@ The `synthetic_validation` marker runs end-to-end recovery checks against
 ```bash
 uv run pytest -m synthetic_validation tests/synthetic_validation
 ```
+
+## Locked developer setup
+
+Use `make setup` to check the lockfile and install development dependencies with `uv sync --locked --extra dev`.
+`make check` runs the same named checks locally and in CI:
+
+| Target | Scope |
+| --- | --- |
+| `make lock-check` | Reject a stale lockfile |
+| `make lint` | Ruff lint |
+| `make format-check` | Ruff format check |
+| `make typecheck` | Runtime package and shared fixture I/O helpers |
+| `make test` | Full test suite |
+| `make test-cli` | Command behavior |
+| `make test-packaging` | Source distribution hygiene and installed wheel workflow |
+| `make test-scouting` | Offline fixture replay, promotion failures, historical grader safeguards |
+| `make test-snapshots` | Report snapshots |
+| `make test-synthetic` | Synthetic recovery gate |
+
+The wheel test builds a wheel and installs it in a temporary virtual environment outside the checkout.
+It exports exact runtime artifacts from `uv.lock` through `pylock.toml` and installs cached artifacts offline.
+Run `make setup` first to populate the cache for the current interpreter and platform.
+The environment excludes development dependencies and verifies that `pytest` is absent.
+The test exercises version, relative-path init, validate, audit, report, gate, and portfolio commands.
+
+## Public fixture regeneration
+
+Fixture tools default to offline replay. Replay requires a local cache with `manifest.json` and hashed source bytes.
+Replay checks source hashes and preserves the refresh timestamp.
+The historical committed fixtures do not include these source caches.
+Their provenance alone cannot supply a complete offline replay.
+
+```bash
+uv run --locked python tools/regenerate_swe_bench_verified.py \
+  --cache-dir .scout-cache/swe-pinned --output-dir /tmp/swe-replay
+uv run --locked python tools/regenerate_terminal_bench_mux.py \
+  --cache-dir .scout-cache/terminal-pinned --output-dir /tmp/terminal-replay
+```
+
+Refresh requires `--mode refresh` and a full dataset commit SHA through `--revision`.
+The SWE-bench tool also requires the experiments repository commit SHA through `--experiments-revision`.
+Refresh fetches only revision-pinned URLs, with a 30-second request timeout.
+Use a separate cache directory for each source revision.
+Review candidate output in a separate `--output-dir` before replacing canonical evidence.
+Any differing existing fixture requires `--accept-evidence-change`, including during replay.
+Rerun affected reports and review their evidence after an accepted change.
+
+Each tool stages parquet and provenance, then validates the staged pair before canonical promotion.
+A failed replacement restores files already replaced by that operation.
+Pair replacement is not crash-atomic. Do not run concurrent readers or writers during promotion.
+Offline tests cover corrupt cache bytes, invalid task IDs, missing usage, missing timestamps, and partial replacement failures.
+
+## Historical HumanEval tooling
+
+The historical grader CLI refuses model-completion execution because it has no isolated execution backend.
+A sanitized environment, Python `-I`, temporary directory, and timeout do not provide containment.
+The private subprocess helper accepts only repository-authored test fixtures.
+Its completion receipt prevents an early `sys.exit(0)` from counting as a completed test.
+The receipt is a correctness check, not a security boundary.
+Tests distinguish candidate failures, timeouts, incomplete execution, and infrastructure errors.
+
+The normalizer rejects unknown token usage, missing timestamps, and historical grades without completion receipts.
+It derives canonical columns from `RunRecord` and validates staged parquet before replacement.
+Existing recorded grades, fixtures, and reports retain their historical evidence meaning.
+These checks do not revalidate historical grades or provide an isolated execution backend.

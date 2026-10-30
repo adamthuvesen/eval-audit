@@ -1,0 +1,158 @@
+{
+  "artifact_hashes": {
+    "analysis_json": "f796bba61f26abdde27a62399d1f07dfdc953c8a74070e03779322fc53f8e5a6",
+    "check_json": "8470a0b17c0831a7041151e6d06cf51ed9fa85bcf05f1ed6e7675849d8050f49",
+    "report_md": "2a4fe9dc1e01006b1ca776c509227b8bb350f12ff862513fa98221d76bbfc7be"
+  },
+  "artifact_paths": {
+    "analysis_json": "analysis.json",
+    "check_json": "check.json",
+    "report_md": "report.md"
+  },
+  "claims": [
+    {
+      "adjusted_p_value": 0.5470548337191132,
+      "artifact_hashes": {
+        "analysis_json": "f796bba61f26abdde27a62399d1f07dfdc953c8a74070e03779322fc53f8e5a6",
+        "check_json": "8470a0b17c0831a7041151e6d06cf51ed9fa85bcf05f1ed6e7675849d8050f49",
+        "report_md": "2a4fe9dc1e01006b1ca776c509227b8bb350f12ff862513fa98221d76bbfc7be"
+      },
+      "artifact_paths": {
+        "analysis_json": "analysis.json",
+        "check_json": "check.json",
+        "report_md": "report.md"
+      },
+      "ci_high": 0.28,
+      "ci_low": -0.05999999999999994,
+      "claim_id": "o4mini_vs_claude",
+      "claim_status": "inconclusive",
+      "claim_text": "Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and Claude 3.7 Sonnet at 44% (folding errored rows in as failures). This reanalysis evaluates whether that 12 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 1.8x cost gap ($8.38 vs $15.45).",
+      "control": "Taubench ToolCalling (claude-3.7-sonnet)",
+      "control_total_cost_usd": 15.445473000000002,
+      "cost_caveat": "cost provenance is as_reported_only; costs come from reported totals rather than reconciled per-task reconstruction",
+      "cost_provenance": "as_reported_only",
+      "delta": 0.12000000000000005,
+      "human_summary": "Claim `o4mini_vs_claude` verdict `hedge_on_cost` for `Taubench ToolCalling (o4-mini-2025-04-16 high)` vs `Taubench ToolCalling (claude-3.7-sonnet)`: delta +12.00 pp with bootstrap CI [-6.00 pp, +28.00 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is as_reported_only; costs come from reported totals rather than reconciled per-task reconstruction.",
+      "paired_tasks": 50,
+      "readiness": "ready_with_warnings",
+      "rejects_null": false,
+      "study_id": "tau-bench-airline-tool-calling",
+      "treatment": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+      "treatment_total_cost_usd": 8.3796796,
+      "verdict": "hedge_on_cost",
+      "verdict_explanation": {
+        "conditions": {
+          "ci_crosses_zero": true,
+          "cost_available": true,
+          "cost_gap_ratio": 0.8432056757874135,
+          "cost_gap_threshold": 0.1,
+          "effect_direction_matches_claim": true,
+          "has_material_cost_gap": true,
+          "rejects_adjusted_null": false,
+          "treatment_is_dominated": false
+        },
+        "first_matching_branch": "uncertainty_with_material_cost_gap",
+        "summary": "The quality interval crosses zero and the cost gap meets the material threshold.",
+        "suppressed_branches": [],
+        "verdict": "hedge_on_cost"
+      }
+    },
+    {
+      "adjusted_p_value": 0.7991957088977212,
+      "artifact_hashes": {
+        "analysis_json": "f796bba61f26abdde27a62399d1f07dfdc953c8a74070e03779322fc53f8e5a6",
+        "check_json": "8470a0b17c0831a7041151e6d06cf51ed9fa85bcf05f1ed6e7675849d8050f49",
+        "report_md": "2a4fe9dc1e01006b1ca776c509227b8bb350f12ff862513fa98221d76bbfc7be"
+      },
+      "artifact_paths": {
+        "analysis_json": "analysis.json",
+        "check_json": "check.json",
+        "report_md": "report.md"
+      },
+      "ci_high": 0.17999999999999994,
+      "ci_low": -0.1204999999999996,
+      "claim_id": "o4mini_vs_o3",
+      "claim_status": "inconclusive",
+      "claim_text": "Within TAU-bench Airline under the Tool Calling harness, the leaderboard reports o4-mini High at 56% and o3 Medium at 54%. This reanalysis evaluates whether that 2 percentage point gap supports a model-selection decision once uncertainty and the 3.8x cost gap ($8.38 vs $32.24) are shown.",
+      "control": "Taubench ToolCalling (o3-2025-04-16)",
+      "control_total_cost_usd": 32.235387,
+      "cost_caveat": "cost provenance is as_reported_only; costs come from reported totals rather than reconciled per-task reconstruction",
+      "cost_provenance": "as_reported_only",
+      "delta": 0.020000000000000018,
+      "human_summary": "Claim `o4mini_vs_o3` verdict `hedge_on_cost` for `Taubench ToolCalling (o4-mini-2025-04-16 high)` vs `Taubench ToolCalling (o3-2025-04-16)`: delta +2.00 pp with bootstrap CI [-12.05 pp, +18.00 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is as_reported_only; costs come from reported totals rather than reconciled per-task reconstruction.",
+      "paired_tasks": 50,
+      "readiness": "ready_with_warnings",
+      "rejects_null": false,
+      "study_id": "tau-bench-airline-tool-calling",
+      "treatment": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+      "treatment_total_cost_usd": 8.3796796,
+      "verdict": "hedge_on_cost",
+      "verdict_explanation": {
+        "conditions": {
+          "ci_crosses_zero": true,
+          "cost_available": true,
+          "cost_gap_ratio": 2.84685197271743,
+          "cost_gap_threshold": 0.1,
+          "effect_direction_matches_claim": true,
+          "has_material_cost_gap": true,
+          "rejects_adjusted_null": false,
+          "treatment_is_dominated": false
+        },
+        "first_matching_branch": "uncertainty_with_material_cost_gap",
+        "summary": "The quality interval crosses zero and the cost gap meets the material threshold.",
+        "suppressed_branches": [],
+        "verdict": "hedge_on_cost"
+      }
+    },
+    {
+      "adjusted_p_value": 0.5470548337191132,
+      "artifact_hashes": {
+        "analysis_json": "f796bba61f26abdde27a62399d1f07dfdc953c8a74070e03779322fc53f8e5a6",
+        "check_json": "8470a0b17c0831a7041151e6d06cf51ed9fa85bcf05f1ed6e7675849d8050f49",
+        "report_md": "2a4fe9dc1e01006b1ca776c509227b8bb350f12ff862513fa98221d76bbfc7be"
+      },
+      "artifact_paths": {
+        "analysis_json": "analysis.json",
+        "check_json": "check.json",
+        "report_md": "report.md"
+      },
+      "ci_high": 0.06000000000000005,
+      "ci_low": -0.26000000000000006,
+      "claim_id": "claude_vs_o3",
+      "claim_status": "inconclusive",
+      "claim_text": "Within TAU-bench Airline under the Tool Calling harness, Claude 3.7 Sonnet is reported at 44% (with 3 of 50 errored rows folded in as failures) and o3 Medium at 54%. This reanalysis evaluates whether that 10 percentage point gap is statistically distinguishable from noise on n=50 paired tasks and whether it is decision-relevant given the 2.1x cost gap ($15.45 vs $32.24).",
+      "control": "Taubench ToolCalling (o3-2025-04-16)",
+      "control_total_cost_usd": 32.235387,
+      "cost_caveat": "cost provenance is as_reported_only; costs come from reported totals rather than reconciled per-task reconstruction",
+      "cost_provenance": "as_reported_only",
+      "delta": -0.10000000000000003,
+      "human_summary": "Claim `claude_vs_o3` verdict `drop_from_shortlist` for `Taubench ToolCalling (claude-3.7-sonnet)` vs `Taubench ToolCalling (o3-2025-04-16)`: delta -10.00 pp with bootstrap CI [-26.00 pp, +6.00 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is as_reported_only; costs come from reported totals rather than reconciled per-task reconstruction.",
+      "paired_tasks": 50,
+      "readiness": "ready_with_warnings",
+      "rejects_null": false,
+      "study_id": "tau-bench-airline-tool-calling",
+      "treatment": "Taubench ToolCalling (claude-3.7-sonnet)",
+      "treatment_total_cost_usd": 15.445473000000002,
+      "verdict": "drop_from_shortlist",
+      "verdict_explanation": {
+        "conditions": {
+          "ci_crosses_zero": true,
+          "cost_available": true,
+          "cost_gap_ratio": 1.0870443397881049,
+          "cost_gap_threshold": 0.1,
+          "effect_direction_matches_claim": false,
+          "has_material_cost_gap": true,
+          "rejects_adjusted_null": false,
+          "treatment_is_dominated": true
+        },
+        "first_matching_branch": "pareto_domination",
+        "summary": "Treatment is Pareto-dominated before statistical or cost-gap branches are considered.",
+        "suppressed_branches": [],
+        "verdict": "drop_from_shortlist"
+      }
+    }
+  ],
+  "readiness": "ready_with_warnings",
+  "schema_version": 1,
+  "study_id": "tau-bench-airline-tool-calling"
+}

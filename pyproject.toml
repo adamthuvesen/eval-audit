@@ -109,7 +109,7 @@ ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
-files = ["eval_audit"]
+files = ["eval_audit", "tools/fixture_io.py"]
 check_untyped_defs = true
 disallow_untyped_defs = true
 warn_redundant_casts = true

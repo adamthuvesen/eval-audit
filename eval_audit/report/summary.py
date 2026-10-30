@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 import polars as pl
 
@@ -15,6 +15,7 @@ from eval_audit.report.presentation import StudyPresentation
 from eval_audit.report.sensitivity import claim_context_for_result
 from eval_audit.schema import StudySpec
 from eval_audit.schema.audit_summary import AuditSummary, ClaimSummary, VerdictExplanationPayload
+from eval_audit.schema.enums import ReadinessStatus
 from eval_audit.stats import AnalysisResult
 
 
@@ -22,7 +23,9 @@ def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def claim_status(rejects: bool, direction_matches: bool) -> str:
+def claim_status(
+    rejects: bool, direction_matches: bool
+) -> Literal["supported", "unsupported", "inconclusive"]:
     if rejects and direction_matches:
         return "supported"
     if rejects and not direction_matches:
@@ -62,16 +65,20 @@ def build_audit_summary(
     study: StudySpec,
     runs: pl.DataFrame,
     presentation: StudyPresentation,
-    readiness: str,
+    readiness: ReadinessStatus,
     artifact_paths: dict[str, Path],
+    artifact_bytes: dict[str, bytes] | None = None,
 ) -> AuditSummary:
     """Build the stable summary.json payload for one completed audit."""
-    cost_provenance = presentation.cost_provenance
-    artifact_hashes = {
-        name: file_sha256(path)
-        for name, path in artifact_paths.items()
-        if path.exists() and name in {"check_json", "analysis_json", "report_md"}
-    }
+    cost_provenance = cast(
+        Literal["reconciled", "as_reported_only", "partial", "cost_not_available", "mixed", "n/a"],
+        presentation.cost_provenance,
+    )
+    artifact_hashes = (
+        {name: hashlib.sha256(content).hexdigest() for name, content in artifact_bytes.items()}
+        if artifact_bytes is not None
+        else {name: file_sha256(path) for name, path in artifact_paths.items() if path.exists()}
+    )
     artifact_path_values = {name: path.name for name, path in artifact_paths.items()}
 
     claims: list[ClaimSummary] = []

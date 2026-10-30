@@ -3,7 +3,7 @@
 - **Verdict:** `switch` — Treatment beat control significantly (the adjusted p-value rejects the null at the declared α) and in the direction the claim predicts. The data supports the claim. Action: switch the default selection to the treatment, subject to cost acceptance.
 - **Claim status:** supported
 - **Why:** delta +5.80 pp with bootstrap CI [+3.00 pp, +8.80 pp] over 500 paired tasks; cost provenance is `cost_not_available`; no cost ratio is reported
-- **What would change it:** the study already resolves below the declared MDE (CI half-width 2.90 pp ≤ MDE 5.00 pp); no additional N would change the verdict
+- **What would change it:** the study already resolves below the declared MDE (CI half-width 2.90 pp ≤ MDE 5.00 pp); new evidence can still change the verdict
 - **Reviewer pushback:** cost provenance is cost_not_available, 5 residual risks inherited from scouting
 
 ## Study
@@ -20,7 +20,6 @@
 - **source_fixture:** `examples/swe-bench-verified-openhands/runs.parquet`
 - **source_url:** https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/resolve/main/data/test-00000-of-00001.parquet
 - **retrieved_at:** `2026-05-03T17:40:27Z`
-- **price_table_pinned_at:** `2026-05-02`
 - **cost_provenance:** `cost_not_available`
 
 ### Cost provenance caveat
@@ -51,9 +50,20 @@ _Cost columns suppressed: cost provenance is `cost_not_available`._
 |---|---|---|---|---|---|---|
 | opus45_vs_gpt5_submission | declared_reanalysis | supported | +5.80 pp | +5.00 pp | 0.0002 | switch |
 
+**Copyable summary** — `opus45_vs_gpt5_submission`
+
+Claim `opus45_vs_gpt5_submission` verdict `switch` for `20251127_openhands_claude-opus-4-5` vs `20250807_openhands_gpt5`: delta +5.80 pp with bootstrap CI [+3.00 pp, +8.80 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is cost_not_available, so cost-derived views and cost-driven verdict branches are suppressed.
+
+**Verdict explainer** — `opus45_vs_gpt5_submission`
+
+- **First matching branch:** `rejecting_adjusted_p_value_claim_direction` → `switch`
+- **Rule path:** The correction-adjusted p-value rejects the null and the effect direction matches the declared claim.
+- **Evaluated conditions:** Pareto dominated=False; adjusted-p rejection=True; effect direction matches claim=True; quality CI crosses zero=False; cost gap ratio=n/a; material cost-gap threshold=10%.
+- **Suppressed branches:** none.
+
 **MDE context**
 
-- `opus45_vs_gpt5_submission`: bootstrap CI half-width = 2.90 pp vs target_mde = 5.00 pp — the study has resolution finer than the declared MDE; an effect of this size would be detectable.
+- `opus45_vs_gpt5_submission`: bootstrap CI half-width = 2.90 pp vs target_mde = 5.00 pp — the study has resolution finer than the declared MDE; the interval meets the declared precision target.
 
 **Verdict sensitivity** — `opus45_vs_gpt5_submission`
 
@@ -117,9 +127,11 @@ _Cost-quality view suppressed: cost provenance is `cost_not_available`. See the 
 
 ## Reproducibility footer
 
-- **rendered_at:** `2026-05-06T17:20:13.338751+00:00`
-- **git_commit:** `cebaf8b`
+- **rendered_at:** `1970-01-01T00:00:00+00:00`
+- **git_commit:** `6138a03`
 - **fixture_sha256:** `f656cd9fe2257c8cba232f953ae4739a5a7a47f67f011579622b0e9b369e590d`
 - **bootstrap_seed:** `42`
+- **bootstrap_iterations:** `10000`
+- **alpha:** `0.05`
 - **evidence_readiness:** `ready_with_warnings`
-- **check_sha256:** `02a72df17ebe744d39650393d6ea387a627ba4221d5e4148ac9d177d446d0e89`
+- **check_sha256:** `c7aa3e9286ae389af5543e50be589d3c6cd0d39b8ef024d0213d33ac1f928fb9`

@@ -21,13 +21,18 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
 import polars as pl
 import yaml
+
+from eval_audit.ingest.base import validate_run_records
+from eval_audit.schema import RunRecord
 
 HERE = Path(__file__).resolve().parent
 GRADED_DIR = HERE / "graded"
@@ -53,6 +58,9 @@ def _per_call_cost_usd(tokens_in: int, tokens_out: int, rates: dict) -> float:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--accept-evidence-change", action="store_true")
+    args = parser.parse_args()
     if not GRADED_DIR.exists():
         raise SystemExit(f"missing graded dir: {GRADED_DIR}; run grade.py first.")
     price_table = yaml.safe_load(PRICE_TABLE_PATH.read_text())
@@ -73,20 +81,29 @@ def main() -> None:
         outcome_status = record["outcome_status"]
         success = record.get("success")
 
-        usage_in = 0
-        usage_out = 0
-        usage_in_total = 0
-        usage_out_total = 0
-        if record.get("ok") and isinstance(record.get("payload"), dict):
-            usage = record["payload"].get("usage", {}) or {}
-            usage_in = int(usage.get("input_tokens") or 0)
-            usage_out = int(usage.get("output_tokens") or 0)
-            usage_in_total = (
-                usage_in
-                + int(usage.get("cache_creation_input_tokens") or 0)
-                + int(usage.get("cache_read_input_tokens") or 0)
+        payload = record.get("payload")
+        if not isinstance(payload, dict) or not isinstance(payload.get("usage"), dict):
+            raise ValueError(f"{path}: missing provider usage, token counts are unknown")
+        usage = payload["usage"]
+        for field in ("input_tokens", "output_tokens"):
+            value = usage.get(field)
+            if type(value) is not int or value < 0:
+                raise ValueError(f"{path}: {field} must be an explicit non-negative integer")
+        for field in ("cache_creation_input_tokens", "cache_read_input_tokens"):
+            value = usage.get(field, 0)
+            if type(value) is not int or value < 0:
+                raise ValueError(f"{path}: {field} must be a non-negative integer when present")
+        usage_in_total = (
+            usage["input_tokens"]
+            + usage.get("cache_creation_input_tokens", 0)
+            + usage.get("cache_read_input_tokens", 0)
+        )
+        usage_out_total = usage["output_tokens"]
+        if outcome_status == "graded" and not record.get("grader", {}).get("check_completed"):
+            raise ValueError(
+                f"{path}: historical grade has no completion receipt. "
+                "Preserve recorded evidence until isolated regrading is available."
             )
-            usage_out_total = usage_out
 
         rates = rates_by_model[model_id]
         per_call_cost = _per_call_cost_usd(
@@ -98,12 +115,15 @@ def main() -> None:
         cost_provenance = "partial"
         reconstructed_cost = per_call_cost if outcome_status == "graded" else None
 
-        timestamp = None
-        if record.get("started_at"):
-            try:
-                timestamp = datetime.fromisoformat(record["started_at"].replace("Z", "+00:00"))
-            except ValueError:
-                timestamp = None
+        started_at = record.get("started_at")
+        if not isinstance(started_at, str) or not started_at:
+            raise ValueError(f"{path}: missing started_at timestamp")
+        try:
+            timestamp = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError(f"{path}: invalid started_at timestamp") from exc
+        if timestamp.tzinfo is None:
+            raise ValueError(f"{path}: started_at must include a timezone")
 
         partial_credit: float | None = (
             None if outcome_status == "errored" else (1.0 if success else 0.0)
@@ -145,7 +165,7 @@ def main() -> None:
                 "tokens_out": usage_out_total,
                 "tokens_in_by_model": {model_id: usage_in_total},
                 "tokens_out_by_model": {model_id: usage_out_total},
-                "latency_s": float(record.get("latency_s") or 0.0),
+                "latency_s": record.get("latency_s"),
                 "timestamp": timestamp,
                 "reconstructed_per_task_cost_usd": reconstructed_cost,
                 "reported_run_total_cost_usd": None,  # filled in pass 2 below
@@ -164,32 +184,23 @@ def main() -> None:
         ["_per_call_cost_for_total", "_run_total"]
     )
 
-    canonical_cols = [
-        "agent_id",
-        "model_id",
-        "harness",
-        "run_id",
-        "task_id",
-        "task_category",
-        "seed",
-        "success",
-        "partial_credit",
-        "outcome_status",
-        "tokens_in",
-        "tokens_out",
-        "tokens_in_by_model",
-        "tokens_out_by_model",
-        "latency_s",
-        "timestamp",
-        "reconstructed_per_task_cost_usd",
-        "reported_run_total_cost_usd",
-        "cost_provenance",
-        "rerun_metadata",
-    ]
-    df = df.select(canonical_cols)
-
+    df = df.select(list(RunRecord.model_fields))
+    validate_run_records(df)
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    df.write_parquet(OUT_PATH)
+    with tempfile.TemporaryDirectory(prefix=".normalize-", dir=OUT_PATH.parent) as temporary:
+        stage = Path(temporary) / "runs.parquet"
+        df.write_parquet(stage)
+        validate_run_records(pl.read_parquet(stage))
+        if (
+            OUT_PATH.exists()
+            and stage.read_bytes() != OUT_PATH.read_bytes()
+            and not args.accept_evidence_change
+        ):
+            raise ValueError(
+                "normalized fixture differs from existing evidence. "
+                "Use --accept-evidence-change and review affected reports."
+            )
+        stage.replace(OUT_PATH)
     print(
         f"wrote {OUT_PATH} ({df.height} rows, "
         f"{df.filter(pl.col('outcome_status') == 'graded').height} graded, "
@@ -204,4 +215,18 @@ def _sha8(s: str) -> str:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (
+        ValueError,
+        RuntimeError,
+        OSError,
+        KeyError,
+        TypeError,
+        yaml.YAMLError,
+        pl.exceptions.PolarsError,
+    ) as exc:
+        import sys
+
+        print(f"normalization failed: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None

@@ -20,7 +20,6 @@
 - **source_fixture:** `examples/terminal-bench-2-mux/runs.parquet`
 - **source_url:** https://www.tbench.ai/leaderboard/terminal-bench/2.0
 - **retrieved_at:** `2026-05-04T04:51:34Z`
-- **price_table_pinned_at:** `2026-05-02`
 - **cost_provenance:** `cost_not_available`
 
 ### Cost provenance caveat
@@ -64,7 +63,7 @@ Claim `mux_gpt53_codex_vs_opus46_submission` verdict `switch` for `Mux__GPT-5.3-
 
 **MDE context**
 
-- `mux_gpt53_codex_vs_opus46_submission`: bootstrap CI half-width = 5.73 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
+- `mux_gpt53_codex_vs_opus46_submission`: bootstrap CI half-width = 5.73 pp vs target_mde = 5.00 pp — the study has resolution coarser than the declared MDE; more paired tasks could improve precision under the variance-fixed assumption.
 
 **Verdict sensitivity** — `mux_gpt53_codex_vs_opus46_submission`
 
@@ -125,5 +124,7 @@ _Cost-quality view suppressed: cost provenance is `cost_not_available`. See the 
 - **git_commit:** `snapshot`
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
+- **bootstrap_iterations:** `10000`
+- **alpha:** `0.05`
 - **evidence_readiness:** `ready_with_warnings`
 - **check_sha256:** `0790885e4607c1a43f0d2cdd5933585804881d20f35f85d5d286d8fda3be13ce`

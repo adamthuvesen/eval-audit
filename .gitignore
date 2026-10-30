@@ -75,3 +75,6 @@ checkpoints/
 # Regeneratable from the API and grader.
 scouting/humaneval-direct-completion/raw/
 scouting/humaneval-direct-completion/graded/
+
+# Persistent per-study publication locks contain no audit evidence.
+reports/.*.publish.lock

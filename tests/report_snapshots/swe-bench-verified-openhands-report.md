@@ -3,7 +3,7 @@
 - **Verdict:** `switch` — Treatment beat control significantly (the adjusted p-value rejects the null at the declared α) and in the direction the claim predicts. The data supports the claim. Action: switch the default selection to the treatment, subject to cost acceptance.
 - **Claim status:** supported
 - **Why:** delta +5.80 pp with bootstrap CI [+3.00 pp, +8.80 pp] over 500 paired tasks; cost provenance is `cost_not_available`; no cost ratio is reported
-- **What would change it:** the study already resolves below the declared MDE (CI half-width 2.90 pp ≤ MDE 5.00 pp); no additional N would change the verdict
+- **What would change it:** the study already resolves below the declared MDE (CI half-width 2.90 pp ≤ MDE 5.00 pp); new evidence can still change the verdict
 - **Reviewer pushback:** cost provenance is cost_not_available, 5 residual risks inherited from scouting
 
 ## Study
@@ -20,7 +20,6 @@
 - **source_fixture:** `examples/swe-bench-verified-openhands/runs.parquet`
 - **source_url:** https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/resolve/main/data/test-00000-of-00001.parquet
 - **retrieved_at:** `2026-05-03T17:40:27Z`
-- **price_table_pinned_at:** `2026-05-02`
 - **cost_provenance:** `cost_not_available`
 
 ### Cost provenance caveat
@@ -64,7 +63,7 @@ Claim `opus45_vs_gpt5_submission` verdict `switch` for `20251127_openhands_claud
 
 **MDE context**
 
-- `opus45_vs_gpt5_submission`: bootstrap CI half-width = 2.90 pp vs target_mde = 5.00 pp — the study has resolution finer than the declared MDE; an effect of this size would be detectable.
+- `opus45_vs_gpt5_submission`: bootstrap CI half-width = 2.90 pp vs target_mde = 5.00 pp — the study has resolution finer than the declared MDE; the interval meets the declared precision target.
 
 **Verdict sensitivity** — `opus45_vs_gpt5_submission`
 
@@ -132,5 +131,7 @@ _Cost-quality view suppressed: cost provenance is `cost_not_available`. See the 
 - **git_commit:** `snapshot`
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
+- **bootstrap_iterations:** `10000`
+- **alpha:** `0.05`
 - **evidence_readiness:** `ready_with_warnings`
 - **check_sha256:** `357403052c5dc4d4a1d9e359160c71bf00b47fb1c6538f5cb57e39e71a3728fe`

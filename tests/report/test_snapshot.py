@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from eval_audit.report.provenance import EvidenceSource
+
 SNAPSHOTS_DIR = Path(__file__).parent.parent / "report_snapshots"
 SNAPSHOT_PATH_A = SNAPSHOTS_DIR / "gaia-hal-generalist-report.md"
 SNAPSHOT_PATH_B = SNAPSHOTS_DIR / "tau-bench-airline-tool-calling-report.md"
@@ -38,6 +40,11 @@ def _render_gaia_hal_generalist(repo_root: Path, readiness_kwargs) -> str:
     adapter = HalGaiaAdapter()
     runs = adapter.load(repo_root / "scouting" / "candidates" / "gaia")
     result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
+    source = EvidenceSource.from_path(
+        repo_root / "scouting/candidates/gaia/sample.parquet",
+        source_kind="adapter",
+        source_dir=repo_root / "scouting/candidates/gaia",
+    )
     return render_report(
         result,
         study,
@@ -46,9 +53,10 @@ def _render_gaia_hal_generalist(repo_root: Path, readiness_kwargs) -> str:
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
+        source=source,
         bootstrap_iterations=10_000,
         bootstrap_seed=42,
-        **readiness_kwargs(study, runs, repo_root),
+        **readiness_kwargs(study, runs, repo_root, source),
     )
 
 
@@ -62,6 +70,11 @@ def _render_tau_bench_airline_tool_calling(repo_root: Path, readiness_kwargs) ->
     adapter = HalTauBenchAdapter()
     runs = adapter.load(repo_root / "scouting" / "candidates" / "tau-bench")
     result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
+    source = EvidenceSource.from_path(
+        repo_root / "scouting/candidates/tau-bench/sample.parquet",
+        source_kind="adapter",
+        source_dir=repo_root / "scouting/candidates/tau-bench",
+    )
     return render_report(
         result,
         study,
@@ -70,9 +83,10 @@ def _render_tau_bench_airline_tool_calling(repo_root: Path, readiness_kwargs) ->
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
+        source=source,
         bootstrap_iterations=10_000,
         bootstrap_seed=42,
-        **readiness_kwargs(study, runs, repo_root),
+        **readiness_kwargs(study, runs, repo_root, source),
     )
 
 
@@ -113,6 +127,9 @@ def _render_humaneval_direct_completion(repo_root: Path, readiness_kwargs) -> st
     study = StudySpec.from_yaml(repo_root / "studies" / "humaneval-direct-completion.yaml")
     runs = load_run_records(repo_root / "examples" / "humaneval-direct-completion" / "runs.parquet")
     result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
+    source = EvidenceSource.from_path(
+        repo_root / "examples/humaneval-direct-completion/runs.parquet", source_kind="canonical"
+    )
     return render_report(
         result,
         study,
@@ -121,9 +138,10 @@ def _render_humaneval_direct_completion(repo_root: Path, readiness_kwargs) -> st
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
+        source=source,
         bootstrap_iterations=10_000,
         bootstrap_seed=42,
-        **readiness_kwargs(study, runs, repo_root),
+        **readiness_kwargs(study, runs, repo_root, source),
     )
 
 
@@ -136,6 +154,9 @@ def _render_decision_gallery(repo_root: Path, readiness_kwargs) -> str:
     study = StudySpec.from_yaml(repo_root / "studies" / "decision-gallery.yaml")
     runs = load_run_records(repo_root / "examples" / "decision-gallery" / "runs.parquet")
     result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
+    source = EvidenceSource.from_path(
+        repo_root / "examples/decision-gallery/runs.parquet", source_kind="canonical"
+    )
     return render_report(
         result,
         study,
@@ -144,9 +165,10 @@ def _render_decision_gallery(repo_root: Path, readiness_kwargs) -> str:
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
+        source=source,
         bootstrap_iterations=10_000,
         bootstrap_seed=42,
-        **readiness_kwargs(study, runs, repo_root),
+        **readiness_kwargs(study, runs, repo_root, source),
     )
 
 
@@ -168,6 +190,11 @@ def _render_swe_bench_verified_openhands(repo_root: Path, readiness_kwargs) -> s
     adapter = SweBenchVerifiedAdapter()
     runs = adapter.load(repo_root / "examples" / "swe-bench-verified-openhands")
     result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
+    source = EvidenceSource.from_path(
+        repo_root / "examples/swe-bench-verified-openhands/runs.parquet",
+        source_kind="adapter",
+        source_dir=repo_root / "examples/swe-bench-verified-openhands",
+    )
     return render_report(
         result,
         study,
@@ -176,9 +203,10 @@ def _render_swe_bench_verified_openhands(repo_root: Path, readiness_kwargs) -> s
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
+        source=source,
         bootstrap_iterations=10_000,
         bootstrap_seed=42,
-        **readiness_kwargs(study, runs, repo_root),
+        **readiness_kwargs(study, runs, repo_root, source),
     )
 
 
@@ -193,6 +221,11 @@ def _render_terminal_bench_2_mux(repo_root: Path, readiness_kwargs) -> str:
     adapter = TerminalBenchMuxAdapter()
     runs = adapter.load(repo_root / "examples" / "terminal-bench-2-mux")
     result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
+    source = EvidenceSource.from_path(
+        repo_root / "examples/terminal-bench-2-mux/runs.parquet",
+        source_kind="adapter",
+        source_dir=repo_root / "examples/terminal-bench-2-mux",
+    )
     return render_report(
         result,
         study,
@@ -201,9 +234,10 @@ def _render_terminal_bench_2_mux(repo_root: Path, readiness_kwargs) -> str:
         git_commit=FIXED_GIT_COMMIT,
         fixture_sha256=FIXED_FIXTURE_SHA,
         repo_root=repo_root,
+        source=source,
         bootstrap_iterations=10_000,
         bootstrap_seed=42,
-        **readiness_kwargs(study, runs, repo_root),
+        **readiness_kwargs(study, runs, repo_root, source),
     )
 
 

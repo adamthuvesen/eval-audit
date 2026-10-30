@@ -51,6 +51,7 @@ def _ensure_example_fixtures(repo_root: Path) -> None:
             cwd=str(example_dir),
             capture_output=True,
             text=True,
+            timeout=60,
         )
         if result.returncode != 0:
             raise RuntimeError(
@@ -60,7 +61,7 @@ def _ensure_example_fixtures(repo_root: Path) -> None:
 
 
 @pytest.fixture
-def readiness_kwargs() -> Callable[[StudySpec, pl.DataFrame, Path], dict[str, str]]:
+def readiness_kwargs() -> Callable[..., dict[str, str]]:
     """Build the (`evidence_readiness`, `check_sha256`) kwargs for `render_report`.
 
     Tests bypass the CLI's `check_paths` and call `check_evidence` directly,
@@ -71,9 +72,12 @@ def readiness_kwargs() -> Callable[[StudySpec, pl.DataFrame, Path], dict[str, st
     these tests pin.
     """
     from eval_audit.checks import check_evidence
+    from eval_audit.report.provenance import EvidenceSource
 
-    def _build(study: StudySpec, runs: pl.DataFrame, repo_root: Path) -> dict[str, str]:
-        readiness = check_evidence(study, runs, repo_root=repo_root)
+    def _build(
+        study: StudySpec, runs: pl.DataFrame, repo_root: Path, source: EvidenceSource | None = None
+    ) -> dict[str, str]:
+        readiness = check_evidence(study, runs, repo_root=repo_root, source=source)
         return {
             "evidence_readiness": readiness.status,
             "check_sha256": hashlib.sha256(readiness.to_json_bytes()).hexdigest(),

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import polars as pl
 
+from eval_audit.report import ReportContractError
 from eval_audit.report.caveats import (
     render_as_reported_only_caveat,
     render_cost_not_available_caveat,
@@ -15,6 +16,7 @@ from eval_audit.report.caveats import (
 from eval_audit.report.decisions import decision_impact
 from eval_audit.report.formatters import format_pp
 from eval_audit.report.presentation import StudyPresentation, resolve_study_presentation
+from eval_audit.report.provenance import EvidenceSource
 from eval_audit.report.sections.audit_summary import (
     render_audit_summary,
 )
@@ -35,6 +37,7 @@ from eval_audit.report.sections.robustness import (
 )
 from eval_audit.report.sensitivity import (
     SensitivityRow,
+    _check_settings,
     claim_context_for_result,
     compute_sensitivity_rows,
 )
@@ -42,6 +45,7 @@ from eval_audit.report.summary import claim_status
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import CostProvenance
 from eval_audit.stats import AnalysisResult, analyze
+from eval_audit.stats.sensitivity import sensitivity_scenarios
 
 
 def _validate_report_outcome(study: StudySpec) -> None:
@@ -162,16 +166,15 @@ def _mde_context_wording(diff_pp: float) -> str:
     if diff_pp < -0.5:
         return (
             "the study has resolution finer than the declared MDE; "
-            "an effect of this size would be detectable"
+            "the interval meets the declared precision target"
         )
     if abs(diff_pp) <= 0.5:
         return (
-            "the study sits at the declared MDE; "
-            "an effect of exactly this size sits on the detection boundary"
+            "the study sits at the declared MDE; the interval is at the declared precision target"
         )
     return (
         "the study has resolution coarser than the declared MDE; "
-        "an effect at the declared MDE would not be reliably detected without more data"
+        "more paired tasks could improve precision under the variance-fixed assumption"
     )
 
 
@@ -197,6 +200,7 @@ def _sensitivity_rows_by_claim(
     bootstrap_iterations: int,
     bootstrap_seed: int,
 ) -> dict[str, list[SensitivityRow]]:
+    scenarios = sensitivity_scenarios(study, runs, result)
     return {
         claim.claim_id: compute_sensitivity_rows(
             claim,
@@ -205,6 +209,7 @@ def _sensitivity_rows_by_claim(
             result,
             bootstrap_iterations=bootstrap_iterations,
             bootstrap_seed=bootstrap_seed,
+            scenarios=scenarios,
         )
         for claim in result.claims
     }
@@ -228,8 +233,10 @@ def _render_verdict_sensitivity(
                 and row.dimension == "cost_gap_threshold"
             ):
                 verdict_cell = "n/a (cost suppressed)"
+            elif not row.available:
+                verdict_cell = f"not assessed: {row.unavailable_reason}"
             else:
-                verdict_cell = row.verdict
+                verdict_cell = row.verdict or "not assessed"
                 if row.dimension != "baseline" and row.verdict != baseline_verdict:
                     verdict_cell = f"{row.verdict} ← flips"
             parts.append(f"| {row.dimension} | {row.value} | {verdict_cell} |")
@@ -238,6 +245,8 @@ def _render_verdict_sensitivity(
 
 
 def _render_residual_risks(presentation: StudyPresentation) -> list[str]:
+    if presentation.decision_md_label is None:
+        return ["## Residual risks\n", presentation.residual_risks_text, ""]
     return [
         "## Residual risks\n",
         "**Inherited from scouting decision** (verbatim from "
@@ -253,6 +262,8 @@ def _render_reproducibility_footer(
     git_commit: str,
     fixture_sha256: str,
     bootstrap_seed: int,
+    bootstrap_iterations: int,
+    alpha: float,
     evidence_readiness: str,
     check_sha256: str,
 ) -> list[str]:
@@ -262,6 +273,8 @@ def _render_reproducibility_footer(
         f"- **git_commit:** `{git_commit}`",
         f"- **fixture_sha256:** `{fixture_sha256}`",
         f"- **bootstrap_seed:** `{bootstrap_seed}`",
+        f"- **bootstrap_iterations:** `{bootstrap_iterations}`",
+        f"- **alpha:** `{alpha}`",
         f"- **evidence_readiness:** `{evidence_readiness}`",
         f"- **check_sha256:** `{check_sha256}`",
         "",
@@ -277,14 +290,26 @@ def render_report(
     git_commit: str,
     fixture_sha256: str,
     repo_root: Path,
-    bootstrap_iterations: int = 10_000,
-    bootstrap_seed: int = 42,
+    bootstrap_iterations: int | None = None,
+    bootstrap_seed: int | None = None,
+    source: EvidenceSource | None = None,
     evidence_readiness: str = "ready",
     check_sha256: str = "0" * 64,
 ) -> str:
     """Render a deterministic markdown report for one declared-claim reanalysis."""
+    if result.study_id != study.id:
+        raise ReportContractError(
+            f"report study.id mismatch: expected {result.study_id!r} from analysis result, "
+            f"actual {study.id!r}"
+        )
+    if result.settings.alpha != study.inference.alpha:
+        raise ReportContractError(
+            f"report inference.alpha mismatch: expected {result.settings.alpha!r} "
+            f"from analysis settings, actual {study.inference.alpha!r}"
+        )
     _validate_report_outcome(study)
-    presentation = resolve_study_presentation(study, runs, result, repo_root)
+    _check_settings(result, bootstrap_iterations, bootstrap_seed)
+    presentation = resolve_study_presentation(study, runs, result, repo_root, source=source)
     rendered_at = clock().isoformat()
     parts: list[str] = []
 
@@ -301,8 +326,8 @@ def render_report(
         result,
         runs,
         study,
-        bootstrap_iterations=bootstrap_iterations,
-        bootstrap_seed=bootstrap_seed,
+        bootstrap_iterations=result.settings.bootstrap_iterations,
+        bootstrap_seed=result.settings.bootstrap_seed,
     )
     parts.extend(_render_verdict_sensitivity(result, sensitivity_rows_by_claim, presentation))
 
@@ -314,7 +339,9 @@ def render_report(
             rendered_at=rendered_at,
             git_commit=git_commit,
             fixture_sha256=fixture_sha256,
-            bootstrap_seed=result.bootstrap_seed,
+            bootstrap_seed=result.settings.bootstrap_seed,
+            bootstrap_iterations=result.settings.bootstrap_iterations,
+            alpha=result.settings.alpha,
             evidence_readiness=evidence_readiness,
             check_sha256=check_sha256,
         )
@@ -334,6 +361,7 @@ def render_report_to(
     repo_root: Path,
     bootstrap_iterations: int = 10_000,
     bootstrap_seed: int = 42,
+    source: EvidenceSource | None = None,
     evidence_readiness: str = "ready",
     check_sha256: str = "0" * 64,
 ) -> Path:
@@ -358,6 +386,7 @@ def render_report_to(
         bootstrap_seed=bootstrap_seed,
         evidence_readiness=evidence_readiness,
         check_sha256=check_sha256,
+        source=source,
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text)

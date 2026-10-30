@@ -46,6 +46,11 @@
     }
   ],
   "pareto_frontier": [],
-  "bootstrap_seed": 42,
-  "pareto_status": "suppressed_cost_not_available"
+  "settings": {
+    "alpha": 0.05,
+    "bootstrap_iterations": 10000,
+    "bootstrap_seed": 42
+  },
+  "pareto_status": "suppressed_cost_not_available",
+  "bootstrap_seed": 42
 }

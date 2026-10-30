@@ -182,14 +182,24 @@ python my-study/make_runs.py
 eval-audit validate my-study/runs.parquet my-study/study.yaml
 eval-audit check my-study/study.yaml --runs my-study/runs.parquet
 eval-audit analyze my-study/study.yaml --runs my-study/runs.parquet
-eval-audit report my-study/study.yaml --runs my-study/runs.parquet --skip-validation
+eval-audit report my-study/study.yaml --runs my-study/runs.parquet
 ```
 
-`validate` checks the input schemas in isolation. `check` evaluates whether the
-declared comparison is audit-ready. `report --skip-validation` bypasses the
-source-checkout synthetic-validation gate and warns; it is meant for inspecting
-the renderer, not for publishing evidence. `report.md` is the canonical
-reproducibility artifact either way.
+`validate` checks the input schemas. `check` evaluates whether the declared comparison is audit-ready. Analysis,
+reporting, and gates share the same evidence boundary. `report` and `audit`
+publish complete artifact sets. Synthetic recovery runs in `make check`, without
+requiring test dependencies in the installed CLI.
+
+`summary.json` records artifact hashes. Portfolio readers reject interrupted,
+stale, or invalid audits. Re-run the audit to replace an incomplete generation.
+
+Inspect machine-readable contracts without maintaining a separate schema copy:
+
+```bash
+eval-audit spec schema --model study
+eval-audit spec schema --model run
+eval-audit spec schema --model summary
+```
 
 References:
 
@@ -200,7 +210,7 @@ References:
 ## Work from source
 
 ```bash
-uv sync --extra dev
+make setup
 make check
 ```
 
@@ -221,3 +231,5 @@ Snapshot updates are explicit:
 ```bash
 UPDATE_SNAPSHOTS=1 uv run pytest tests/report/test_snapshot.py
 ```
+
+See [architecture and change recipes](docs/architecture.md) for ownership and focused verification.

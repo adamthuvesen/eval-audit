@@ -20,7 +20,6 @@
 - **source_fixture:** `scouting/candidates/gaia/sample.parquet`
 - **source_url:** https://huggingface.co/datasets/agent-evals/hal_traces
 - **retrieved_at:** `2026-05-02T06:50:59.916942+00:00`
-- **price_table_pinned_at:** `2026-05-02`
 - **cost_provenance:** `reconciled`
 
 ## Per-agent summary
@@ -49,7 +48,7 @@ Claim `claude37_vs_o4mini_high_on_gaia` verdict `hedge_on_cost` for `HAL General
 
 **MDE context**
 
-- `claude37_vs_o4mini_high_on_gaia`: bootstrap CI half-width = 9.09 pp vs target_mde = 3.00 pp — the study has resolution coarser than the declared MDE; an effect at the declared MDE would not be reliably detected without more data.
+- `claude37_vs_o4mini_high_on_gaia`: bootstrap CI half-width = 9.09 pp vs target_mde = 3.00 pp — the study has resolution coarser than the declared MDE; more paired tasks could improve precision under the variance-fixed assumption.
 
 **Verdict sensitivity** — `claude37_vs_o4mini_high_on_gaia`
 
@@ -101,5 +100,7 @@ All agents are on the frontier; no dominance to report.
 - **git_commit:** `snapshot`
 - **fixture_sha256:** `0000000000000000000000000000000000000000000000000000000000000000`
 - **bootstrap_seed:** `42`
+- **bootstrap_iterations:** `10000`
+- **alpha:** `0.05`
 - **evidence_readiness:** `ready`
 - **check_sha256:** `92faf18a783724c07ef17a49c3dd5386f6257c66c7e9e861316898bcd73b1a33`

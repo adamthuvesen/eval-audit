@@ -64,7 +64,7 @@ claims:
     text: >-
       Synthetic claim targeting the `rerun_more_n` verdict. The claim asserts
       rerun_treatment beats rerun_control on success_rate. The data is
-      constructed with tied per-arm success rates and per-task differences
+      constructed with similar per-arm success rates and per-task differences
       that span both directions, so the bootstrap CI clearly crosses zero
       and the paired t-test does not reject. Costs differ by ~6.67% of the
       cheaper arm — below the 10% material threshold — so the engine reaches

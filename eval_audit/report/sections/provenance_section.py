@@ -8,7 +8,6 @@ from typing import cast
 
 import polars as pl
 
-from eval_audit.ingest._prices import PRICE_TABLE_PINNED_AT
 from eval_audit.report.presentation import StudyPresentation
 from eval_audit.schema import StudySpec
 
@@ -121,7 +120,6 @@ def render_public_provenance(presentation: StudyPresentation) -> list[str]:
     parts.append(f"- **source_fixture:** `{presentation.source_fixture_rel}`")
     parts.append(f"- **source_url:** {presentation.source_url}")
     parts.append(f"- **retrieved_at:** `{presentation.retrieved_at}`")
-    parts.append(f"- **price_table_pinned_at:** `{PRICE_TABLE_PINNED_AT}`")
     parts.append(f"- **cost_provenance:** `{presentation.cost_provenance}`")
     parts.append("")
     return parts

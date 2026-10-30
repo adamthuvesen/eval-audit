@@ -1,0 +1,64 @@
+{
+  "artifact_hashes": {
+    "analysis_json": "4147ee22883fb24cc05d79b5b1257ff7036f03fb5e50d85e1ceb7d8a41a60245",
+    "check_json": "e19608a3231716a2f07108612f4dd69c4423b44e9f12539e4bb0ec94a5c9a3c1",
+    "report_md": "a0a92e892c7d7ff61ab2090b7ae3c0c386c435356bbb29b241aeeca18245aa6a"
+  },
+  "artifact_paths": {
+    "analysis_json": "analysis.json",
+    "check_json": "check.json",
+    "report_md": "report.md"
+  },
+  "claims": [
+    {
+      "adjusted_p_value": 0.005684012773334147,
+      "artifact_hashes": {
+        "analysis_json": "4147ee22883fb24cc05d79b5b1257ff7036f03fb5e50d85e1ceb7d8a41a60245",
+        "check_json": "e19608a3231716a2f07108612f4dd69c4423b44e9f12539e4bb0ec94a5c9a3c1",
+        "report_md": "a0a92e892c7d7ff61ab2090b7ae3c0c386c435356bbb29b241aeeca18245aa6a"
+      },
+      "artifact_paths": {
+        "analysis_json": "analysis.json",
+        "check_json": "check.json",
+        "report_md": "report.md"
+      },
+      "ci_high": 0.13932584269662907,
+      "ci_low": 0.024719101123595766,
+      "claim_id": "mux_gpt53_codex_vs_opus46_submission",
+      "claim_status": "supported",
+      "claim_text": "On Terminal-Bench 2.0, the public Mux + GPT-5.3-Codex submission is listed at 74.6% accuracy and the public Mux + Claude Opus 4.6 submission is listed at 66.5% accuracy on the official leaderboard. This audit evaluates whether the observed gap is statistically distinguishable from noise on the paired 89-task universe across five public trials per agent. Cost is suppressed because the selected public result.json artifacts do not expose complete cost_usd values across both submissions.",
+      "control": "Mux__Claude-Opus-4.6",
+      "control_total_cost_usd": null,
+      "cost_caveat": "cost provenance is cost_not_available; cost-derived views and cost-driven verdict branches are suppressed",
+      "cost_provenance": "cost_not_available",
+      "delta": 0.08089887640449456,
+      "human_summary": "Claim `mux_gpt53_codex_vs_opus46_submission` verdict `switch` for `Mux__GPT-5.3-Codex` vs `Mux__Claude-Opus-4.6`: delta +8.09 pp with bootstrap CI [+2.47 pp, +13.93 pp]; evidence readiness `ready_with_warnings`. Cost caveat: cost provenance is cost_not_available; cost-derived views and cost-driven verdict branches are suppressed.",
+      "paired_tasks": 89,
+      "readiness": "ready_with_warnings",
+      "rejects_null": true,
+      "study_id": "terminal-bench-2-mux",
+      "treatment": "Mux__GPT-5.3-Codex",
+      "treatment_total_cost_usd": null,
+      "verdict": "switch",
+      "verdict_explanation": {
+        "conditions": {
+          "ci_crosses_zero": false,
+          "cost_available": false,
+          "cost_gap_ratio": null,
+          "cost_gap_threshold": 0.1,
+          "effect_direction_matches_claim": true,
+          "has_material_cost_gap": false,
+          "rejects_adjusted_null": true,
+          "treatment_is_dominated": false
+        },
+        "first_matching_branch": "rejecting_adjusted_p_value_claim_direction",
+        "summary": "The correction-adjusted p-value rejects the null and the effect direction matches the declared claim.",
+        "suppressed_branches": [],
+        "verdict": "switch"
+      }
+    }
+  ],
+  "readiness": "ready_with_warnings",
+  "schema_version": 1,
+  "study_id": "terminal-bench-2-mux"
+}

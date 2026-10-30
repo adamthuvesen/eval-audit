@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import polars as pl
 from scipy.stats import ttest_rel
 
 from eval_audit.schema import StudySpec
 from eval_audit.stats.agent_metrics import ErroredRowPolicy, summarize_agent
-from eval_audit.stats.bootstrap import BootstrapResult, paired_task_bootstrap
+from eval_audit.stats.bootstrap import (
+    BootstrapResult,
+    paired_outcome_vectors,
+    paired_task_bootstrap,
+)
 from eval_audit.stats.correction import benjamini_hochberg, holm_bonferroni
 from eval_audit.stats.errors import (
     AnalysisInputError,
@@ -15,14 +21,17 @@ from eval_audit.stats.errors import (
     CrossHarnessComparisonError,
     UnsupportedOutcomeError,
 )
-from eval_audit.stats.outcomes import success_rate_numeric_expr
 from eval_audit.stats.pareto import pareto_frontier
 from eval_audit.stats.results import (
     AgentSummary,
     AnalysisResult,
+    AnalysisSettings,
     ClaimResult,
     ParetoStatus,
 )
+
+if TYPE_CHECKING:
+    from eval_audit.evidence import PreparedEvidence
 
 __all__ = [
     "AgentSummary",
@@ -48,17 +57,11 @@ def paired_task_p_value(
     when present), then run a paired t-test on the per-task differences. This respects
     within-task clustering, which a naive 2-proportion z-test would ignore.
 
-    Public so the report-rendering layer can recompute paired p-values for
-    sensitivity perturbations against the same statistic the baseline uses.
+    Sensitivity scenarios use the same task pairing and test as baseline analysis.
     """
-    success_expr = success_rate_numeric_expr()
-    a_means = treatment_rows.group_by("task_id").agg(success_expr.mean().alias("_a"))
-    b_means = control_rows.group_by("task_id").agg(success_expr.mean().alias("_b"))
-    paired = a_means.join(b_means, on="task_id", how="inner")
-    if paired.height < 2:
+    a_vec, b_vec = paired_outcome_vectors(treatment_rows, control_rows)
+    if len(a_vec) < 2:
         return 1.0
-    a_vec = paired["_a"].to_numpy()
-    b_vec = paired["_b"].to_numpy()
     if (a_vec == b_vec).all():
         return 1.0
     res = ttest_rel(a_vec, b_vec)
@@ -66,62 +69,6 @@ def paired_task_p_value(
     if p != p:  # NaN guard
         return 1.0
     return p
-
-
-def _validate_supported_outcome(study: StudySpec) -> str:
-    """Return the frame column for the validated v0 outcome contract."""
-    if (
-        study.primary_outcome.name != "success_rate"
-        or study.primary_outcome.direction != "higher_is_better"
-    ):
-        raise UnsupportedOutcomeError(
-            "v0 analysis supports only primary_outcome.name='success_rate' "
-            "with direction='higher_is_better'"
-        )
-    for claim in study.claims:
-        if claim.outcome != "success_rate":
-            raise UnsupportedOutcomeError(
-                f"v0 analysis supports only claim outcome 'success_rate' "
-                f"(claim_id={claim.id!r}, outcome={claim.outcome!r})"
-            )
-    return "success"
-
-
-def _check_harness_consistency(
-    study: StudySpec,
-    rows_by_agent: dict[str, pl.DataFrame],
-) -> None:
-    for claim in study.claims:
-        harness_by_agent: dict[str, str] = {}
-        for agent_id in (claim.treatment, claim.control):
-            rows = rows_by_agent[agent_id]
-            if rows.height == 0:
-                raise AnalysisInputError(f"agent_id={agent_id!r} has no rows in loaded runs")
-            harnesses = sorted(rows["harness"].unique().to_list())
-            if len(harnesses) > 1:
-                raise AnalysisInputError(
-                    f"agent_id={agent_id!r} has rows under multiple harnesses {harnesses}"
-                )
-            harness_by_agent[agent_id] = harnesses[0]
-
-        treatment_harness = harness_by_agent[claim.treatment]
-        control_harness = harness_by_agent[claim.control]
-        if treatment_harness != control_harness:
-            raise CrossHarnessComparisonError(
-                "cross-harness comparison rejected: "
-                f"treatment={claim.treatment!r} runs under harness={[treatment_harness]}, "
-                f"control={claim.control!r} runs under harness={[control_harness]}"
-            )
-        for agent_id, observed_harness in harness_by_agent.items():
-            if observed_harness != study.harness:
-                raise AnalysisInputError(
-                    f"agent_id={agent_id!r} runs under harness={observed_harness!r}, "
-                    f"but study.harness={study.harness!r}"
-                )
-
-
-def _rows_by_agent(runs: pl.DataFrame, agent_ids: set[str]) -> dict[str, pl.DataFrame]:
-    return {agent_id: runs.filter(pl.col("agent_id") == agent_id) for agent_id in sorted(agent_ids)}
 
 
 def _summarize_declared_agents(
@@ -237,26 +184,34 @@ def analyze(
     bootstrap_seed: int = 42,
 ) -> AnalysisResult:
     """Run the declared-claim analysis end-to-end."""
-    outcome_col = _validate_supported_outcome(study)
-    alpha = study.inference.alpha
+    from eval_audit.evidence import prepare_evidence
 
-    agent_ids = [a.id for a in study.agents]
-    claim_agent_ids = {
-        agent_id for claim in study.claims for agent_id in (claim.treatment, claim.control)
-    }
-    rows_by_agent = _rows_by_agent(runs, set(agent_ids) | claim_agent_ids)
+    evidence = prepare_evidence(study, runs)
+    return analyze_prepared(
+        evidence,
+        settings=AnalysisSettings(
+            alpha=evidence.study.inference.alpha,
+            bootstrap_iterations=bootstrap_iterations,
+            bootstrap_seed=bootstrap_seed,
+        ),
+    )
 
-    _check_harness_consistency(study, rows_by_agent)
 
+def analyze_prepared(evidence: PreparedEvidence, *, settings: AnalysisSettings) -> AnalysisResult:
+    """Analyze evidence that passed the shared validation boundary."""
+    study = evidence.study
+    rows_by_agent = evidence.rows_by_agent
+    alpha = settings.alpha
+    agent_ids = [agent.id for agent in study.agents]
     per_agent, by_agent_id = _summarize_declared_agents(agent_ids, rows_by_agent, alpha)
     frontier, pareto_status = _pareto_status(per_agent)
     bootstraps, raw_p_pairs = _claim_statistics(
         study,
         rows_by_agent,
-        outcome_col=outcome_col,
+        outcome_col="success",
         alpha=alpha,
-        bootstrap_iterations=bootstrap_iterations,
-        bootstrap_seed=bootstrap_seed,
+        bootstrap_iterations=settings.bootstrap_iterations,
+        bootstrap_seed=settings.bootstrap_seed,
     )
     corrected = _correct_claim_p_values(study, raw_p_pairs, alpha=alpha)
 
@@ -265,6 +220,6 @@ def analyze(
         per_agent=per_agent,
         claims=_claim_results(study, bootstraps, corrected, by_agent_id),
         pareto_frontier=frontier,
-        bootstrap_seed=bootstrap_seed,
+        settings=settings,
         pareto_status=pareto_status,
     )

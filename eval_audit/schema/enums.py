@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 
 class CostProvenance(StrEnum):
@@ -19,3 +20,14 @@ class OutcomeStatus(StrEnum):
 
     GRADED = "graded"
     ERRORED = "errored"
+
+
+Verdict = Literal[
+    "switch",
+    "hold",
+    "drop_from_shortlist",
+    "rerun_more_n",
+    "hedge_on_cost",
+    "inconclusive_no_action",
+]
+ReadinessStatus = Literal["ready", "ready_with_warnings", "not_ready"]

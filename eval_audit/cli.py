@@ -8,30 +8,33 @@ Commands:
 from __future__ import annotations
 
 import dataclasses
-import hashlib
 import importlib.metadata
 import json
+import shlex
 import subprocess
-import sys
 from collections.abc import Callable
-from datetime import UTC, datetime
+from functools import wraps
 from pathlib import Path
-from typing import cast
+from typing import ParamSpec, cast
 
 import polars as pl
 import typer
-from pydantic import ValidationError
+from polars.exceptions import PolarsError
+from pydantic import BaseModel, ValidationError
 from yaml import YAMLError
 
+from eval_audit.artifacts import audit_directory, publish_artifacts
 from eval_audit.checks import (
     ReadinessCheck,
     ReadinessResult,
     ReadinessStatus,
     check_evidence,
     check_paths,
+    readiness_from_diagnostics,
     render_readiness_text,
 )
 from eval_audit.cli_templates import SLUG_RE, ScaffoldError, scaffold_byo_study
+from eval_audit.errors import AnalysisInputError
 from eval_audit.fixtures import benchmark_dir_name
 from eval_audit.ingest import IngestAdapter, IngestContractError
 from eval_audit.ingest.generic import load_run_records
@@ -40,32 +43,91 @@ from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
 from eval_audit.ingest.swe_bench_verified import SweBenchVerifiedAdapter
 from eval_audit.ingest.synthetic import SyntheticAdapter
 from eval_audit.ingest.terminal_bench import TerminalBenchMuxAdapter
-from eval_audit.pipeline import (
-    claim_verdicts,
-    render_audit_markdown,
-    run_analysis,
-    run_readiness,
-    write_analysis_json,
-    write_check_json,
-    write_summary_json,
-)
+from eval_audit.pipeline import analysis_json_bytes, build_audit, claim_verdicts
 from eval_audit.portfolio import (
     load_portfolio_rows,
     portfolio_json_bytes,
     render_portfolio_markdown,
 )
+from eval_audit.report import ReportContractError
 from eval_audit.report.decisions import DECISION_IMPACT_VOCAB
-from eval_audit.report.html import render_html_report
-from eval_audit.report.markdown import render_report_to
-from eval_audit.schema import StudySpec
+from eval_audit.report.provenance import EvidenceSource
+from eval_audit.schema import RunRecord, StudySpec
+from eval_audit.schema.audit_summary import AuditSummary
 from eval_audit.spec import render_study_spec
+from eval_audit.stats import analyze
 
 _READINESS_RANK: dict[ReadinessStatus, int] = {
     "not_ready": 0,
     "ready_with_warnings": 1,
     "ready": 2,
 }
-_SEVERITY_RANK = {"error": 0, "warning": 1, "info": 2}
+
+
+P = ParamSpec("P")
+
+
+def _cli_errors(command: Callable[P, None]) -> Callable[P, None]:
+    @wraps(command)
+    def wrapped(*args: P.args, **kwargs: P.kwargs) -> None:
+        try:
+            command(*args, **kwargs)
+        except (
+            OSError,
+            ValueError,
+            YAMLError,
+            PolarsError,
+            IngestContractError,
+            AnalysisInputError,
+            ReportContractError,
+        ) as exc:
+            if kwargs.get("json_output"):
+                typer.echo(
+                    json.dumps(
+                        {"status": "fail", "failures": [{"type": "input", "message": str(exc)}]},
+                        allow_nan=False,
+                    )
+                )
+            elif isinstance(exc, AnalysisInputError) and exc.diagnostics:
+                typer.echo("evidence readiness check FAILED", err=True)
+                typer.echo(
+                    render_readiness_text(readiness_from_diagnostics(None, exc.diagnostics)),
+                    err=True,
+                    nl=False,
+                )
+                study_path, runs_path = kwargs.get("study_yaml"), kwargs.get("runs")
+                if isinstance(study_path, Path) and isinstance(runs_path, Path):
+                    study_id = StudySpec.from_yaml(study_path).id
+                    output_root = kwargs.get("out_dir", Path("reports"))
+                    if isinstance(output_root, Path):
+                        check_path = audit_directory(output_root, study_id) / "check.json"
+                        typer.echo(
+                            "For full diagnostics, run:\n  "
+                            + shlex.join(
+                                [
+                                    "eval-audit",
+                                    "check",
+                                    str(study_path),
+                                    "--runs",
+                                    str(runs_path),
+                                    "--out",
+                                    str(check_path),
+                                ]
+                            ),
+                            err=True,
+                        )
+            else:
+                prefix = (
+                    "invalid study YAML"
+                    if isinstance(exc, (ValidationError, YAMLError))
+                    else command.__name__.removesuffix("_cmd")
+                )
+                typer.echo(f"{prefix}: {exc}", err=True)
+            raise typer.Exit(
+                code=2 if isinstance(exc, (ValidationError, YAMLError)) else 1
+            ) from exc
+
+    return wrapped
 
 
 def _version_callback(value: bool) -> None:
@@ -96,12 +158,13 @@ def _main(
 def _load_study_or_exit(study_yaml: Path) -> StudySpec:
     try:
         return StudySpec.from_yaml(study_yaml)
-    except (ValidationError, ValueError, YAMLError) as exc:
+    except (OSError, ValidationError, ValueError, YAMLError) as exc:
         typer.echo(f"invalid study YAML {study_yaml}: {exc}", err=True)
         raise typer.Exit(code=2) from exc
 
 
 @spec_app.command("validate")
+@_cli_errors
 def spec_validate_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
 ) -> None:
@@ -110,7 +173,38 @@ def spec_validate_cmd(
     typer.echo(f"OK: {study.id}")
 
 
+@spec_app.command("schema")
+@_cli_errors
+def spec_schema_cmd(
+    model: str = typer.Option(
+        "study", "--model", help="Contract to inspect: study, run, or summary."
+    ),
+    out: Path | None = typer.Option(
+        None, "--out", help="Write JSON Schema to this file instead of stdout."
+    ),
+) -> None:
+    """Derive the machine-readable contract from its authoritative Pydantic model."""
+    models: dict[str, type[BaseModel]] = {
+        "study": StudySpec,
+        "run": RunRecord,
+        "summary": AuditSummary,
+    }
+    if model not in models:
+        raise typer.BadParameter("--model must be study, run, or summary")
+    content = (
+        json.dumps(models[model].model_json_schema(), allow_nan=False, indent=2, sort_keys=True)
+        + "\n"
+    )
+    if out is None:
+        typer.echo(content, nl=False)
+    else:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(content)
+        typer.echo(f"wrote {out}")
+
+
 @spec_app.command("render")
+@_cli_errors
 def spec_render_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
     out: Path = typer.Option(..., "--out", help="Destination markdown file."),
@@ -186,29 +280,28 @@ def _fixture_source(study: StudySpec, repo_root: Path) -> _FixtureSource:
     )
 
 
-def _load_runs(study: StudySpec, repo_root: Path) -> pl.DataFrame:
-    source = _fixture_source(study, repo_root)
-    adapter = source.adapter_factory()
-    return adapter.load(source.source_dir)
-
-
-def _resolve_runs_frame(
+def _load_evidence(
     study: StudySpec, repo_root: Path, runs_override: Path | None
-) -> pl.DataFrame:
-    """Pick between the BYO --runs file and the benchmark-keyed adapter path."""
-    if runs_override is None:
-        return _load_runs(study, repo_root)
-    if not runs_override.exists():
-        typer.echo(
-            f"--runs path does not exist: {runs_override}",
-            err=True,
+) -> tuple[pl.DataFrame, EvidenceSource]:
+    if runs_override is not None:
+        if not runs_override.is_file():
+            raise IngestContractError(f"runs parquet must be a readable file: {runs_override}")
+        source = EvidenceSource.from_path(runs_override, source_kind="canonical")
+        frame = load_run_records(runs_override)
+    else:
+        fixture = _fixture_source(study, repo_root)
+        source = EvidenceSource.from_path(
+            fixture.parquet_path, source_kind="adapter", source_dir=fixture.source_dir
         )
-        raise typer.Exit(code=1)
-    try:
-        return load_run_records(runs_override)
-    except IngestContractError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        frame = fixture.adapter_factory().load(fixture.source_dir)
+    if (
+        EvidenceSource.from_path(source.fixture_path, source_kind=source.source_kind).fixture_sha256
+        != source.fixture_sha256
+    ):
+        raise IngestContractError(
+            f"runs changed while loading: {source.fixture_path}; retry with a stable input file"
+        )
+    return frame, source
 
 
 def _git_commit(repo_root: Path) -> str:
@@ -222,76 +315,8 @@ def _git_commit(repo_root: Path) -> str:
         return "unknown"
 
 
-def _fixture_sha256(study: StudySpec, repo_root: Path, runs_override: Path | None = None) -> str:
-    if runs_override is not None:
-        path = runs_override
-    else:
-        path = _fixture_source(study, repo_root).parquet_path
-    if not path.exists():
-        return "n/a"
-    h = hashlib.sha256()
-    h.update(path.read_bytes())
-    return h.hexdigest()
-
-
-def _run_synthetic_validation_gate(repo_root: Path) -> bool:
-    """Invoke the synthetic-validation pytest suite. Returns True on pass."""
-    cmd = [
-        "uv",
-        "run",
-        "pytest",
-        "-q",
-        "-m",
-        "synthetic_validation",
-        str(repo_root / "tests" / "synthetic_validation"),
-    ]
-    typer.echo("running synthetic-validation gate (pytest -m synthetic_validation)...")
-    try:
-        result = subprocess.run(cmd, cwd=str(repo_root), capture_output=True, text=True)
-    except FileNotFoundError:
-        fallback = [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-q",
-            "-m",
-            "synthetic_validation",
-            str(repo_root / "tests" / "synthetic_validation"),
-        ]
-        result = subprocess.run(fallback, cwd=str(repo_root), capture_output=True, text=True)
-    typer.echo(result.stdout)
-    if result.stderr:
-        typer.echo(result.stderr, err=True)
-    return result.returncode == 0
-
-
-def _write_markdown_report(
-    text: str,
-    target_dir: Path,
-) -> Path:
-    target = target_dir / "report.md"
-    target.write_text(text)
-    return target
-
-
-def _write_html_report(markdown_text: str, study: StudySpec, target_dir: Path) -> Path:
-    target = target_dir / "report.html"
-    target.write_text(render_html_report(markdown_text, title=f"{study.id} audit report"))
-    return target
-
-
 def _failed_checks(readiness: ReadinessResult) -> list[ReadinessCheck]:
     return [check for check in readiness.checks if check.status == "fail"]
-
-
-def _most_important_failed_check(readiness: ReadinessResult) -> ReadinessCheck | None:
-    failed = _failed_checks(readiness)
-    if not failed:
-        return None
-    return min(
-        enumerate(failed),
-        key=lambda item: (_SEVERITY_RANK[item[1].severity], item[0]),
-    )[1]
 
 
 def _readiness_meets_minimum(
@@ -380,7 +405,7 @@ def _gate_claims_and_failures(
     if readiness_failures:
         return [], readiness_failures
 
-    result = run_analysis(
+    result = analyze(
         study,
         runs_frame,
         bootstrap_iterations=bootstrap_iterations,
@@ -425,6 +450,7 @@ def _emit_gate_output(payload: dict[str, object], *, json_output: bool) -> None:
 
 
 @app.command(name="analyze")
+@_cli_errors
 def analyze_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
     out_dir: Path = typer.Option(Path("reports"), "--out-dir"),
@@ -443,20 +469,20 @@ def analyze_cmd(
     """Run analysis end-to-end and write `reports/<id>/analysis.json`."""
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
-    runs_frame = _resolve_runs_frame(study, root, runs)
-    result = run_analysis(
+    runs_frame, source = _load_evidence(study, root, runs)
+    result = analyze(
         study,
         runs_frame,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
     )
-    target_dir = out_dir / study.id
-    target_dir.mkdir(parents=True, exist_ok=True)
-    target = write_analysis_json(result, target_dir)
-    typer.echo(f"wrote {target}")
+    target_dir = audit_directory(out_dir, study.id)
+    publish_artifacts(target_dir, {"analysis.json": analysis_json_bytes(result)}, complete=False)
+    typer.echo(f"wrote {target_dir / 'analysis.json'}")
 
 
 @app.command(name="audit")
+@_cli_errors
 def audit_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
     runs: Path = typer.Option(
@@ -477,77 +503,31 @@ def audit_cmd(
     """Validate, check readiness, analyze, and write check.json, analysis.json, report.md, and summary.json."""
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
-    runs_frame = _resolve_runs_frame(study, root, runs)
-    readiness = run_readiness(study_yaml, runs, study, runs_frame, repo_root=root)
-    if readiness.status == "not_ready":
-        important = _most_important_failed_check(readiness)
-        failed_ids = ", ".join(check.id for check in _failed_checks(readiness))
-        typer.echo(f"audit failed: study={study.id} readiness={readiness.status}", err=True)
-        if failed_ids:
-            typer.echo(f"failed readiness checks: {failed_ids}", err=True)
-        if important is not None:
-            typer.echo(
-                f"highest-severity fix: {important.id}: {important.fix_suggestion}",
-                err=True,
-            )
-        raise typer.Exit(code=1)
-
-    target_dir = out_dir / study.id
-    target_dir.mkdir(parents=True, exist_ok=True)
-    check_path, check_sha256 = write_check_json(readiness, target_dir)
-    result = run_analysis(
+    runs_frame, source = _load_evidence(study, root, runs)
+    products = build_audit(
         study,
         runs_frame,
-        bootstrap_iterations=bootstrap_iterations,
-        bootstrap_seed=bootstrap_seed,
-    )
-    analysis_path = write_analysis_json(result, target_dir)
-    markdown_text = render_audit_markdown(
-        result,
-        study,
-        runs_frame,
+        study_path=study_yaml,
+        source=source,
         repo_root=root,
-        runs_path=runs,
-        readiness=readiness,
-        check_sha256=check_sha256,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
         git_commit=_git_commit(root),
-        fixture_sha256=_fixture_sha256(study, root, runs),
-        deterministic_clock=True,
+        html=html,
     )
-    report_path = _write_markdown_report(markdown_text, target_dir)
-    html_path: Path | None = None
-    if html:
-        html_path = _write_html_report(markdown_text, study, target_dir)
-    summary_path = write_summary_json(
-        result=result,
-        study=study,
-        runs_frame=runs_frame,
-        readiness=readiness,
-        repo_root=root,
-        target_dir=target_dir,
-        check_path=check_path,
-        analysis_path=analysis_path,
-        report_path=report_path,
-        html_path=html_path,
-    )
-
-    verdicts = claim_verdicts(result, study)
-    typer.echo(f"audit passed: study={study.id} readiness={readiness.status}")
-    typer.echo(f"wrote {check_path}")
-    typer.echo(f"wrote {analysis_path}")
-    typer.echo(f"wrote {report_path}")
-    if html_path is not None:
-        typer.echo(f"wrote {html_path}")
-    typer.echo(f"wrote {summary_path}")
-    for verdict in verdicts:
+    target_dir = audit_directory(out_dir, study.id)
+    publish_artifacts(target_dir, products.artifacts, complete=True)
+    typer.echo(f"audit passed: study={study.id} readiness={products.readiness.status}")
+    for name in products.artifacts:
+        typer.echo(f"wrote {target_dir / name}")
+    for verdict in claim_verdicts(products.result, study):
         typer.echo(f"claim {verdict['claim_id']}: {verdict['verdict']}")
 
 
 @app.command(name="gate")
+@_cli_errors
 def gate_cmd(
-    study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    study_yaml: Path = typer.Argument(..., dir_okay=False),
     runs: Path = typer.Option(
         ...,
         "--runs",
@@ -576,9 +556,9 @@ def gate_cmd(
     minimum = _validated_min_readiness(min_readiness)
     allowed_verdicts = _allowed_gate_verdicts(allow_verdict)
     root = _resolve_repo_root(repo_root)
-    study = _load_study_or_exit(study_yaml)
-    runs_frame = _resolve_runs_frame(study, root, runs)
-    readiness = run_readiness(study_yaml, runs, study, runs_frame, repo_root=root)
+    study = StudySpec.from_yaml(study_yaml)
+    runs_frame, source = _load_evidence(study, root, runs)
+    readiness = check_evidence(study, runs_frame, repo_root=root, source=source)
     claims, failures = _gate_claims_and_failures(
         study=study,
         runs_frame=runs_frame,
@@ -606,6 +586,7 @@ def gate_cmd(
 
 
 @app.command(name="portfolio")
+@_cli_errors
 def portfolio_cmd(
     reports_dir: Path = typer.Argument(..., help="Directory containing completed audit reports."),
     out: Path | None = typer.Option(
@@ -642,6 +623,7 @@ def portfolio_cmd(
 
 
 @app.command(name="report")
+@_cli_errors
 def report_cmd(
     study_yaml: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
     out_dir: Path = typer.Option(Path("reports"), "--out-dir"),
@@ -664,60 +646,28 @@ def report_cmd(
 
     if skip_validation:
         typer.echo(
-            "WARNING: synthetic validation skipped (--skip-validation). "
-            "The report contract requires this gate to pass before any report render. "
-            "This run is for development/debug only; do NOT publish the resulting report."
-        )
-    else:
-        gate_ok = _run_synthetic_validation_gate(root)
-        if not gate_ok:
-            typer.echo("synthetic-validation gate FAILED; refusing to write report.", err=True)
-            raise typer.Exit(code=1)
-
-    runs_frame = _resolve_runs_frame(study, root, runs)
-    readiness = check_evidence(study, runs_frame, repo_root=root)
-    if readiness.status == "not_ready":
-        failed = [
-            check.id
-            for check in readiness.checks
-            if check.severity == "error" and check.status == "fail"
-        ]
-        runs_arg = runs if runs is not None else _fixture_source(study, root).parquet_path
-        check_out_path = out_dir / study.id / "check.json"
-        typer.echo(
-            "evidence readiness check FAILED; refusing to write report "
-            f"(failed gates: {', '.join(failed)})\n"
-            "For the full readiness JSON, run:\n"
-            f"  eval-audit check {study_yaml} --runs {runs_arg} --out {check_out_path}",
+            "--skip-validation is deprecated. Evidence validation always runs; synthetic recovery runs in make check.",
             err=True,
         )
-        raise typer.Exit(code=1)
-
-    target_dir = out_dir / study.id
-    target_dir.mkdir(parents=True, exist_ok=True)
-    check_json = readiness.to_json_bytes()
-    check_path = target_dir / "check.json"
-    check_path.write_bytes(check_json)
-    check_sha256 = hashlib.sha256(check_json).hexdigest()
-    target = target_dir / "report.md"
-    render_report_to(
-        target,
+    runs_frame, source = _load_evidence(study, root, runs)
+    products = build_audit(
         study,
         runs_frame,
-        clock=lambda: datetime.now(UTC),
-        git_commit=_git_commit(root),
-        fixture_sha256=_fixture_sha256(study, root, runs),
+        study_path=study_yaml,
+        source=source,
         repo_root=root,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
-        evidence_readiness=readiness.status,
-        check_sha256=check_sha256,
+        git_commit=_git_commit(root),
     )
-    typer.echo(f"wrote {check_path}")
-    typer.echo(f"wrote {target}")
+    target_dir = audit_directory(out_dir, study.id)
+    publish_artifacts(target_dir, products.artifacts, complete=True)
+    for name in products.artifacts:
+        typer.echo(f"wrote {target_dir / name}")
 
 
 @app.command(name="init")
+@_cli_errors
 def init_cmd(
     name: str = typer.Argument(..., help="Kebab-case slug for the new BYO study."),
     cwd: Path = typer.Option(
@@ -738,7 +688,7 @@ def init_cmd(
 
     base = cwd if cwd is not None else Path.cwd()
     target = base / name
-    if target.exists() and any(target.iterdir()):
+    if target.exists() and (not target.is_dir() or any(target.iterdir())):
         typer.echo(
             f"target directory is not empty: {target}. "
             "Refusing to clobber existing files. "
@@ -757,6 +707,7 @@ def init_cmd(
 
 
 @app.command(name="check")
+@_cli_errors
 def check_cmd(
     study_yaml: Path = typer.Argument(..., help="Path to a StudySpec YAML file."),
     runs: Path = typer.Option(
@@ -795,6 +746,7 @@ def check_cmd(
 
 
 @app.command(name="validate")
+@_cli_errors
 def validate_cmd(
     runs: Path = typer.Argument(..., help="Path to a canonical RunRecord-shaped parquet."),
     study: Path = typer.Argument(..., help="Path to a StudySpec YAML file."),

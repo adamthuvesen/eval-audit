@@ -1,139 +1,112 @@
-"""Acceptance tests for the HumanEval Direct Completion grader's subprocess sandbox.
-
-The grader executes untrusted model-generated code. These tests verify the
-v0 trust boundary: the subprocess runs with a sanitized environment (no
-ANTHROPIC_API_KEY, no HOME, no parent secrets) and Python isolated mode
-(-I, which ignores user site-packages and PYTHONPATH).
-"""
+"""Host execution is refused. Only repository-authored fixtures use the private helper."""
 
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 GRADE_PATH = REPO_ROOT / "scouting" / "humaneval-direct-completion" / "grade.py"
 
 
-def _load_grade_module():
+def _load_grade_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("humaneval_direct_completion_grade", GRADE_PATH)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"could not load grade.py at {GRADE_PATH}")
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def test_grader_env__scrubs_anthropic_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The grader subprocess MUST NOT see ANTHROPIC_API_KEY from the parent env.
-
-    A malicious or accidental completion that reads os.environ would
-    otherwise exfiltrate secrets through stdout / stderr.
-    """
+def test_grader__refuses_untrusted_host_execution(monkeypatch: pytest.MonkeyPatch) -> None:
     grade = _load_grade_module()
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-secret-VALUE-XYZ")
 
-    sandboxed = grade._sandboxed_env()
+    def unexpected_execution(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("untrusted host execution must not start")
 
-    assert "ANTHROPIC_API_KEY" not in sandboxed
-    assert sandboxed.get("PATH"), "PATH should be forwarded so the interpreter resolves"
-
-
-def test_grader_env__scrubs_home_and_pythonpath(monkeypatch: pytest.MonkeyPatch) -> None:
-    """HOME and PYTHONPATH must not leak into the grader subprocess."""
-    grade = _load_grade_module()
-    monkeypatch.setenv("HOME", "/tmp/fake-home")
-    monkeypatch.setenv("PYTHONPATH", "/tmp/fake-pythonpath")
-
-    sandboxed = grade._sandboxed_env()
-
-    assert "HOME" not in sandboxed
-    assert "PYTHONPATH" not in sandboxed
+    monkeypatch.setattr(grade.subprocess, "run", unexpected_execution)
+    result = grade._grade_one("", "", "", "f")
+    assert result["success"] is None
+    assert result["grader_crash"] is True
+    assert result["reason"] == "isolation_required"
 
 
-def test_grader_subprocess__cannot_read_anthropic_api_key(
-    monkeypatch: pytest.MonkeyPatch,
+def test_grader_cli__refuses_before_reading_or_writing(repo_root: Path) -> None:
+    result = subprocess.run(
+        ["uv", "run", "--locked", "python", str(GRADE_PATH)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode != 0
+    assert "isolated execution backend" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("completion", "expected_success", "reason"),
+    [
+        ("    return 1\n", True, "completed"),
+        ("    return 2\n", False, "candidate_failure"),
+        ("    import sys\n    sys.exit(0)\n", False, "incomplete_execution"),
+    ],
+)
+def test_trusted_fixture__requires_completed_check(
+    completion: str, expected_success: bool, reason: str
 ) -> None:
-    """An end-to-end check: a completion that reads ANTHROPIC_API_KEY sees nothing.
-
-    Builds a candidate program that prints the env var, runs it through the
-    grader, and asserts the secret is absent from stderr/stdout.
-    """
     grade = _load_grade_module()
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-secret-VALUE-XYZ")
-
-    # A "completion" that reads the secret and writes it as stdout, then
-    # raises a controlled error so returncode != 0 and stderr captures the
-    # leaked value (if any).
-    prompt = "def report():\n    pass\n"
-    completion = (
-        "    import os, sys\n"
-        "    leaked = os.environ.get('ANTHROPIC_API_KEY', '__MISSING__')\n"
-        "    sys.stderr.write(f'leaked={leaked}\\n')\n"
-        "    raise SystemExit(0 if leaked == '__MISSING__' else 1)\n"
-    )
-    test = "def check(_):\n    report()\n"
-
-    grade_result = grade._grade_one(
-        prompt=prompt, completion=completion, test=test, entry_point="report"
-    )
-
-    # The candidate exits 0 only if the env var was absent — i.e. the sandbox
-    # successfully scrubbed it.
-    assert grade_result["success"] is True, (
-        f"sandbox failed to scrub ANTHROPIC_API_KEY: stderr_tail={grade_result['stderr_tail']!r}"
-    )
-    assert "sk-ant-test-secret-VALUE-XYZ" not in grade_result["stderr_tail"]
-
-
-def test_grader_subprocess__stdlib_imports_still_work() -> None:
-    """Sanity: -I mode must not break stdlib imports the candidates rely on.
-
-    The HumanEval candidates use math, typing, collections, copy, string,
-    random — all stdlib. Verify a representative stdlib import succeeds in
-    the sandboxed subprocess.
-    """
-    grade = _load_grade_module()
-
-    prompt = "def f():\n    pass\n"
-    completion = (
-        "    import math\n"
-        "    import collections\n"
-        "    from typing import List\n"
-        "    assert math.pi > 3\n"
-        "    assert isinstance(collections.OrderedDict(), dict)\n"
-    )
-    test = "def check(_):\n    f()\n"
-
-    grade_result = grade._grade_one(
-        prompt=prompt, completion=completion, test=test, entry_point="f"
-    )
-
-    assert grade_result["success"] is True, (
-        f"-I mode broke stdlib imports: stderr_tail={grade_result['stderr_tail']!r}"
-    )
-
-
-def test_grader_subprocess__setup_crash_is_marked_for_errored_row(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Infrastructure failures must not be counted as graded model failures."""
-    grade = _load_grade_module()
-
-    def raise_os_error(*_args, **_kwargs):
-        raise OSError("simulated subprocess setup failure")
-
-    monkeypatch.setattr(grade.subprocess, "run", raise_os_error)
-
-    grade_result = grade._grade_one(
-        prompt="def f():\n    pass\n",
-        completion="    return 1\n",
+    result = grade._grade_trusted_fixture(
+        prompt="def f():\n",
+        completion=completion,
         test="def check(fn):\n    assert fn() == 1\n",
         entry_point="f",
     )
+    assert result["success"] is expected_success
+    assert result["reason"] == reason
+    assert result["grader_crash"] is False
 
-    assert grade_result["grader_crash"] is True
-    assert grade_result["success"] is None
-    assert "GRADER_CRASH" in grade_result["stderr_tail"]
+
+def test_trusted_fixture__reduces_environment_exposure(monkeypatch: pytest.MonkeyPatch) -> None:
+    grade = _load_grade_module()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-secret")
+    monkeypatch.setenv("PYTHONPATH", "/tmp/test-pythonpath")
+    assert "HOME" not in grade._trusted_fixture_env()
+    result = grade._grade_trusted_fixture(
+        prompt="def f():\n",
+        completion=(
+            "    import os, math\n"
+            "    assert 'ANTHROPIC_API_KEY' not in os.environ\n"
+            "    assert 'PYTHONPATH' not in os.environ\n"
+            "    return math.floor(1.5)\n"
+        ),
+        test="def check(fn):\n    assert fn() == 1\n",
+        entry_point="f",
+    )
+    assert result["success"] is True
+
+
+def test_trusted_fixture__setup_crash_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    grade = _load_grade_module()
+
+    def raise_os_error(*_args: object, **_kwargs: object) -> None:
+        raise OSError("simulated subprocess setup failure")
+
+    monkeypatch.setattr(grade.subprocess, "run", raise_os_error)
+    result = grade._grade_trusted_fixture("def f():\n", "    return 1", "def check(fn): pass", "f")
+    assert result["success"] is None
+    assert result["reason"] == "infrastructure_error"
+
+
+def test_trusted_fixture__timeout_is_a_model_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    grade = _load_grade_module()
+    monkeypatch.setattr(grade, "GRADE_TIMEOUT_S", 0.05)
+    result = grade._grade_trusted_fixture(
+        "def f():\n", "    while True: pass", "def check(fn): fn()", "f"
+    )
+    assert result["success"] is False
+    assert result["reason"] == "timeout"
+    assert result["grader_crash"] is False

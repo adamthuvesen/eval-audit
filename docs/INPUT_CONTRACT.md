@@ -33,6 +33,8 @@ The directory convention exists because real benchmark fixtures need provenance,
 
 - **Parquet only.** Token-breakdown fields (`tokens_in_by_model`, `tokens_out_by_model`) are dicts; CSV does not preserve them cleanly. Convert other formats to parquet via three lines of polars or pandas.
 - **Schema is enforced row-by-row** through the canonical `RunRecord` Pydantic model. Errors name the offending row index, field path, and bad value. The original `pydantic.ValidationError` is preserved as the exception's `__cause__` for debug consumers.
+- **Canonical physical types are strict.** Boolean and numeric fields reject strings and booleans used as numbers. Counts reject floating-point values. Numeric fields reject NaN and infinity. Timestamps must be parquet datetime values. Source adapters convert their documented raw encodings before validation.
+- **Polars struct padding is accepted.** Null keys in token breakdown structs represent absent model keys during row validation.
 - **Row order is unspecified.** Downstream code does not depend on it. Feel free to sort by whatever is convenient.
 
 ## Fields
@@ -55,13 +57,13 @@ Every row in your parquet must populate every field listed below. Optional field
 
 - **Type:** `str` (required, non-null)
 - **Used by analysis:** yes; cross-harness comparison refusal. `analyze()` raises `CrossHarnessComparisonError` if a claim's treatment and control run under different harnesses; other harness or missing-row failures raise `AnalysisInputError`.
-- **BYO guidance:** all rows in a single audit must share one harness value. Pick a string that names the scaffold (e.g. `"my-harness"`).
+- **BYO guidance:** rows for declared agents must match the study harness. Unrelated agents are excluded. Pick a string that names the scaffold (e.g. `"my-harness"`).
 
 ### run_id
 
 - **Type:** `str` (required, non-null)
 - **Used by analysis:** yes; used to compute `reported_run_total_cost_usd` per (agent, run) when cost provenance is `as_reported_only`.
-- **BYO guidance:** identifies one execution of an agent over the task set. If you only have one run per agent, a stable per-agent string works.
+- **BYO guidance:** identifies one execution of an agent over the task set. Each declared run must cover the complete task set. If you only have one run per agent, a stable per-agent string works.
 
 ### task_id
 
@@ -144,17 +146,18 @@ Every row in your parquet must populate every field listed below. Optional field
 ### reported_run_total_cost_usd
 
 - **Type:** `float | None` with `>= 0` (optional)
-- **Used by analysis:** yes; used as the cost basis when `cost_provenance="as_reported_only"` (typically equal across all rows of the same `(agent_id, run_id)`).
+- **Used by analysis:** yes; used as the cost basis when `cost_provenance="as_reported_only"` (one unique non-null value across every row of each `(agent_id, run_id)` when reported totals supply the cost basis).
 - **BYO guidance:** the run-level total cost reported by your harness, if available.
 
 ### cost_provenance
 
-- **Type:** `Literal["reconciled", "partial", "as_reported_only"]` (required)
+- **Type:** `Literal["reconciled", "partial", "as_reported_only", "cost_not_available"]` (required)
 - **Used by analysis:** yes; drives the cost-summary code path AND the Robustness Review's "Cost provenance" row.
 - **BYO guidance:**
   - `"reconciled"` when your `reconstructed_per_task_cost_usd` agrees with the harness's reported run total within ~1%. Most BYO data is `reconciled` because you control the price table.
   - `"as_reported_only"` when per-task reconstruction does not reconcile and the audit must use the run-level reported total instead.
-  - `"partial"` is currently rejected by analysis (mixed null/non-null reconstructed costs would silently undercount); v1 enforces explicit handling.
+  - `"partial"` remains valid provenance when graded rows have complete reconstructed costs or complete reported totals. Mixed null/non-null reconstructed costs fail validation.
+  - `"cost_not_available"` requires both cost fields to be null on every row. The audit suppresses cost-derived views.
 
 ### rerun_metadata
 
@@ -166,11 +169,16 @@ Every row in your parquet must populate every field listed below. Optional field
 
 - `outcome_status="graded"` ⇒ `success` is non-null.
 - `outcome_status="errored"` ⇒ `success` and `partial_credit` are both `null`.
-- `cost_provenance="reconciled"` ⇒ `reconstructed_per_task_cost_usd` is non-null.
-- All numeric fields enforce `>= 0`.
-- Dict fields enforce non-negative integer values.
+- Graded rows with `cost_provenance="reconciled"` require non-null `reconstructed_per_task_cost_usd`.
+- Counts, cost fields, and latency enforce `>= 0`. All numeric fields must be finite.
+- Token breakdown dicts enforce non-negative integer values.
 
-These are checked row-by-row at load time. A failure raises `IngestContractError` naming the offending row index, field path, and bad value.
+Declared agents must share task coverage and match `design.observed_runs_per_agent` on every task and across complete runs.
+Duplicate `(agent_id, task_id, run_id)` observations fail validation.
+Readiness and analysis use the same evidence checks, including all declared Pareto candidates.
+Rows outside `study.agents` are excluded from analysis with an explicit scope diagnostic.
+
+These row constraints are checked at load time. A failure raises `IngestContractError` naming the offending row index, field path, and bad value.
 
 ## Where to go next
 

@@ -104,17 +104,16 @@ For step-by-step inspection, use the decomposed commands:
 ```bash
 eval-audit check study.yaml --runs runs.parquet
 eval-audit analyze study.yaml --runs runs.parquet
-eval-audit report study.yaml --runs runs.parquet --skip-validation
+eval-audit report study.yaml --runs runs.parquet
 ```
 
-The standalone report command warns when `--skip-validation` is used because it
-bypasses the source-checkout synthetic-validation gate. Use `audit` for the
-complete final artifact set.
+The report command validates the same evidence as audit. Synthetic recovery
+is a developer check in `make check`, not an installed-package prerequisite.
 
 For the formal field-by-field RunRecord reference, see
-[`docs/INPUT_CONTRACT.md`](../docs/INPUT_CONTRACT.md). For the
+[`docs/INPUT_CONTRACT.md`](https://github.com/adamthuvesen/eval-audit/blob/main/docs/INPUT_CONTRACT.md). For the
 worked example narrative, see
-[`examples/byo-minimal/README.md`](../examples/byo-minimal/README.md).
+[`examples/byo-minimal/README.md`](https://github.com/adamthuvesen/eval-audit/blob/main/examples/byo-minimal/README.md).
 """
 
 
@@ -125,6 +124,9 @@ def scaffold_byo_study(target_dir: Path, study_id: str) -> None:
     identifier substitutions), writes a stub ``README.md``, then runs
     ``make_runs.py`` to materialise ``runs.parquet``.
     """
+    target_dir = target_dir.resolve()
+    if target_dir.exists() and not target_dir.is_dir():
+        raise ScaffoldError(f"target is not a directory: {target_dir}")
     src = template_dir()
     target_dir.mkdir(parents=True, exist_ok=True)
 
