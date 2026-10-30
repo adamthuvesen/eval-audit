@@ -7,7 +7,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from eval_audit.report import ReportContractError
 from eval_audit.schema import StudySpec
@@ -40,7 +40,7 @@ class EvidenceSource:
 
 @dataclass(frozen=True)
 class ScoutingArtifacts:
-    cost_recon_data: dict
+    cost_recon_data: dict[str, Any]
     source_fixture_rel: str
     source_url: str
     retrieved_at: str
@@ -89,7 +89,7 @@ def load_scouting_artifacts(
     return ScoutingArtifacts(cost, label, source_url, retrieved_at)
 
 
-def _read_receipt(path: Path) -> dict:
+def _read_receipt(path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text())
     except (OSError, ValueError) as exc:

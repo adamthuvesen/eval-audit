@@ -132,7 +132,7 @@ def _build_program(prompt: str, completion: str, test: str, entry_point: str) ->
         try:
             compile(c, "<humaneval-direct-completion>", "exec")
             return c
-        except (SyntaxError, ValueError):
+        except SyntaxError, ValueError:
             continue
     return cands[0]
 

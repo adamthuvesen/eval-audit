@@ -308,7 +308,7 @@ def _git_commit(repo_root: Path) -> str:
             stderr=subprocess.DEVNULL,
         )
         return out.decode().strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except subprocess.CalledProcessError, FileNotFoundError:
         return "unknown"
 
 
@@ -466,7 +466,7 @@ def analyze_cmd(
     """Run analysis end-to-end and write `reports/<id>/analysis.json`."""
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
-    runs_frame, source = _load_evidence(study, root, runs)
+    runs_frame, _source = _load_evidence(study, root, runs)
     result = analyze(
         study,
         runs_frame,

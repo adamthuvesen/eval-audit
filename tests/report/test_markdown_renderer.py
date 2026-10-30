@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
@@ -278,7 +279,7 @@ def test_report__incomplete_reconstructed_cost_produces_no_report_file(
     treatment = study.claims[0].treatment
     control = study.claims[0].control
 
-    def row(agent_id: str, task_id: str, success: bool, cost: float | None) -> dict:
+    def row(agent_id: str, task_id: str, success: bool, cost: float | None) -> dict[str, Any]:
         return {
             "agent_id": agent_id,
             "model_id": agent_id,

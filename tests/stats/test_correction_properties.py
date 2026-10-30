@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
+from typing import Any
+
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -25,13 +28,13 @@ def _claim_family(min_size: int = 1, max_size: int = 20) -> st.SearchStrategy:
 
 @_SETTINGS
 @given(_claim_family())
-def test_holm__monotonicity_in_raw_p_rank(claims: list) -> None:
+def test_holm__monotonicity_in_raw_p_rank(claims: list[Any]) -> None:
     """Adjusted p-values are monotonically non-decreasing in sorted-by-raw-p rank."""
     result = holm_bonferroni(claims, alpha=0.05)
     by_id = {cid: (rp, ap) for cid, rp, ap, _ in result}
     sorted_ids = sorted(by_id, key=lambda cid: by_id[cid][0])
     adj_in_order = [by_id[cid][1] for cid in sorted_ids]
-    for prev, curr in zip(adj_in_order, adj_in_order[1:], strict=False):
+    for prev, curr in pairwise(adj_in_order):
         assert prev <= curr + 1e-12, (
             f"adjusted p-values not non-decreasing in raw-p rank: {adj_in_order}"
         )
@@ -39,7 +42,7 @@ def test_holm__monotonicity_in_raw_p_rank(claims: list) -> None:
 
 @_SETTINGS
 @given(_claim_family(), st.floats(min_value=0.001, max_value=0.5))
-def test_holm__adjusted_p_in_unit_interval(claims: list, alpha: float) -> None:
+def test_holm__adjusted_p_in_unit_interval(claims: list[Any], alpha: float) -> None:
     """Every adjusted p-value lies in [0, 1]."""
     result = holm_bonferroni(claims, alpha=alpha)
     for _, _, adj_p, _ in result:
@@ -48,7 +51,7 @@ def test_holm__adjusted_p_in_unit_interval(claims: list, alpha: float) -> None:
 
 @_SETTINGS
 @given(_claim_family(min_size=1, max_size=10))
-def test_holm__idempotent_when_re_applied_to_raw_p(claims: list) -> None:
+def test_holm__idempotent_when_re_applied_to_raw_p(claims: list[Any]) -> None:
     """Running holm twice over the same (claim_id, raw_p) pairs gives the same adjusted_p."""
     a = holm_bonferroni(claims, alpha=0.05)
     raw_again = [(cid, rp) for cid, rp, _, _ in a]
@@ -66,19 +69,19 @@ def test_holm__family_of_one_is_identity() -> None:
 
 @_SETTINGS
 @given(_claim_family())
-def test_bh__monotonicity_in_raw_p_rank(claims: list) -> None:
+def test_bh__monotonicity_in_raw_p_rank(claims: list[Any]) -> None:
     """BH adjusted p-values are monotonically non-decreasing in sorted-by-raw-p rank."""
     result = benjamini_hochberg(claims, alpha=0.05)
     by_id = {cid: (rp, ap) for cid, rp, ap, _ in result}
     sorted_ids = sorted(by_id, key=lambda cid: by_id[cid][0])
     adj_in_order = [by_id[cid][1] for cid in sorted_ids]
-    for prev, curr in zip(adj_in_order, adj_in_order[1:], strict=False):
+    for prev, curr in pairwise(adj_in_order):
         assert prev <= curr + 1e-12
 
 
 @_SETTINGS
 @given(_claim_family(), st.floats(min_value=0.001, max_value=0.5))
-def test_bh__adjusted_p_in_unit_interval(claims: list, alpha: float) -> None:
+def test_bh__adjusted_p_in_unit_interval(claims: list[Any], alpha: float) -> None:
     """Every BH adjusted p-value lies in [0, 1]."""
     result = benjamini_hochberg(claims, alpha=alpha)
     for _, _, adj_p, _ in result:

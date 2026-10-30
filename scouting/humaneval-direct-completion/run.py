@@ -87,7 +87,7 @@ def _git_commit() -> str:
             stderr=subprocess.DEVNULL,
         )
         return out.decode().strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except subprocess.CalledProcessError, FileNotFoundError:
         return "unknown"
 
 

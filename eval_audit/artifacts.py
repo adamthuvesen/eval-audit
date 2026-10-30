@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
@@ -103,7 +102,7 @@ def publish_artifacts(directory: Path, artifacts: Mapping[str, bytes], *, comple
             )
             try:
                 for name in sorted(artifacts, key=lambda name: name == "summary.json"):
-                    os.replace(stage / name, paths[name])
+                    (stage / name).replace(paths[name])
                 obsolete = (
                     ARTIFACT_NAMES - artifacts.keys()
                     if complete
@@ -116,7 +115,7 @@ def publish_artifacts(directory: Path, artifacts: Mapping[str, bytes], *, comple
                     if name in previous:
                         backup = stage / name
                         backup.write_bytes(previous[name])
-                        os.replace(backup, path)
+                        backup.replace(path)
                     else:
                         path.unlink(missing_ok=True)
                 if original_marker is None:

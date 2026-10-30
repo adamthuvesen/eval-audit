@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import polars as pl
 
 
@@ -15,7 +17,7 @@ def _row(
     reconstructed_cost: float | None = None,
     reported_run_total: float = 5.00,
     cost_provenance: str = "as_reported_only",
-) -> dict:
+) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -43,45 +45,51 @@ def _row(
 def _stub_study(treatment: str, control: str, harness: str = "tau_bench_tool_calling"):
     from eval_audit.schema import StudySpec
 
-    return StudySpec(
-        id="stub",
-        benchmark="stub",
-        analysis_mode="declared_reanalysis",
-        data_observation="full_seen",
-        harness=harness,
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[{"id": treatment}, {"id": control}],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": 1,
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": None,
-        },
-        cost={
-            "metrics": ["reconstructed_per_task_cost_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": "c1",
-                "text": "treatment beats control",
-                "treatment": treatment,
-                "control": control,
-                "outcome": "success_rate",
-            }
-        ],
+    return StudySpec.model_validate(
+        {
+            "id": "stub",
+            "benchmark": "stub",
+            "analysis_mode": "declared_reanalysis",
+            "data_observation": "full_seen",
+            "harness": harness,
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [{"id": treatment}, {"id": control}],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": 1,
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": None,
+            },
+            "cost": {
+                "metrics": ["reconstructed_per_task_cost_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": "c1",
+                    "text": "treatment beats control",
+                    "treatment": treatment,
+                    "control": control,
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
 
-def _claude_taubench_rows() -> list[dict]:
+def _claude_taubench_rows() -> list[dict[str, Any]]:
     """Synthetic 50-task Claude frame: 22 graded-success, 25 graded-fail, 3 errored."""
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for i in range(22):
         rows.append(
             _row(
@@ -113,9 +121,9 @@ def _claude_taubench_rows() -> list[dict]:
     return rows
 
 
-def _o4mini_taubench_rows() -> list[dict]:
+def _o4mini_taubench_rows() -> list[dict[str, Any]]:
     """Synthetic 50-task o4-mini frame: 28 graded-success, 22 graded-fail, 0 errored."""
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for i in range(28):
         rows.append(
             _row(
@@ -247,7 +255,7 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     # Reconciled path: 10 rows, 2 errored, 5 graded-successes, 3 graded-fail.
     # Each row's reconstructed_per_task_cost_usd = 0.10 (errored rows are None).
     # Expected total_cost_usd = 8 * 0.10 = 0.80; cost_per_success = 0.80 / 5 = 0.16.
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for i in range(5):
         rows.append(
             _row(
@@ -401,7 +409,7 @@ def test_errored_row_policy__property_success_rate_invariants(
     if n_total < 2:  # bootstrap needs at least one task per arm to do anything
         return
 
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     task_idx = 0
     for _ in range(n_successes):
         rows.append(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -15,43 +16,49 @@ from eval_audit.stats import analyze
 
 
 def _minimal_study() -> StudySpec:
-    return StudySpec(
-        id="schema-roundtrip",
-        benchmark="stub",
-        analysis_mode="preregistered",
-        data_observation="full_seen",
-        harness="h",
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[{"id": "t"}, {"id": "c"}],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": 1,
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": None,
-        },
-        cost={
-            "metrics": ["reconstructed_per_task_cost_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": "c1",
-                "text": "t beats c",
-                "treatment": "t",
-                "control": "c",
-                "outcome": "success_rate",
-            }
-        ],
+    return StudySpec.model_validate(
+        {
+            "id": "schema-roundtrip",
+            "benchmark": "stub",
+            "analysis_mode": "preregistered",
+            "data_observation": "full_seen",
+            "harness": "h",
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [{"id": "t"}, {"id": "c"}],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": 1,
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": None,
+            },
+            "cost": {
+                "metrics": ["reconstructed_per_task_cost_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": "c1",
+                    "text": "t beats c",
+                    "treatment": "t",
+                    "control": "c",
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
 
-def _row(agent_id: str, task_id: str, success: bool) -> dict:
+def _row(agent_id: str, task_id: str, success: bool) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -82,7 +89,7 @@ def test_audit_summary__build_and_validate_round_trip() -> None:
     rows += [_row("c", f"t{i}", i < 1) for i in range(4)]
     runs = pl.DataFrame(rows, strict=False)
     result = analyze(study, runs, bootstrap_iterations=200, bootstrap_seed=1)
-    presentation = resolve_study_presentation(study, runs, result, Path("."))
+    presentation = resolve_study_presentation(study, runs, result, Path())
     summary = build_audit_summary(
         result=result,
         study=study,

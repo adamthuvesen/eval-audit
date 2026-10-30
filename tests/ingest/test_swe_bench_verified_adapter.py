@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
@@ -20,7 +21,7 @@ def _synthetic_universe(n: int = SWE_BENCH_VERIFIED_TASK_COUNT) -> list[str]:
     return [f"repo__pr-{i:04d}" for i in range(n)]
 
 
-def _treatment_submission(universe: list[str]) -> dict:
+def _treatment_submission(universe: list[str]) -> dict[str, Any]:
     """Treatment with 388 resolved (matches scouting note's locked count)."""
     resolved = set(universe[:388])
     no_generation = set(universe[388:390])  # 2 no_generation
@@ -33,7 +34,7 @@ def _treatment_submission(universe: list[str]) -> dict:
     }
 
 
-def _control_submission(universe: list[str]) -> dict:
+def _control_submission(universe: list[str]) -> dict[str, Any]:
     """Control with 359 resolved (matches scouting note's locked count)."""
     resolved = set(universe[:359])
     no_generation = set(universe[359:360])  # 1 no_generation
@@ -500,7 +501,7 @@ def test_adapter_validate__rejects_mismatched_agent_universes() -> None:
     from eval_audit.ingest.base import IngestContractError
 
     universe = _synthetic_universe()
-    universe_b = universe[:-1] + [f"repo__pr-{SWE_BENCH_VERIFIED_TASK_COUNT:04d}"]
+    universe_b = [*universe[:-1], f"repo__pr-{SWE_BENCH_VERIFIED_TASK_COUNT:04d}"]
     submissions_a = {
         "agent_a": {
             "model_id": "m",

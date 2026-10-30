@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
@@ -16,7 +17,7 @@ from eval_audit.ingest.terminal_bench import (
 )
 
 
-def _metadata(model_name: str, display_name: str) -> dict:
+def _metadata(model_name: str, display_name: str) -> dict[str, Any]:
     return {
         "agent": {"display_name": "Mux"},
         "model": {
@@ -27,7 +28,7 @@ def _metadata(model_name: str, display_name: str) -> dict:
     }
 
 
-def _record(task_num: int, model_name: str, reward: float = 1.0) -> dict:
+def _record(task_num: int, model_name: str, reward: float = 1.0) -> dict[str, Any]:
     task_name = f"terminal-task-{task_num:03d}"
     return {
         "task_name": task_name,
@@ -55,7 +56,7 @@ def _record(task_num: int, model_name: str, reward: float = 1.0) -> dict:
     }
 
 
-def _submission(model_name: str, display_name: str) -> dict:
+def _submission(model_name: str, display_name: str) -> dict[str, Any]:
     return {
         "metadata": _metadata(model_name, display_name),
         "runs": {

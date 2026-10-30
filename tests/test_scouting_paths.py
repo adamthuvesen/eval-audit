@@ -68,7 +68,7 @@ def test_relative_and_absolute_paths_resolve_to_the_same_binding(
     fixture = Path("examples/humaneval-direct-completion/runs.parquet")
     relative = EvidenceSource.from_path(fixture, source_kind="canonical")
     absolute = EvidenceSource.from_path(fixture.resolve(), source_kind="canonical")
-    assert resolve_evidence_decision_doc(Path("."), study, relative) == (
+    assert resolve_evidence_decision_doc(Path(), study, relative) == (
         Path("scouting/humaneval-direct-completion-decision.md"),
         "scouting/humaneval-direct-completion-decision.md",
     )

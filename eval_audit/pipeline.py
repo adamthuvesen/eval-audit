@@ -8,6 +8,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -34,7 +35,7 @@ class AuditProducts:
     artifacts: dict[str, bytes]
 
 
-def serialise_result(result: AnalysisResult) -> dict:
+def serialise_result(result: AnalysisResult) -> dict[str, Any]:
     out = dataclasses.asdict(result)
     out["pareto_frontier"] = sorted(result.pareto_frontier)
     out["bootstrap_seed"] = result.bootstrap_seed

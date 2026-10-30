@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import polars as pl
 
@@ -55,7 +55,7 @@ def _controlled_artifact_lines(
 
 
 def _controlled_run_metadata_lines(study: StudySpec, runs: pl.DataFrame) -> list[str]:
-    first_meta: dict = runs.row(0, named=True)["rerun_metadata"] or {}
+    first_meta: dict[str, Any] = runs.row(0, named=True)["rerun_metadata"] or {}
     parts: list[str] = []
     if task_source := first_meta.get("task_source"):
         parts.append(f"- **task_source:** `{task_source}`")

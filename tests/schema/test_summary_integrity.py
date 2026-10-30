@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -14,7 +15,7 @@ from eval_audit.schema.audit_summary import AuditSummary
 
 
 @pytest.fixture(scope="module")
-def summary_payload(repo_root: Path, tmp_path_factory: pytest.TempPathFactory) -> dict:
+def summary_payload(repo_root: Path, tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
     from eval_audit.cli import app
 
     output = tmp_path_factory.mktemp("summary-integrity")
@@ -37,13 +38,13 @@ def summary_payload(repo_root: Path, tmp_path_factory: pytest.TempPathFactory) -
     return json.loads((output / "byo-minimal/summary.json").read_text())
 
 
-def test_actual_audit_summary_validates_and_round_trips(summary_payload: dict) -> None:
+def test_actual_audit_summary_validates_and_round_trips(summary_payload: dict[str, Any]) -> None:
     summary = AuditSummary.model_validate(summary_payload)
     assert summary.model_dump(mode="json") == summary_payload
 
 
 @pytest.mark.parametrize("version", [0, 2, True, 1.0, "1"])
-def test_summary_rejects_invalid_version(summary_payload: dict, version: object) -> None:
+def test_summary_rejects_invalid_version(summary_payload: dict[str, Any], version: object) -> None:
     payload = copy.deepcopy(summary_payload)
     payload["schema_version"] = version
     with pytest.raises(ValidationError, match="schema_version"):
@@ -65,7 +66,7 @@ def test_summary_rejects_invalid_version(summary_payload: dict, version: object)
     ],
 )
 def test_summary_rejects_invalid_claim_domains(
-    summary_payload: dict, field: str, value: object
+    summary_payload: dict[str, Any], field: str, value: object
 ) -> None:
     payload = copy.deepcopy(summary_payload)
     payload["claims"][0][field] = value
@@ -78,7 +79,7 @@ def test_summary_rejects_invalid_claim_domains(
     "field", ["delta", "ci_low", "ci_high", "adjusted_p_value", "treatment_total_cost_usd"]
 )
 def test_summary_rejects_nonfinite_claim_numbers(
-    summary_payload: dict, field: str, value: float
+    summary_payload: dict[str, Any], field: str, value: float
 ) -> None:
     payload = copy.deepcopy(summary_payload)
     payload["claims"][0][field] = value
@@ -88,7 +89,7 @@ def test_summary_rejects_nonfinite_claim_numbers(
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
 def test_summary_rejects_nonfinite_explanation_conditions(
-    summary_payload: dict, value: float
+    summary_payload: dict[str, Any], value: float
 ) -> None:
     payload = copy.deepcopy(summary_payload)
     payload["claims"][0]["verdict_explanation"]["conditions"]["delta_ci_low"] = value
@@ -99,7 +100,9 @@ def test_summary_rejects_nonfinite_explanation_conditions(
 @pytest.mark.parametrize(
     "defect", ["duplicate", "study", "readiness", "artifacts", "verdict", "ci", "self"]
 )
-def test_summary_rejects_inconsistent_claim_fields(summary_payload: dict, defect: str) -> None:
+def test_summary_rejects_inconsistent_claim_fields(
+    summary_payload: dict[str, Any], defect: str
+) -> None:
     payload = copy.deepcopy(summary_payload)
     claim = payload["claims"][0]
     if defect == "duplicate":
@@ -120,7 +123,9 @@ def test_summary_rejects_inconsistent_claim_fields(summary_payload: dict, defect
         AuditSummary.model_validate(payload)
 
 
-def test_summary_rejects_cost_values_when_cost_is_unavailable(summary_payload: dict) -> None:
+def test_summary_rejects_cost_values_when_cost_is_unavailable(
+    summary_payload: dict[str, Any],
+) -> None:
     payload = copy.deepcopy(summary_payload)
     payload["claims"][0]["cost_provenance"] = "cost_not_available"
     with pytest.raises(ValidationError, match="null claim costs"):

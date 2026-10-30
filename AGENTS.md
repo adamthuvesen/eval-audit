@@ -9,7 +9,7 @@ composite-score factory, or causal model of scaffolds. Keep that shape.
 
 ```bash
 make setup     # locked install, dev extras
-make check     # fast lane and first CI job: lock, ruff, import contracts, format, mypy, pytest
+make check     # fast lane and first CI job: lock, ruff, import contracts, format, basedpyright, pytest
 make verify    # slow lane, after check in CI: tests marked `verify` (wheel install, synthetic recovery), then `verify all` + `verify control`
 
 uv run --locked eval-audit spec schema --model study|run|summary

@@ -11,6 +11,7 @@ None for every row; downstream consumers must use `reported_run_total_cost_usd`
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -84,7 +85,7 @@ class HalTauBenchAdapter:
         retrieved_at = str(provenance.get("retrieved_at", ""))
         rel_fixture = "scouting/candidates/tau-bench/sample.parquet"
 
-        records: list[dict] = []
+        records: list[dict[str, Any]] = []
         for r in raw.iter_rows(named=True):
             tin, tout = decode_hal_token_counts(r)
             success, partial_credit = hal_success_fields(

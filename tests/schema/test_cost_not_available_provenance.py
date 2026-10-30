@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from pydantic import ValidationError
 
 
-def _swe_bench_row_kwargs() -> dict:
+def _swe_bench_row_kwargs() -> dict[str, Any]:
     return {
         "agent_id": "20251127_openhands_claude-opus-4-5",
         "model_id": "claude-opus-4-5-202511017",

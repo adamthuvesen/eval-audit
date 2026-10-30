@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
@@ -17,7 +18,7 @@ pytestmark = pytest.mark.verify
 
 
 @pytest.fixture(scope="module")
-def truth(scouting_dir: Path) -> dict:
+def truth(scouting_dir: Path) -> dict[str, Any]:
     return json.loads((scouting_dir / "synthetic" / "truth.json").read_text())
 
 
@@ -33,39 +34,45 @@ def analysis(scouting_dir: Path):
     truth_data = json.loads((scouting_dir / "synthetic" / "truth.json").read_text())
     agent_ids = list(truth_data["agents"].keys())
 
-    study = StudySpec(
-        id="synthetic-validation",
-        benchmark="synthetic",
-        analysis_mode="exploratory",
-        data_observation="full_seen",
-        harness="synthetic",
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[{"id": a} for a in agent_ids],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": truth_data["n_seeds_per_task"],
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": None,
-        },
-        cost={
-            "metrics": ["reconstructed_per_task_cost_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": f"primary_{truth_data['primary_pair'][0]}_vs_{truth_data['primary_pair'][1]}",
-                "text": "primary pair from truth.json",
-                "treatment": truth_data["primary_pair"][0],
-                "control": truth_data["primary_pair"][1],
-                "outcome": "success_rate",
-            }
-        ],
+    study = StudySpec.model_validate(
+        {
+            "id": "synthetic-validation",
+            "benchmark": "synthetic",
+            "analysis_mode": "exploratory",
+            "data_observation": "full_seen",
+            "harness": "synthetic",
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [{"id": a} for a in agent_ids],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": truth_data["n_seeds_per_task"],
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": None,
+            },
+            "cost": {
+                "metrics": ["reconstructed_per_task_cost_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": f"primary_{truth_data['primary_pair'][0]}_vs_{truth_data['primary_pair'][1]}",
+                    "text": "primary pair from truth.json",
+                    "treatment": truth_data["primary_pair"][0],
+                    "control": truth_data["primary_pair"][1],
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
     return analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)

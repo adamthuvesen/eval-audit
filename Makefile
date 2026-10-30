@@ -33,6 +33,6 @@ format-check:
 	uv run --locked ruff format --check .
 
 typecheck:
-	uv run --locked mypy
+	uv run --locked basedpyright
 
 check: lock-check lint lint-imports format-check typecheck test

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -30,7 +31,7 @@ class StudyPresentation:
     retrieved_at: str
     residual_risks_text: str
     decision_md_label: str | None
-    cost_recon_data: dict
+    cost_recon_data: dict[str, Any]
 
 
 def row_level_cost_provenance(runs: pl.DataFrame) -> str:
@@ -46,7 +47,7 @@ def row_level_cost_provenance(runs: pl.DataFrame) -> str:
 def resolve_report_cost_provenance(
     study: StudySpec,
     runs: pl.DataFrame,
-    cost_recon_data: dict,
+    cost_recon_data: dict[str, Any],
 ) -> str:
     """Resolve headline cost provenance with the same priority as render_report."""
     scoped = runs.filter(pl.col("agent_id").is_in([agent.id for agent in study.agents]))

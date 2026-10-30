@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import polars as pl
 import pytest
@@ -23,7 +24,7 @@ def _load_normalizer(repo_root: Path) -> ModuleType:
     return module
 
 
-def _record() -> dict:
+def _record() -> dict[str, Any]:
     return {
         "agent_id": "test-agent",
         "agent_short": "test",
@@ -43,7 +44,7 @@ def _record() -> dict:
 
 
 def _setup(
-    repo_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, record: dict
+    repo_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, record: dict[str, Any]
 ) -> ModuleType:
     module = _load_normalizer(repo_root)
     graded = tmp_path / "graded"

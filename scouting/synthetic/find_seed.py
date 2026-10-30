@@ -71,15 +71,15 @@ def main() -> None:
         f"({'all matches' if args.all else 'first match'})..."
     )
 
-    pass_counts = {
-        name: 0
-        for name in (
+    pass_counts = dict.fromkeys(
+        (
             "primary_delta_proximity",
             "primary_bootstrap_ci_crosses_zero",
             "pareto_membership_match",
             "per_agent_rate_proximity",
-        )
-    }
+        ),
+        0,
+    )
     found: list[int] = []
 
     for offset in range(args.budget):

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from eval_audit.report import ReportContractError
 from eval_audit.report.decisions import DECISION_IMPACT_VOCAB, ClaimContext, explain_decision_impact
 from eval_audit.report.presentation import StudyPresentation
@@ -99,7 +101,7 @@ def render_verdict_explainer(
     return parts
 
 
-def render_claim_row(row: dict) -> str:
+def render_claim_row(row: dict[str, Any]) -> str:
     """Render a single claim row, validating its decision_impact value.
 
     Raises ReportContractError if the row's decision_impact is not in the controlled vocabulary.

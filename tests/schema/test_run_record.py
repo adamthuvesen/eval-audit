@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 
-def _gaia_row_kwargs() -> dict:
+def _gaia_row_kwargs() -> dict[str, Any]:
     return {
         "agent_id": "gaia_hg_claude37",
         "model_id": "claude-3-7-sonnet",

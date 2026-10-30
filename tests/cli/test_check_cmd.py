@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
@@ -418,6 +419,6 @@ def test_check__cost_not_available_cost_provenance_is_warning(
     assert "cost_not_available" in check["fix_suggestion"]
 
 
-def _check_by_id(payload: dict, check_id: str) -> dict:
+def _check_by_id(payload: dict[str, Any], check_id: str) -> dict[str, Any]:
     by_id = {check["id"]: check for check in payload["checks"]}
     return by_id[check_id]

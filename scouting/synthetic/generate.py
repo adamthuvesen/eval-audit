@@ -28,7 +28,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
 import tempfile
 from itertools import combinations
@@ -365,8 +364,8 @@ def run(check_only: bool = False) -> int:
             print("\n--check-only: criteria pass; canonical files NOT touched.")
             return 0
 
-        os.replace(tmp_runs, RUNS_PATH)
-        os.replace(tmp_truth, TRUTH_PATH)
+        tmp_runs.replace(RUNS_PATH)
+        tmp_truth.replace(TRUTH_PATH)
         print(f"\nwrote {RUNS_PATH} ({RUNS_PATH.stat().st_size:,} bytes), {len(rows)} rows")
         print(f"wrote {TRUTH_PATH}")
         print("\nper-agent expected vs observed success rate:")

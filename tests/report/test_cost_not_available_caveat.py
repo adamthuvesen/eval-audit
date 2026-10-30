@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
@@ -112,7 +113,7 @@ def test_decision_impact__dominated_with_null_cost_returns_drop_from_shortlist()
     assert decision_impact(ctx) == "drop_from_shortlist"
 
 
-def _suppressed_row(agent_id: str, task_id: str, success: bool) -> dict:
+def _suppressed_row(agent_id: str, task_id: str, success: bool) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -140,39 +141,45 @@ def _suppressed_row(agent_id: str, task_id: str, success: bool) -> dict:
 def _stub_suppressed_study(treatment: str, control: str):
     from eval_audit.schema import StudySpec
 
-    return StudySpec(
-        id="suppressed-stub",
-        benchmark="swe-bench-verified",
-        analysis_mode="declared_reanalysis",
-        data_observation="full_seen",
-        harness="swe-bench-verified/openhands-public-submission-v1",
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[{"id": treatment}, {"id": control}],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": 1,
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": 0.05,
-        },
-        cost={
-            "metrics": ["reconstructed_per_task_cost_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": "treat_vs_ctrl",
-                "text": "treatment beats control",
-                "treatment": treatment,
-                "control": control,
-                "outcome": "success_rate",
-            }
-        ],
+    return StudySpec.model_validate(
+        {
+            "id": "suppressed-stub",
+            "benchmark": "swe-bench-verified",
+            "analysis_mode": "declared_reanalysis",
+            "data_observation": "full_seen",
+            "harness": "swe-bench-verified/openhands-public-submission-v1",
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [{"id": treatment}, {"id": control}],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": 1,
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": 0.05,
+            },
+            "cost": {
+                "metrics": ["reconstructed_per_task_cost_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": "treat_vs_ctrl",
+                    "text": "treatment beats control",
+                    "treatment": treatment,
+                    "control": control,
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
 

@@ -13,42 +13,48 @@ FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
 def _stub_study_for_taubench():
     from eval_audit.schema import StudySpec
 
-    return StudySpec(
-        id="tau-bench-airline-tool-calling-stub",
-        benchmark="tau-bench",
-        analysis_mode="declared_reanalysis",
-        data_observation="full_seen",
-        harness="tau_bench_tool_calling",
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[
-            {"id": "Taubench ToolCalling (claude-3.7-sonnet)"},
-            {"id": "Taubench ToolCalling (o4-mini-2025-04-16 high)"},
-        ],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": 1,
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": 0.05,
-        },
-        cost={
-            "metrics": ["reported_run_total_cost_usd", "cost_per_success_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": "claude_vs_o4mini",
-                "text": "claude vs o4mini under tool calling",
-                "treatment": "Taubench ToolCalling (claude-3.7-sonnet)",
-                "control": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
-                "outcome": "success_rate",
-            }
-        ],
+    return StudySpec.model_validate(
+        {
+            "id": "tau-bench-airline-tool-calling-stub",
+            "benchmark": "tau-bench",
+            "analysis_mode": "declared_reanalysis",
+            "data_observation": "full_seen",
+            "harness": "tau_bench_tool_calling",
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [
+                {"id": "Taubench ToolCalling (claude-3.7-sonnet)"},
+                {"id": "Taubench ToolCalling (o4-mini-2025-04-16 high)"},
+            ],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": 1,
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": 0.05,
+            },
+            "cost": {
+                "metrics": ["reported_run_total_cost_usd", "cost_per_success_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": "claude_vs_o4mini",
+                    "text": "claude vs o4mini under tool calling",
+                    "treatment": "Taubench ToolCalling (claude-3.7-sonnet)",
+                    "control": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
 

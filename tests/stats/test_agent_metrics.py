@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import polars as pl
 import pytest
 
@@ -20,7 +22,7 @@ def _row(
     success: bool = True,
     outcome_status: str = "graded",
     cost_provenance: str = "reconciled",
-) -> dict:
+) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,

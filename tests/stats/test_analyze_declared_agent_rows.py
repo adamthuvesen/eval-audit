@@ -8,6 +8,8 @@ zero-row summary.
 
 from __future__ import annotations
 
+from typing import Any
+
 import polars as pl
 import pytest
 
@@ -17,7 +19,7 @@ def _row(
     agent_id: str,
     task_id: str,
     success: bool,
-) -> dict:
+) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -46,39 +48,45 @@ def _three_agent_study(harness: str = "tau_bench_tool_calling"):
     """Study with 3 declared agents but only one claim (treatment vs. control)."""
     from eval_audit.schema import StudySpec
 
-    return StudySpec(
-        id="stub",
-        benchmark="stub",
-        analysis_mode="declared_reanalysis",
-        data_observation="full_seen",
-        harness=harness,
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[{"id": "treatment"}, {"id": "control"}, {"id": "extra_unclaimed"}],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": 1,
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": None,
-        },
-        cost={
-            "metrics": ["reconstructed_per_task_cost_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": "c1",
-                "text": "treatment beats control",
-                "treatment": "treatment",
-                "control": "control",
-                "outcome": "success_rate",
-            }
-        ],
+    return StudySpec.model_validate(
+        {
+            "id": "stub",
+            "benchmark": "stub",
+            "analysis_mode": "declared_reanalysis",
+            "data_observation": "full_seen",
+            "harness": harness,
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [{"id": "treatment"}, {"id": "control"}, {"id": "extra_unclaimed"}],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": 1,
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": None,
+            },
+            "cost": {
+                "metrics": ["reconstructed_per_task_cost_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": "c1",
+                    "text": "treatment beats control",
+                    "treatment": "treatment",
+                    "control": "control",
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
 
@@ -91,7 +99,7 @@ def test_analyze__declared_non_claim_agent_with_no_rows_raises() -> None:
     """
     from eval_audit.stats import AnalysisInputError, analyze
 
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for i in range(4):
         rows.append(_row(agent_id="treatment", task_id=f"t{i:02d}", success=(i < 3)))
     for i in range(4):

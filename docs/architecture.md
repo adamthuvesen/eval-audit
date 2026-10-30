@@ -97,7 +97,7 @@ The remaining checks serve requirements those mechanisms cannot establish alone:
 | Wheel smoke test | Source imports cannot prove packaged resources and runtime-only installation work |
 | Fixture replay tests | Typed I/O cannot prove source hashes, decoding, or rollback behavior |
 | Reviewed committed reports | Types cannot establish that prose accurately communicates numerical conclusions |
-| Ruff, mypy, import-linter, lock checks in CI | These enforce source-wide properties and reproducible resolution beyond a runtime boundary |
+| Ruff, basedpyright, import-linter, lock checks in CI | These enforce source-wide properties and reproducible resolution beyond a runtime boundary |
 | Architecture documentation | Ownership intent and methodology tradeoffs require human-readable explanations |
 | Independent review | Review evaluates assumptions and evidence quality that deterministic checks cannot decide |
 
