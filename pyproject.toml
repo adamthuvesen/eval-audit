@@ -45,6 +45,7 @@ Changelog = "https://github.com/adamthuvesen/eval-audit/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 dev = [
     "basedpyright==1.40.2",
+    "scipy-stubs>=1.13",
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "hypothesis>=6.100",
@@ -92,9 +93,9 @@ exclude = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# `verify` tests (wheel install, simulations) run only through `make verify`.
+# `verify` tests (wheel install, simulations) run only through `make slow`.
 addopts = "-q -m 'not verify'"
-markers = ["verify: slow suite, excluded by default; run with make verify"]
+markers = ["verify: slow suite, excluded by default; run with make slow"]
 
 [tool.ruff]
 line-length = 100
@@ -110,7 +111,7 @@ ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 "eval_audit/cli.py" = ["B008"]
 
 [tool.basedpyright]
-include = ["eval_audit", "tools/fixture_io.py", "tests"]
+include = ["eval_audit", "tools/fixture_io.py", "tools/baseline_ratchet.py", "tests"]
 pythonVersion = "3.14"
 venvPath = "."
 venv = ".venv"

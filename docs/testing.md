@@ -11,7 +11,7 @@ Match test scope to risk:
   and committed-report review.
 - **CLI changes:** command tests and at least one realistic study path.
 
-For methodology-affecting work, run `make check` and `make verify`.
+For methodology-affecting work, run `make check` and `make slow`.
 
 ## Committed reports
 
@@ -27,7 +27,7 @@ regenerates it. Review the rendered diff before you commit it.
 import-contract, format, and type checks, then pytest in parallel through
 pytest-xdist.
 
-`make verify` is the slow lane. CI runs it after the fast lane passes.
+`make slow` is the slow lane. CI runs it after the fast lane passes.
 It runs only the tests marked `verify`:
 
 - `tests/packaging/`: sdist hygiene and the installed-wheel workflow.

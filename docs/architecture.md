@@ -73,9 +73,9 @@ Unrelated files remain untouched. Symlinked owned artifacts and output-root esca
 | Change | Focused check |
 | --- | --- |
 | Canonical input or comparability | `uv run --locked pytest tests/schema tests/ingest tests/test_evidence.py` |
-| Inference or sensitivity | `uv run --locked pytest tests/stats tests/report/test_analysis_settings.py` and `make verify` |
+| Inference or sensitivity | `uv run --locked pytest tests/stats tests/report/test_analysis_settings.py` and `make slow` |
 | Publication or portfolio | `uv run --locked pytest tests/test_artifacts.py tests/cli/test_portfolio_cmd.py` |
-| CLI or template | `uv run --locked pytest tests/cli` and `make verify` |
+| CLI or template | `uv run --locked pytest tests/cli` and `make slow` |
 | Fixture or historical harness | `uv run --locked pytest tests/scouting` |
 | Report wording or provenance | `uv run --locked pytest tests/report` |
 | Complete verification | `make check` |

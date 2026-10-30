@@ -643,7 +643,7 @@ def report_cmd(
 
     if skip_validation:
         typer.echo(
-            "--skip-validation is deprecated. Evidence validation always runs; synthetic recovery runs in make verify.",
+            "--skip-validation is deprecated. Evidence validation always runs; synthetic recovery runs in make slow.",
             err=True,
         )
     runs_frame, source = _load_evidence(study, root, runs)
@@ -667,7 +667,7 @@ def report_cmd(
 @_cli_errors
 def init_cmd(
     name: str = typer.Argument(..., help="Kebab-case slug for the new BYO study."),
-    cwd: Path = typer.Option(
+    cwd: Path | None = typer.Option(
         None,
         "--cwd",
         help="Working directory (defaults to the user's CWD; primarily for tests).",

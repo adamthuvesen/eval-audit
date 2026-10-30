@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Iterator, Mapping
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import BinaryIO
 
 from eval_audit.schema.artifacts import ARTIFACT_NAMES, STAGING_PREFIX
 
@@ -41,25 +42,41 @@ def artifact_path(directory: Path, name: str) -> Path:
     return path
 
 
+def _lock_file(lock: BinaryIO) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+
+        if lock.tell() == 0:
+            lock.write(b"0")
+            lock.flush()
+        lock.seek(0)
+        msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock_file(lock: BinaryIO) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+
+        lock.seek(0)
+        msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(lock, fcntl.LOCK_UN)
+
+
 @contextmanager
-def _publication_lock(directory: Path) -> Iterator[None]:
+def _publication_lock(directory: Path) -> Generator[None]:
     lock_path = directory.parent / f".{directory.name}.publish.lock"
     if lock_path.is_symlink():
         raise ArtifactError(f"publication lock must not be a symlink: {lock_path}")
     with lock_path.open("a+b") as lock:
         try:
-            if sys.platform == "win32":
-                import msvcrt
-
-                if lock.tell() == 0:
-                    lock.write(b"0")
-                    lock.flush()
-                lock.seek(0)
-                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _lock_file(lock)
         except OSError as exc:
             raise ArtifactError(
                 f"another writer is publishing {directory}; retry after it finishes"
@@ -67,11 +84,7 @@ def _publication_lock(directory: Path) -> Iterator[None]:
         try:
             yield
         finally:
-            if sys.platform == "win32":
-                lock.seek(0)
-                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                fcntl.flock(lock, fcntl.LOCK_UN)
+            _unlock_file(lock)
 
 
 def publish_artifacts(directory: Path, artifacts: Mapping[str, bytes], *, complete: bool) -> None:

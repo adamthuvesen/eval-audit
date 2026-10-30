@@ -90,7 +90,7 @@ def _summarize_declared_agents(
     return per_agent, by_id
 
 
-def _pareto_status(per_agent: list[AgentSummary]) -> tuple[set[str], ParetoStatus]:
+def pareto_status_for(per_agent: list[AgentSummary]) -> tuple[set[str], ParetoStatus]:
     if any(summary.total_cost_usd is None for summary in per_agent):
         return set(), "suppressed_cost_not_available"
     per_agent_for_pareto = pl.DataFrame(
@@ -132,7 +132,7 @@ def _claim_statistics(
     return bootstraps, raw_p_pairs
 
 
-def _correct_claim_p_values(
+def correct_claim_p_values(
     study: StudySpec,
     raw_p_pairs: list[tuple[str, float]],
     *,
@@ -204,7 +204,7 @@ def analyze_prepared(evidence: PreparedEvidence, *, settings: AnalysisSettings) 
     alpha = settings.alpha
     agent_ids = [agent.id for agent in study.agents]
     per_agent, by_agent_id = _summarize_declared_agents(agent_ids, rows_by_agent, alpha)
-    frontier, pareto_status = _pareto_status(per_agent)
+    frontier, pareto_status = pareto_status_for(per_agent)
     bootstraps, raw_p_pairs = _claim_statistics(
         study,
         rows_by_agent,
@@ -213,7 +213,7 @@ def analyze_prepared(evidence: PreparedEvidence, *, settings: AnalysisSettings) 
         bootstrap_iterations=settings.bootstrap_iterations,
         bootstrap_seed=settings.bootstrap_seed,
     )
-    corrected = _correct_claim_p_values(study, raw_p_pairs, alpha=alpha)
+    corrected = correct_claim_p_values(study, raw_p_pairs, alpha=alpha)
 
     return AnalysisResult(
         study_id=study.id,

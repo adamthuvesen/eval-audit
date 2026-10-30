@@ -11,11 +11,11 @@ description: "Drives the real eval-audit CLI (audit, init, validate, the cross-h
 
 From the repo root, after `make setup`:
 
-- `make drive` after a change. It runs the drives whose paths match files changed against the merge base with `main`, plus uncommitted and untracked files. With no match it runs the smoke drive.
-- `make drive ARGS=all` before handing over larger work. `make verify` (the CI slow lane) also runs `all` and `control` after the `verify`-marked pytest suite.
-- `make drive ARGS=list` shows each drive, what it proves, and the paths it covers.
-- `make drive ARGS="audit refusal"` runs named drives.
-- `make drive ARGS=control` re-drives the smoke drive against a wrong verdict. It exits 0 only when it observes FAIL.
+- `make verify` after a change. It runs the drives whose paths match files changed against the merge base with `main`, plus uncommitted and untracked files. With no match it runs the smoke drive.
+- `make verify ARGS=all` before handing over larger work. `make slow` (the CI slow lane) also runs `all` and `control` after the `verify`-marked pytest suite.
+- `make verify ARGS=list` shows each drive, what it proves, and the paths it covers.
+- `make verify ARGS="audit refusal"` runs named drives.
+- `make verify ARGS=control` re-drives the smoke drive against a wrong verdict. It exits 0 only when it observes FAIL.
 
 You can also call `.agents/skills/verify-eval-audit/verify <args>` directly.
 
@@ -27,7 +27,7 @@ Preflight refuses to run when the locked environment does not resolve, when `eva
 
 ## Limits
 
-- Drives use 500 bootstrap iterations, not the default 10000. Committed reports and full-precision numbers stay with `make check` (fresh-render test) and `make verify`.
+- Drives use 500 bootstrap iterations, not the default 10000. Committed reports and full-precision numbers stay with `make check` (fresh-render test) and `make slow`.
 - Public-benchmark adapters that fetch from Hugging Face (`tools/regenerate_*.py`, scouting downloads) are out of scope. Run them by hand only when a change touches them.
 
 ## Gotchas

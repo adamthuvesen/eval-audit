@@ -145,7 +145,7 @@ def verdict_with_cost_gap_threshold(
     )
 
 
-def _check_settings(
+def check_settings(
     result: AnalysisResult, bootstrap_iterations: int | None, bootstrap_seed: int | None
 ) -> None:
     if (
@@ -165,7 +165,7 @@ def verdict_with_errored_excluded(
     bootstrap_seed: int | None = None,
 ) -> Verdict | None:
     """Return no verdict when exclusion leaves insufficient paired or Pareto evidence."""
-    _check_settings(result, bootstrap_iterations, bootstrap_seed)
+    check_settings(result, bootstrap_iterations, bootstrap_seed)
     scenario = recompute_scenario(study, runs, result, exclude_errored=True)
     return _scenario_verdict(claim, scenario, study)
 
@@ -181,7 +181,7 @@ def compute_sensitivity_rows(
     scenarios: dict[tuple[str, str], SensitivityScenario] | None = None,
 ) -> list[SensitivityRow]:
     """Render baseline and perturbations from a shared whole-study scenario set."""
-    _check_settings(result, bootstrap_iterations, bootstrap_seed)
+    check_settings(result, bootstrap_iterations, bootstrap_seed)
     if scenarios is None:
         scenarios = sensitivity_scenarios(study, runs, result)
     rows = [SensitivityRow("baseline", "locked", _baseline_verdict(claim, result, study))]

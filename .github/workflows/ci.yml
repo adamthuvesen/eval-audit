@@ -29,6 +29,9 @@ jobs:
       # rather than editing the SHAs by hand.
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          # The basedpyright baseline ratchet compares against origin/main.
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@f98e06938123ccabd21905ea5d0069192241f9f1  # v8.3.1
@@ -49,8 +52,8 @@ jobs:
       - name: Run make check
         run: make check
 
-  verify:
-    name: make verify (wheel install + synthetic validation)
+  slow:
+    name: make slow (wheel install + synthetic validation)
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -71,5 +74,5 @@ jobs:
       - name: Install dependencies
         run: make setup
 
-      - name: Run make verify
-        run: make verify
+      - name: Run make slow
+        run: make slow

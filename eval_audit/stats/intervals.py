@@ -18,7 +18,7 @@ def wilson_interval(successes: int, n: int, alpha: float = 0.05) -> tuple[float,
         raise ValueError("successes must be in [0, n]")
 
     p = successes / n
-    z = norm.ppf(1 - alpha / 2)
+    z = float(norm.ppf(1 - alpha / 2))
     z2 = z * z
     denom = 1 + z2 / n
     center = (p + z2 / (2 * n)) / denom

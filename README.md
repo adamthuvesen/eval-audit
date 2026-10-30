@@ -187,7 +187,7 @@ eval-audit report my-study/study.yaml --runs my-study/runs.parquet
 
 `validate` checks the input schemas. `check` evaluates whether the declared comparison is audit-ready. Analysis,
 reporting, and gates share the same evidence boundary. `report` and `audit`
-publish complete artifact sets. Synthetic recovery runs in `make verify`, without
+publish complete artifact sets. Synthetic recovery runs in `make slow`, without
 requiring test dependencies in the installed CLI.
 
 `summary.json` records artifact hashes. Portfolio readers reject interrupted,

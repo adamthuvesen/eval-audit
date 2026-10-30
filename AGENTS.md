@@ -9,15 +9,17 @@ composite-score factory, or causal model of scaffolds. Keep that shape.
 
 ```bash
 make setup     # locked install, dev extras
-make check     # fast lane and first CI job: lock, ruff, import contracts, format, basedpyright, pytest
-make verify    # slow lane, after check in CI: tests marked `verify` (wheel install, synthetic recovery), then `verify all` + `verify control`
+make check     # fast lane and first CI job: lock, ruff, import contracts, format, basedpyright, baseline ratchet, pytest
+make fix       # ruff --fix and ruff format
+make verify    # drive the real CLI (ARGS=all|list|control|<drive>)
+make slow      # slow lane, after check in CI: tests marked `verify` (wheel install, synthetic recovery), then `verify all` + `verify control`
 
 uv run --locked eval-audit spec schema --model study|run|summary
 uv run --locked eval-audit report studies/gaia-hal-generalist.yaml --out-dir /tmp/eval-audit-reports
 ```
 
-Prove changes with `make drive` (`verify-eval-audit` skill at `.agents/skills/verify-eval-audit/`).
-Run `make verify` for methodology, CLI, template, or packaging changes.
+Prove changes with `make verify` (`verify-eval-audit` skill at `.agents/skills/verify-eval-audit/`).
+Run `make slow` for methodology, CLI, template, or packaging changes.
 A stale `reports/<id>/report.md` fails the fast lane, and the failure prints the regeneration command.
 Review the rendered diff before you accept it.
 For the module owner of each change and focused test commands, read
@@ -51,10 +53,11 @@ For the module owner of each change and focused test commands, read
 | Field references match the Pydantic models | `tests/docs/test_study_schema.py`, `tests/docs/test_input_contract.py` | 2026-05-05 |
 | Committed reports match a fresh render from committed evidence | `tests/report/test_committed_reports.py::test_committed_reports__match_fresh_render` | 2026-11-06 |
 | `uv.lock` matches `pyproject.toml` | `Makefile::lock-check` | 2026-11-05 |
-| CI jobs run only setup and one Make target; `verify` waits for `check` | `tests/test_ci_workflow.py::test_ci_workflow__runs_only_make_targets` | 2026-11-06 |
+| CI jobs run only setup and one Make target; `slow` waits for `check` | `tests/test_ci_workflow.py::test_ci_workflow__runs_only_make_targets` | 2026-11-06 |
 | Local caches and `.env` stay out of the sdist | `tests/packaging/test_sdist.py` | 2026-05-22 |
 | Estimators recover known effects within declared bounds | `tests/synthetic_validation/test_recovery.py`, `tests/synthetic_validation/test_calibration.py` | 2026-04-29 |
 | `verify control` must observe FAIL before a verify pass counts | `.agents/skills/verify-eval-audit/verify::control` | 2026-11-06 |
+| Baselined type errors never exceed `origin/main`'s count | `tools/baseline_ratchet.py::main`, `Makefile::typecheck` | 2026-11-06 |
 | Every citation in this table exists | `tests/docs/test_enforced_rules.py` | 2026-11-06 |
 
 ## Docs

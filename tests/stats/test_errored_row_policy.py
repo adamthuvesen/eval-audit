@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import polars as pl
+import pytest
 
 
 def _row(
@@ -171,14 +172,14 @@ def test_errored_row_policy__gaia_gaia_hal_generalist_byte_identical(repo_root) 
     assert abs(claude.success_rate - 0.5636) < 5e-5
     assert abs(claude.success_rate_ci_low - 0.4874) < 5e-5
     assert abs(claude.success_rate_ci_high - 0.6370) < 5e-5
-    assert abs(claude.total_cost_usd - 130.68) < 0.01
-    assert abs(claude.cost_per_success_usd - 1.41) < 0.01
+    assert claude.total_cost_usd == pytest.approx(130.68, abs=0.01)
+    assert claude.cost_per_success_usd == pytest.approx(1.41, abs=0.01)
 
     assert o4mini.n_graded == 165
     assert o4mini.n_errored == 0
     assert abs(o4mini.success_rate - 0.5455) < 5e-5
-    assert abs(o4mini.total_cost_usd - 59.39) < 0.01
-    assert abs(o4mini.cost_per_success_usd - 0.66) < 0.01
+    assert o4mini.total_cost_usd == pytest.approx(59.39, abs=0.01)
+    assert o4mini.cost_per_success_usd == pytest.approx(0.66, abs=0.01)
 
 
 def test_errored_row_policy__claude_success_rate_matches_leaderboard_044() -> None:
@@ -321,8 +322,8 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     # successes = 5 graded-true rows (errored rows can never count as success).
     # total_cost = 8 * 0.10 graded-only = 0.80 (errored rows have null
     # reconstructed cost per analyze.py:201 / errored-row policy).
-    assert abs(agent.total_cost_usd - 0.80) < 1e-9
-    assert abs(agent.cost_per_success_usd - (0.80 / 5)) < 1e-9
+    assert agent.total_cost_usd == pytest.approx(0.80, abs=1e-9)
+    assert agent.cost_per_success_usd == pytest.approx((0.80 / 5), abs=1e-9)
 
 
 def test_errored_row_policy__mixed_reconstructed_cost_fails_analysis() -> None:

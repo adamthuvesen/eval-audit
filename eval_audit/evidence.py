@@ -81,9 +81,9 @@ def _inspect(study: StudySpec, runs: pl.DataFrame) -> PreparedEvidence:
     except ValidationError as exc:
         diagnostics = [_check("study_loads", "error", "fail", str(exc), {})]
         if (
-            isinstance(study.primary_outcome, PrimaryOutcome)
-            and isinstance(study.claims, list)
-            and all(isinstance(claim, Claim) for claim in study.claims)
+            isinstance(study.primary_outcome, PrimaryOutcome)  # pyright: ignore[reportUnnecessaryIsInstance]
+            and isinstance(study.claims, list)  # pyright: ignore[reportUnnecessaryIsInstance]
+            and all(isinstance(claim, Claim) for claim in study.claims)  # pyright: ignore[reportUnnecessaryIsInstance]
         ):
             outcome_check = _outcome_supported(study)
             if outcome_check.status == "fail":

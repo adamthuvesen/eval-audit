@@ -8,7 +8,7 @@ import polars as pl
 
 from eval_audit.schema import StudySpec
 from eval_audit.stats.agent_metrics import ErroredRowPolicy, summarize_agent
-from eval_audit.stats.analyze import _correct_claim_p_values, _pareto_status, paired_task_p_value
+from eval_audit.stats.analyze import correct_claim_p_values, paired_task_p_value, pareto_status_for
 from eval_audit.stats.bootstrap import BootstrapResult, paired_task_bootstrap
 from eval_audit.stats.results import AgentSummary, AnalysisResult, ClaimResult, ParetoStatus
 
@@ -59,7 +59,7 @@ def recompute_scenario(
     if baseline.pareto_status == "suppressed_cost_not_available":
         frontier, pareto_status = set(), baseline.pareto_status
     else:
-        frontier, pareto_status = _pareto_status(summaries)
+        frontier, pareto_status = pareto_status_for(summaries)
     bootstraps: dict[str, BootstrapResult] = {}
     raw_p_pairs: list[tuple[str, float]] = []
     unavailable: dict[str, str] = {}
@@ -92,7 +92,7 @@ def recompute_scenario(
     corrected = (
         [(cid, p, p, p <= settings.alpha) for cid, p in raw_p_pairs]
         if no_correction
-        else _correct_claim_p_values(study, raw_p_pairs, alpha=settings.alpha)
+        else correct_claim_p_values(study, raw_p_pairs, alpha=settings.alpha)
     )
     adjusted = {cid: (raw, adj, reject) for cid, raw, adj, reject in corrected}
     claims: list[ClaimResult] = []

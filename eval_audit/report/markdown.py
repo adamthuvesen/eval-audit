@@ -37,7 +37,7 @@ from eval_audit.report.sections.robustness import (
 )
 from eval_audit.report.sensitivity import (
     SensitivityRow,
-    _check_settings,
+    check_settings,
     claim_context_for_result,
     compute_sensitivity_rows,
 )
@@ -128,9 +128,7 @@ def _render_claims_table(
             "mode": study.analysis_mode,
             "status": claim_status(claim.rejects_null, ctx.direction_matches_claim),
             "effect": format_pp(claim.delta_point_estimate),
-            "adjusted_result": (
-                "n/a" if claim.adjusted_p_value is None else f"{claim.adjusted_p_value:.4f}"
-            ),
+            "adjusted_result": f"{claim.adjusted_p_value:.4f}",
             "decision_impact": decision_impact(ctx),
         }
         if target_mde is not None:
@@ -308,7 +306,7 @@ def render_report(
             f"from analysis settings, actual {study.inference.alpha!r}"
         )
     _validate_report_outcome(study)
-    _check_settings(result, bootstrap_iterations, bootstrap_seed)
+    check_settings(result, bootstrap_iterations, bootstrap_seed)
     presentation = resolve_study_presentation(study, runs, result, repo_root, source=source)
     rendered_at = clock().isoformat()
     parts: list[str] = []

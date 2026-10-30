@@ -11,6 +11,7 @@ from hypothesis import strategies as st
 
 from eval_audit.report.markdown import render_report
 from eval_audit.schema import RunRecord, StudySpec
+from eval_audit.schema.enums import CostProvenance, OutcomeStatus
 from eval_audit.stats import analyze
 
 _FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
@@ -38,14 +39,14 @@ def test_as_reported_only__run_record_accepts_none_reconstructed_cost(
             run_id="r",
             task_id=f"t{i}",
             success=(i % 2 == 0),
-            outcome_status="graded",
+            outcome_status=OutcomeStatus.GRADED,
             tokens_in=1,
             tokens_out=1,
             tokens_in_by_model={"m": 1},
             tokens_out_by_model={"m": 1},
             reconstructed_per_task_cost_usd=None,
             reported_run_total_cost_usd=reported_total,
-            cost_provenance="as_reported_only",
+            cost_provenance=CostProvenance.AS_REPORTED_ONLY,
             rerun_metadata={},
         )
     for i in range(n_errored):
@@ -56,14 +57,14 @@ def test_as_reported_only__run_record_accepts_none_reconstructed_cost(
             run_id="r",
             task_id=f"e{i}",
             success=None,
-            outcome_status="errored",
+            outcome_status=OutcomeStatus.ERRORED,
             tokens_in=1,
             tokens_out=1,
             tokens_in_by_model={"m": 1},
             tokens_out_by_model={"m": 1},
             reconstructed_per_task_cost_usd=None,
             reported_run_total_cost_usd=reported_total,
-            cost_provenance="as_reported_only",
+            cost_provenance=CostProvenance.AS_REPORTED_ONLY,
             rerun_metadata={},
         )
 
