@@ -13,9 +13,10 @@ import sys
 import tempfile
 import time
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[3]
 VENV_BIN = ROOT / ".venv" / "bin"
@@ -82,7 +83,7 @@ def check(actual: object, expected: object, what: str) -> None:
         raise DriveFailure(f"{what}: expected {expected!r}, got {actual!r}")
 
 
-def claim_of(summary_path: Path) -> dict:
+def claim_of(summary_path: Path) -> dict[str, Any]:
     if not summary_path.exists():
         raise DriveFailure(f"audit did not write {summary_path.name}")
     claims = json.loads(summary_path.read_text())["claims"]
@@ -91,9 +92,12 @@ def claim_of(summary_path: Path) -> dict:
 
 
 EXPECTED_AUDIT = {"verdict": "switch", "claim_status": "supported", "delta": 0.4, "paired_tasks": 10}
+# The control passes only when the drive fails on exactly this planted expectation.
+CONTROL_EXPECTED = {**EXPECTED_AUDIT, "verdict": "hold"}
+CONTROL_FAILURE = f"byo-minimal claim alice_vs_bob: expected {CONTROL_EXPECTED!r}, got "
 
 
-def drive_audit(run: Run, expected: dict | None = None) -> str:
+def drive_audit(run: Run, expected: Mapping[str, object] | None = None) -> str:
     out = run.home / "reports"
     run.cli("audit", str(BYO / "study.yaml"), "--runs", str(BYO / "runs.parquet"), "--out-dir", str(out),
             "--bootstrap-iterations", ITERATIONS, "--html")
@@ -210,7 +214,7 @@ def execute(names: list[str], control: bool = False) -> int:
         started = time.monotonic()
         try:
             if control:
-                detail = drive_audit(Run(run_dir, "control"), {**EXPECTED_AUDIT, "verdict": "hold"})
+                detail = drive_audit(Run(run_dir, "control"), CONTROL_EXPECTED)
             else:
                 detail = drive.run(Run(run_dir, name))
             result = "PASS"
@@ -226,8 +230,15 @@ def execute(names: list[str], control: bool = False) -> int:
     print(f"evidence: {run_dir}")
     failed = any(r["result"] == "FAIL" for r in results)
     if control:
-        print("control: FAIL observed" if failed else "control: passed unexpectedly; the drive cannot fail")
-        return 0 if failed else 1
+        failures = [str(r["detail"]) for r in results if r["result"] == "FAIL"]
+        if len(failures) == 1 and failures[0].startswith(CONTROL_FAILURE):
+            print("control: FAIL observed")
+            return 0
+        if failures:
+            print(f"control: failed for another reason; expected {CONTROL_FAILURE!r}")
+        else:
+            print("control: passed unexpectedly; the drive cannot fail")
+        return 1
     return 1 if failed else 0
 
 

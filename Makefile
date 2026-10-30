@@ -38,5 +38,6 @@ format-check:
 
 typecheck:
 	uv run --locked basedpyright
+	uv run --locked basedpyright --project .agents/skills/verify-eval-audit
 
 check: lock-check lint lint-imports format-check typecheck test

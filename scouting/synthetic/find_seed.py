@@ -22,7 +22,7 @@ import yaml
 
 # Re-use the generator's helpers; this script lives alongside generate.py.
 sys.path.insert(0, str(Path(__file__).parent))
-import generate  # type: ignore[import-not-found]
+import generate
 
 
 def _evaluate_seed(spec_template: dict, seed: int) -> tuple[bool, list[tuple[str, bool, str]]]:
