@@ -19,6 +19,7 @@ of just that (model, task, run).
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
@@ -59,6 +60,22 @@ RETRY_ON_STATUS = {429, 500, 502, 503, 504, 529}
 MAX_RETRIES = 4
 
 
+class SpendRefusedError(SystemExit):
+    """A paid API call refused because no person approved it.
+
+    It is a SystemExit so that the retry loop, which catches URL errors, can
+    never record a refusal as a failed attempt.
+    """
+
+
+def require_approval(approved: bool) -> None:
+    if approved is not True:
+        raise SpendRefusedError(
+            "refused: run.py calls the paid Anthropic API. "
+            "Ask a person to approve the spend, then rerun with --approved."
+        )
+
+
 def _load_env_local() -> None:
     """Best-effort .env.local loader (no python-dotenv dep).
 
@@ -91,7 +108,8 @@ def _git_commit() -> str:
         return "unknown"
 
 
-def _call_api(api_key: str, model_id: str, prompt: str) -> dict:
+def _call_api(api_key: str, model_id: str, prompt: str, *, approved: bool) -> dict:
+    require_approval(approved)
     body = json.dumps(
         {
             "model": model_id,
@@ -137,7 +155,15 @@ def _call_api(api_key: str, model_id: str, prompt: str) -> dict:
     return {"ok": False, "error": last_err or "unknown", "attempts": MAX_RETRIES}
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="Call the Anthropic API for each missing raw output."
+    )
+    parser.add_argument(
+        "--approved", action="store_true", help="confirm that a person approved the API spend"
+    )
+    approved = parser.parse_args(argv).approved
+    require_approval(approved)
     _load_env_local()
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -164,10 +190,9 @@ def main() -> None:
                 if out_path.exists():
                     skipped += 1
                     continue
-                out_dir.mkdir(parents=True, exist_ok=True)
                 started = datetime.now(UTC).isoformat()
                 t0 = time.monotonic()
-                result = _call_api(api_key, model["model_id"], task["prompt"])
+                result = _call_api(api_key, model["model_id"], task["prompt"], approved=approved)
                 latency_s = time.monotonic() - t0
                 ended = datetime.now(UTC).isoformat()
                 record = {
@@ -187,6 +212,7 @@ def main() -> None:
                     "latency_s": latency_s,
                     **result,
                 }
+                out_dir.mkdir(parents=True, exist_ok=True)
                 out_path.write_text(json.dumps(record, indent=2) + "\n")
                 if not result.get("ok"):
                     errors += 1

@@ -17,9 +17,9 @@ def _rows(agents_md: str) -> list[str]:
     return rows
 
 
-def test_enforced_rules__citations_exist(repo_root: Path) -> None:
-    problems = []
-    for row in _rows((repo_root / "AGENTS.md").read_text()):
+def citation_problems(agents_md: str, repo_root: Path) -> list[str]:
+    problems: list[str] = []
+    for row in _rows(agents_md):
         citations = re.findall(r"`([^`]+)`", row.split("|")[2])
         if not citations:
             problems.append(f"row cites nothing: {row}")
@@ -32,6 +32,23 @@ def test_enforced_rules__citations_exist(repo_root: Path) -> None:
                 DEFINITION.format(re.escape(name)), target.read_text(), re.MULTILINE
             ):
                 problems.append(f"{citation}: {path} does not define {name!r}")
+    return problems
+
+
+def test_enforced_rules__flags_rotted_citations(repo_root: Path) -> None:
+    table = (
+        "\n## Enforced Rules\n\n| Rule | Enforced by | Added |\n| --- | --- | --- |\n"
+        "| a | `Makefile::check-typo` | x |\n| b | `missing.py` | x |\n| c | none | x |\n"
+    )
+    assert citation_problems(table, repo_root) == [
+        "Makefile::check-typo: Makefile does not define 'check-typo'",
+        "missing.py: file missing.py does not exist",
+        "row cites nothing: | c | none | x |",
+    ]
+
+
+def test_enforced_rules__citations_exist(repo_root: Path) -> None:
+    problems = citation_problems((repo_root / "AGENTS.md").read_text(), repo_root)
     assert not problems, (
         "AGENTS.md `## Enforced Rules` cites missing enforcement. Fix the citation "
         "or restore the check:\n" + "\n".join(problems)

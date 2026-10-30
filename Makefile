@@ -21,20 +21,20 @@ verify:
 	$(VERIFY_APP) $(ARGS)
 
 lint:
-	uv run --locked ruff check .
+	uv run --locked ruff check . .agents/skills/verify-eval-audit/verify
 
 lint-imports:
 	uv run --locked lint-imports
 
 fix:
-	uv run --locked ruff check --fix .
-	uv run --locked ruff format .
+	uv run --locked ruff check --fix . .agents/skills/verify-eval-audit/verify
+	uv run --locked ruff format . .agents/skills/verify-eval-audit/verify
 
 format:
-	uv run --locked ruff format .
+	uv run --locked ruff format . .agents/skills/verify-eval-audit/verify
 
 format-check:
-	uv run --locked ruff format --check .
+	uv run --locked ruff format --check . .agents/skills/verify-eval-audit/verify
 
 typecheck:
 	uv run --locked basedpyright

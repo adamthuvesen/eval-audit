@@ -58,6 +58,7 @@ For the module owner of each change and focused test commands, read
 | Estimators recover known effects within declared bounds | `tests/synthetic_validation/test_recovery.py`, `tests/synthetic_validation/test_calibration.py` | 2026-04-29 |
 | `verify control` must observe FAIL before a verify pass counts | `.agents/skills/verify-eval-audit/verify::control` | 2026-11-06 |
 | basedpyright reports zero errors in strict mode, with no baseline file | `pyproject.toml::typeCheckingMode`, `Makefile::typecheck` | 2026-11-07 |
+| Paid API calls refuse without approval, before any raw output is written | `scouting/humaneval-direct-completion/run.py::require_approval`, `tests/scouting/test_humaneval_run_spend.py` | 2026-11-07 |
 | Every citation in this table exists | `tests/docs/test_enforced_rules.py` | 2026-11-06 |
 | No file downgrades strict type checking with a `# pyright:` mode comment | `tests/test_strict_mode.py::test_no_file_downgrades_type_checking_mode` | 2026-11-07 |
 
