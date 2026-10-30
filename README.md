@@ -1,6 +1,6 @@
 # eval-audit
 
-![License](https://img.shields.io/github/license/adamthuvesen/eval-audit) ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/github/license/adamthuvesen/eval-audit) ![Python](https://img.shields.io/badge/python-3.14%2B-blue)
 
 `eval-audit` audits a benchmark comparison you have already run and answers one
 question:
@@ -187,7 +187,7 @@ eval-audit report my-study/study.yaml --runs my-study/runs.parquet
 
 `validate` checks the input schemas. `check` evaluates whether the declared comparison is audit-ready. Analysis,
 reporting, and gates share the same evidence boundary. `report` and `audit`
-publish complete artifact sets. Synthetic recovery runs in `make check`, without
+publish complete artifact sets. Synthetic recovery runs in `make verify`, without
 requiring test dependencies in the installed CLI.
 
 `summary.json` records artifact hashes. Portfolio readers reject interrupted,
@@ -209,27 +209,6 @@ References:
 
 ## Work from source
 
-```bash
-make setup
-make check
-```
-
-Useful targeted commands:
-
-```bash
-uv run eval-audit spec validate studies/gaia-hal-generalist.yaml
-uv run eval-audit audit examples/byo-minimal/study.yaml \
-  --runs examples/byo-minimal/runs.parquet \
-  --out-dir /tmp/eval-audit-reports
-uv run eval-audit analyze studies/gaia-hal-generalist.yaml --out-dir /tmp/eval-audit-reports
-uv run eval-audit report studies/gaia-hal-generalist.yaml --out-dir /tmp/eval-audit-reports
-uv run eval-audit portfolio reports --out /tmp/eval-audit-portfolio.md
-```
-
-Snapshot updates are explicit:
-
-```bash
-UPDATE_SNAPSHOTS=1 uv run pytest tests/report/test_snapshot.py
-```
+Developer commands, test lanes, and enforced rules live in [AGENTS.md](AGENTS.md).
 
 See [architecture and change recipes](docs/architecture.md) for ownership and focused verification.

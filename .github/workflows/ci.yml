@@ -37,7 +37,7 @@ jobs:
           cache-dependency-glob: uv.lock
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.14
 
       - name: Install dependencies
         run: make setup
@@ -51,6 +51,7 @@ jobs:
 
   verify:
     name: make verify (wheel install + synthetic validation)
+    needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -65,7 +66,7 @@ jobs:
           cache-dependency-glob: uv.lock
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.14
 
       - name: Install dependencies
         run: make setup

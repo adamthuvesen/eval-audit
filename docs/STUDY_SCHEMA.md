@@ -27,7 +27,7 @@ Every `study.yaml` MUST populate every required field listed below. Optional fie
 - **Type:** `str` (required, non-null, non-blank single path component)
 - **Constraint:** must not be `.` or `..`, and must not contain `/`, `\`, or a null character.
 - **Reserved namespace:** IDs must not start with `.audit-stage-`. Publication uses this prefix for internal staging directories. This intentionally rejects previously accepted IDs that portfolio discovery would hide.
-- **Used by analysis:** yes; appears in the rendered report's Study section and in the snapshot file names.
+- **Used by analysis:** yes; appears in the rendered report's Study section and in the `reports/<id>/` directory name.
 - **BYO guidance:** a stable kebab-case identifier (e.g., `byo-minimal`, `my-study`). When `eval-audit init <name>` scaffolds a study, this value is derived from `<name>`.
 
 ### benchmark

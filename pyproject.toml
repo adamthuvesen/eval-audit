@@ -3,7 +3,7 @@ name = "eval-audit"
 version = "1.0.0"
 description = "Turn agent benchmark claims into auditable model-selection decisions: declared studies, paired analysis, cost-aware reports."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 license = { text = "MIT" }
 authors = [{ name = "eval-audit contributors" }]
 keywords = [
@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
@@ -92,11 +92,13 @@ exclude = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# `verify` tests (wheel install, simulations) run only through `make verify`.
+addopts = "-q -m 'not verify'"
+markers = ["verify: slow suite, excluded by default; run with make verify"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
@@ -107,7 +109,7 @@ ignore = ["E501"]
 "eval_audit/cli.py" = ["B008"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.14"
 files = ["eval_audit", "tools/fixture_io.py"]
 check_untyped_defs = true
 disallow_untyped_defs = true

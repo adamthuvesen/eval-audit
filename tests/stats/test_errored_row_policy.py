@@ -142,7 +142,7 @@ def test_errored_row_policy__gaia_gaia_hal_generalist_byte_identical(repo_root) 
     outcome_status == 'graded' (n_errored == 0 for both agents),
     THEN every per-agent summary value (success_rate, n_graded, n_errored,
     total_cost_usd, cost_per_success_usd) is unchanged from the values committed
-    in tests/report_snapshots/gaia-hal-generalist-report.md, because n_total == n_graded
+    in reports/gaia-hal-generalist/report.md, because n_total == n_graded
     when n_errored == 0.
     """
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
@@ -157,7 +157,7 @@ def test_errored_row_policy__gaia_gaia_hal_generalist_byte_identical(repo_root) 
     claude = by_id["HAL Generalist Agent (claude-3-7-sonnet-20250219)"]
     o4mini = by_id["HAL Generalist Agent (o4-mini-2025-04-16 high)"]
 
-    # Pinned values from tests/report_snapshots/gaia-hal-generalist-report.md.
+    # Pinned values from reports/gaia-hal-generalist/report.md.
     assert claude.n_graded == 165
     assert claude.n_errored == 0
     assert abs(claude.success_rate - 0.5636) < 5e-5

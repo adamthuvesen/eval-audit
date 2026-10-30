@@ -1,13 +1,13 @@
 # Report design rules
 
 Markdown rendering, decision rules, and sensitivity tables live in
-[eval_audit/report](../eval_audit/report). Output is snapshot-tested by
-[tests/report/test_snapshot.py](../tests/report/test_snapshot.py).
+[eval_audit/report](../eval_audit/report). Committed reports are checked against a fresh render by
+[tests/report/test_committed_reports.py](../tests/report/test_committed_reports.py).
 
 - Reports are decision artifacts. They should tell a model selector what to do,
   not stop at the numbers.
 - Keep output deterministic: stable ordering, stable formatting, stable clocks
-  in tests, and reviewed snapshots.
+  in tests, and reviewed committed reports.
 - Surface caveats near the claims they affect. Do not bury cost or provenance
   caveats in generic footnotes.
 - The allowed decision vocabulary is intentional: `switch`, `hold`,

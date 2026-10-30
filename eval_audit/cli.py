@@ -15,7 +15,7 @@ import subprocess
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import ParamSpec, cast
+from typing import cast
 
 import polars as pl
 import typer
@@ -64,10 +64,7 @@ _READINESS_RANK: dict[ReadinessStatus, int] = {
 }
 
 
-P = ParamSpec("P")
-
-
-def _cli_errors(command: Callable[P, None]) -> Callable[P, None]:
+def _cli_errors[**P](command: Callable[P, None]) -> Callable[P, None]:
     @wraps(command)
     def wrapped(*args: P.args, **kwargs: P.kwargs) -> None:
         try:
@@ -646,7 +643,7 @@ def report_cmd(
 
     if skip_validation:
         typer.echo(
-            "--skip-validation is deprecated. Evidence validation always runs; synthetic recovery runs in make check.",
+            "--skip-validation is deprecated. Evidence validation always runs; synthetic recovery runs in make verify.",
             err=True,
         )
     runs_frame, source = _load_evidence(study, root, runs)

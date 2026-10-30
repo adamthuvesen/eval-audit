@@ -8,6 +8,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.verify
+
 
 def test_wheel__runtime_only_external_environment(repo_root: Path, tmp_path: Path) -> None:
     env = {

@@ -1,29 +1,38 @@
-"""Every `Enforced by` citation in AGENTS.md names a real file and, after `::`, text in it."""
+"""Every `Enforced by` citation in AGENTS.md names a real file and, after `::`, a name it defines."""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
+# A name is defined by a Python def/class, a Make target, a TOML table, or a TOML/YAML key.
+DEFINITION = r"^\s*(?:(?:async\s+)?def\s+{0}\(|class\s+{0}\b|{0}\s*:|\[+{0}\]+\s*$|{0}\s*=)"
 
-def _citations(agents_md: str) -> list[str]:
-    section = agents_md.split("## Enforced Rules", 1)[1].split("\n## ", 1)[0]
+
+def _rows(agents_md: str) -> list[str]:
+    assert "\n## Enforced Rules\n" in agents_md, "AGENTS.md must keep a `## Enforced Rules` section"
+    section = agents_md.split("\n## Enforced Rules\n", 1)[1].split("\n## ", 1)[0]
     rows = [line for line in section.splitlines() if line.startswith("|")][2:]
     assert rows, "AGENTS.md `## Enforced Rules` table has no rows"
-    return [ref for row in rows for ref in re.findall(r"`([^`]+)`", row.split("|")[2])]
+    return rows
 
 
 def test_enforced_rules__citations_exist(repo_root: Path) -> None:
-    citations = _citations((repo_root / "AGENTS.md").read_text())
-    missing = []
-    for citation in citations:
-        path, _, needle = citation.partition("::")
-        target = repo_root / path
-        if not target.is_file():
-            missing.append(f"{citation}: file {path} does not exist")
-        elif needle and needle not in target.read_text():
-            missing.append(f"{citation}: {needle!r} not found in {path}")
-    assert not missing, (
+    problems = []
+    for row in _rows((repo_root / "AGENTS.md").read_text()):
+        citations = re.findall(r"`([^`]+)`", row.split("|")[2])
+        if not citations:
+            problems.append(f"row cites nothing: {row}")
+        for citation in citations:
+            path, _, name = citation.partition("::")
+            target = repo_root / path
+            if not target.is_file():
+                problems.append(f"{citation}: file {path} does not exist")
+            elif name and not re.search(
+                DEFINITION.format(re.escape(name)), target.read_text(), re.MULTILINE
+            ):
+                problems.append(f"{citation}: {path} does not define {name!r}")
+    assert not problems, (
         "AGENTS.md `## Enforced Rules` cites missing enforcement. Fix the citation "
-        "or restore the check:\n" + "\n".join(missing)
+        "or restore the check:\n" + "\n".join(problems)
     )

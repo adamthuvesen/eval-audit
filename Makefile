@@ -1,7 +1,4 @@
-.PHONY: setup lock-check test verify lint lint-imports format format-check typecheck check analyze report
-
-# Slow suites: subprocess wheel install and simulation-heavy recovery gates.
-VERIFY_TESTS := tests/packaging tests/synthetic_validation
+.PHONY: setup lock-check test verify drive lint lint-imports format format-check typecheck check
 
 setup: lock-check
 	uv sync --locked --extra dev
@@ -10,10 +7,18 @@ lock-check:
 	uv lock --check
 
 test:
-	uv run --locked pytest -n auto $(addprefix --ignore=,$(VERIFY_TESTS))
+	uv run --locked pytest -n auto
+
+VERIFY_APP := .agents/skills/verify-eval-audit/verify
 
 verify:
-	uv run --locked pytest -n auto $(VERIFY_TESTS)
+	uv run --locked pytest -n auto -m verify
+	$(VERIFY_APP) all
+	$(VERIFY_APP) control
+
+# Drive the real CLI: no ARGS = drives for changed files; ARGS=all|list|control|<drive>.
+drive:
+	$(VERIFY_APP) $(ARGS)
 
 lint:
 	uv run --locked ruff check .
@@ -31,9 +36,3 @@ typecheck:
 	uv run --locked mypy
 
 check: lock-check lint lint-imports format-check typecheck test
-
-analyze:
-	uv run --locked eval-audit analyze studies/gaia-hal-generalist.yaml
-
-report:
-	uv run --locked eval-audit report studies/gaia-hal-generalist.yaml

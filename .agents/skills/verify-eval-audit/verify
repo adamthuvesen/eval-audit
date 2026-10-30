@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""Drive the installed eval-audit CLI against committed fixtures in temp dirs."""
+import atexit
+import datetime as dt
+import fnmatch
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+import tomllib
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
+
+ROOT = Path(__file__).resolve().parents[3]
+VENV_BIN = ROOT / ".venv" / "bin"
+CLI = VENV_BIN / "eval-audit"
+BYO = ROOT / "examples" / "byo-minimal"
+SCRATCH = Path(tempfile.mkdtemp(prefix="verify-eval-audit-"))
+SECRET_NAME = re.compile("KEY|TOKEN|SECRET|PASSWORD")
+SHARED_PATHS = ["pyproject.toml", "uv.lock", ".python-version", ".agents/skills/verify-eval-audit/*"]
+ITERATIONS = "500"
+
+
+class DriveFailure(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class Drive:
+    proves: str
+    paths: list[str]
+    run: Callable[["Run"], str]
+    timeout: float
+
+
+def git(*args: str) -> str:
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    return subprocess.run(["git", *args], cwd=ROOT, env=env, capture_output=True, text=True, check=True).stdout.strip()
+
+
+class Run:
+    def __init__(self, run_dir: Path, name: str) -> None:
+        self.run_dir = run_dir
+        self.name = name
+        self.home = Path(tempfile.mkdtemp(prefix=f"{name}-", dir=SCRATCH))
+        self.env = {
+            "PATH": f"{VENV_BIN}:/usr/bin:/bin",
+            "HOME": str(self.home),
+            "TZ": "UTC",
+            "XDG_CONFIG_HOME": str(self.home / "config"),
+            "XDG_CACHE_HOME": str(self.home / "cache"),
+            "XDG_DATA_HOME": str(self.home / "data"),
+            "HF_HUB_OFFLINE": "1",
+            "NO_COLOR": "1",
+            "COLUMNS": "200",
+        }
+        self.step = 0
+
+    def cmd(self, argv: list[str], cwd: Path | None = None, expect_exit: int | None = 0) -> subprocess.CompletedProcess[str]:
+        proc = subprocess.run(argv, cwd=cwd or self.home, env=self.env, capture_output=True, text=True, timeout=30, start_new_session=True)
+        self.step += 1
+        env = {k: "<redacted>" if SECRET_NAME.search(k) else v for k, v in self.env.items()}
+        record = {"argv": argv, "cwd": str(cwd or self.home), "env": env, "exit": proc.returncode, "stdout": proc.stdout, "stderr": proc.stderr}
+        (self.run_dir / f"{self.name}.{self.step}.json").write_text(json.dumps(record, indent=2))
+        if expect_exit is not None and proc.returncode != expect_exit:
+            tail = (proc.stderr or proc.stdout).strip()[-300:]
+            raise DriveFailure(f"`{' '.join(Path(a).name if a.startswith('/') else a for a in argv)}` expected exit {expect_exit}, got {proc.returncode}: {tail}")
+        return proc
+
+    def cli(self, *args: str, cwd: Path | None = None, expect_exit: int | None = 0) -> subprocess.CompletedProcess[str]:
+        return self.cmd([str(CLI), *args], cwd=cwd, expect_exit=expect_exit)
+
+
+def check(actual: object, expected: object, what: str) -> None:
+    if actual != expected:
+        raise DriveFailure(f"{what}: expected {expected!r}, got {actual!r}")
+
+
+def claim_of(summary_path: Path) -> dict:
+    if not summary_path.exists():
+        raise DriveFailure(f"audit did not write {summary_path.name}")
+    claims = json.loads(summary_path.read_text())["claims"]
+    check(len(claims), 1, "claims in summary.json")
+    return claims[0]
+
+
+EXPECTED_AUDIT = {"verdict": "switch", "claim_status": "supported", "delta": 0.4, "paired_tasks": 10}
+
+
+def drive_audit(run: Run, expected: dict | None = None) -> str:
+    out = run.home / "reports"
+    run.cli("audit", str(BYO / "study.yaml"), "--runs", str(BYO / "runs.parquet"), "--out-dir", str(out),
+            "--bootstrap-iterations", ITERATIONS, "--html")
+    claim = claim_of(out / "byo-minimal" / "summary.json")
+    got = {key: round(claim[key], 6) if isinstance(claim[key], float) else claim[key] for key in EXPECTED_AUDIT}
+    check(got, expected or EXPECTED_AUDIT, "byo-minimal claim alice_vs_bob")
+    report = (out / "byo-minimal" / "report.md").read_text()
+    for needle in ("switch", "alice", "bob"):
+        if needle not in report:
+            raise DriveFailure(f"report.md does not mention {needle!r}")
+    if not any(out.joinpath("byo-minimal").glob("*.html")):
+        raise DriveFailure("--html wrote no HTML report")
+    shutil.copy(out / "byo-minimal" / "summary.json", run.run_dir / "audit.summary.json")
+    return "byo-minimal audit writes report.md, HTML, and summary.json with verdict switch, delta +0.40"
+
+
+def drive_init(run: Run) -> str:
+    run.cli("init", "demo-study", "--cwd", str(run.home))
+    study = run.home / "demo-study"
+    check(sorted(p.name for p in study.iterdir()), ["README.md", "make_runs.py", "runs.parquet", "study.yaml"], "scaffold files")
+    (study / "runs.parquet").unlink()
+    run.cmd([str(VENV_BIN / "python"), "make_runs.py"], cwd=study)
+    check(run.cli("validate", "runs.parquet", "study.yaml", cwd=study).stdout.strip(), "OK: 20 rows, study 'demo-study'", "validate output")
+    run.cli("audit", "study.yaml", "--runs", "runs.parquet", "--bootstrap-iterations", ITERATIONS, cwd=study)
+    check(claim_of(study / "reports" / "demo-study" / "summary.json")["verdict"], "switch", "scaffold audit verdict")
+    return "init scaffold regenerates its parquet, validates, and audits to verdict switch following its README"
+
+
+RELABEL = """import sys, polars as pl
+frame = pl.read_parquet(sys.argv[1])
+frame.with_columns(pl.when(pl.col("agent_id") == "bob").then(pl.lit("other-harness")).otherwise(pl.col("harness")).alias("harness")).write_parquet(sys.argv[2])
+"""
+
+
+def drive_refusal(run: Run) -> str:
+    bad = run.home / "cross-harness.parquet"
+    run.cmd([str(VENV_BIN / "python"), "-c", RELABEL, str(BYO / "runs.parquet"), str(bad)])
+    out = run.home / "reports"
+    proc = run.cli("audit", str(BYO / "study.yaml"), "--runs", str(bad), "--out-dir", str(out),
+                   "--bootstrap-iterations", ITERATIONS, expect_exit=None)
+    if proc.returncode == 0:
+        raise DriveFailure("cross-harness audit exited 0; expected a refusal")
+    if "Cross-harness comparisons are not audit-ready" not in proc.stdout + proc.stderr:
+        raise DriveFailure(f"refusal message missing; got: {(proc.stdout + proc.stderr).strip()[-300:]}")
+    written = sorted(p.name for p in out.glob("byo-minimal/*")) if out.exists() else []
+    check([n for n in written if n in {"report.md", "summary.json"}], [], "report files after refusal")
+    return f"cross-harness audit exits {proc.returncode} with the refusal and writes no report.md or summary.json"
+
+
+DRIVES = {
+    "audit": Drive("eval-audit audit on byo-minimal writes report.md, HTML, and summary.json with the expected verdict",
+                   ["eval_audit/**", "examples/byo-minimal/**"], drive_audit, 20),
+    "init": Drive("eval-audit init scaffolds a study that regenerates, validates, and audits per its README",
+                  ["eval_audit/cli*.py", "eval_audit/spec/**", "eval_audit/schema/**", "examples/byo-minimal/**"], drive_init, 20),
+    "refusal": Drive("a cross-harness claim is refused with a non-zero exit and writes no report",
+                     ["eval_audit/checks.py", "eval_audit/pipeline.py", "eval_audit/cli.py", "eval_audit/evidence.py"], drive_refusal, 20),
+}
+SMOKE = "audit"
+
+
+def cleanup() -> None:
+    shutil.rmtree(SCRATCH, ignore_errors=True)
+
+
+def changed_files() -> set[str]:
+    branches = git("branch", "--list", "--all", "main", "origin/main").split()
+    base = git("merge-base", "HEAD", "main" if "main" in branches else "origin/main")
+    files = set(git("diff", "--name-only", base).splitlines())
+    return files | set(git("ls-files", "--others", "--exclude-standard").splitlines())
+
+
+def select_changed() -> list[str]:
+    files = changed_files()
+    if any(fnmatch.fnmatch(f, p) for f in files for p in SHARED_PATHS):
+        return list(DRIVES)
+    picked = [n for n, d in DRIVES.items() if any(fnmatch.fnmatch(f, p) for f in files for p in d.paths)]
+    return picked or [SMOKE]
+
+
+def preflight(run_dir: Path) -> None:
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "VIRTUAL_ENV"))}
+    probe = "import eval_audit, importlib.metadata as m; print(eval_audit.__file__); print(m.version('eval-audit'))"
+    proc = subprocess.run(["uv", "run", "--locked", "--extra", "dev", "python", "-c", probe], cwd=ROOT, env=env, capture_output=True, text=True)
+    (run_dir / "preflight.log").write_text(proc.stdout + proc.stderr)
+    if proc.returncode != 0 or not CLI.exists():
+        sys.exit(f"preflight: locked environment did not resolve (run `make setup`); see {run_dir / 'preflight.log'}")
+    location, version = proc.stdout.split()[-2:]
+    if not Path(location).resolve().is_relative_to(ROOT):
+        sys.exit(f"preflight: eval_audit imports from {location}, not this checkout")
+    declared = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    if version != declared:
+        sys.exit(f"preflight: installed eval-audit {version} != pyproject {declared}")
+    real_home = Path.home().resolve()
+    for key, value in Run(run_dir, "preflight").env.items():
+        if key.endswith(("HOME", "_DIR")) and Path(value).resolve().is_relative_to(real_home):
+            sys.exit(f"preflight: {key}={value} is inside the real HOME")
+
+
+def control() -> int:
+    """Re-drive the smoke drive against a wrong verdict; pass only when FAIL is observed."""
+    return execute([SMOKE], control=True)
+
+
+def execute(names: list[str], control: bool = False) -> int:
+    sha = git("rev-parse", "--short=7", "HEAD")
+    dirty = bool(git("status", "--porcelain"))
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
+    run_dir = ROOT / ".verify" / "runs" / f"{stamp}-{sha}{'-dirty' if dirty else ''}"
+    run_dir.mkdir(parents=True)
+    preflight(run_dir)
+    results = []
+    for name in names:
+        drive = DRIVES[name]
+        started = time.monotonic()
+        try:
+            if control:
+                detail = drive_audit(Run(run_dir, "control"), {**EXPECTED_AUDIT, "verdict": "hold"})
+            else:
+                detail = drive.run(Run(run_dir, name))
+            result = "PASS"
+        except (DriveFailure, subprocess.TimeoutExpired, KeyError, json.JSONDecodeError) as error:
+            result, detail = "FAIL", str(error)
+        seconds = round(time.monotonic() - started, 1)
+        if seconds > drive.timeout and result == "PASS":
+            result, detail = "FAIL", f"took {seconds}s, budget {drive.timeout}s"
+        print(f"{result} {'control' if control else name} {seconds}s {detail}")
+        results.append({"drive": name, "result": result, "seconds": seconds, "detail": detail})
+    summary = {"sha": git("rev-parse", "HEAD"), "dirty": dirty, "control": control, "drives": results}
+    (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
+    print(f"evidence: {run_dir}")
+    failed = any(r["result"] == "FAIL" for r in results)
+    if control:
+        print("control: FAIL observed" if failed else "control: passed unexpectedly; the drive cannot fail")
+        return 0 if failed else 1
+    return 1 if failed else 0
+
+
+def main(argv: list[str]) -> int:
+    atexit.register(cleanup)
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
+    if argv == ["list"]:
+        for name, drive in DRIVES.items():
+            print(f"{name}\t{drive.proves}\t{', '.join(drive.paths)}")
+        return 0
+    if argv == ["control"]:
+        return control()
+    if argv == ["all"]:
+        return execute(list(DRIVES))
+    unknown = [a for a in argv if a not in DRIVES]
+    if unknown:
+        print(f"unknown drive(s): {', '.join(unknown)}; run `verify list`", file=sys.stderr)
+        return 2
+    return execute(argv or select_changed())
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

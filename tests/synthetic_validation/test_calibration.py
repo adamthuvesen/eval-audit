@@ -14,6 +14,8 @@ from eval_audit.stats import analyze
 from eval_audit.stats.sensitivity import recompute_scenario
 from tests.stats.test_analyze import _row, _stub_study
 
+pytestmark = pytest.mark.verify
+
 # These bounds precede the simulation. They are smoke-test acceptance bounds,
 # not confidence guarantees for every benchmark distribution.
 _DRAWS = 128

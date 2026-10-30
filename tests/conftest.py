@@ -71,8 +71,7 @@ def readiness_kwargs() -> Callable[..., dict[str, str]]:
     so the `study_loads` and `runs_load` checks here have empty `details`
     rather than the `path` keys a CLI run records on disk. The resulting
     `check_sha256` is therefore intentionally NOT byte-equal to the digest a
-    user sees in `reports/<id>/check.json`. Snapshot byte-equality is what
-    these tests pin.
+    user sees in `reports/<id>/check.json`.
     """
     from eval_audit.checks import check_evidence
     from eval_audit.report.provenance import EvidenceSource

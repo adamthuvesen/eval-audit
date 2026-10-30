@@ -67,7 +67,7 @@ Unrelated files remain untouched. Symlinked owned artifacts and output-root esca
    Choose one model name. The CLI derives JSON Schema directly from Pydantic.
 3. Add behavior at that owner. Keep adapters limited to source-specific decoding.
 4. Run the focused command below. Include a concrete wrong-input or failure case for changed guarantees.
-5. Review generated report differences before accepting snapshots.
+5. Review generated report differences before regenerating committed reports.
 6. Run `make check`. Independent review handles methodology and tradeoffs that checks cannot decide.
 
 | Change | Focused check |
@@ -96,7 +96,7 @@ The remaining checks serve requirements those mechanisms cannot establish alone:
 | Fault injection and publication tests | Filesystems can fail or interrupt valid operations |
 | Wheel smoke test | Source imports cannot prove packaged resources and runtime-only installation work |
 | Fixture replay tests | Typed I/O cannot prove source hashes, decoding, or rollback behavior |
-| Reviewed report snapshots | Types cannot establish that prose accurately communicates numerical conclusions |
+| Reviewed committed reports | Types cannot establish that prose accurately communicates numerical conclusions |
 | Ruff, mypy, import-linter, lock checks in CI | These enforce source-wide properties and reproducible resolution beyond a runtime boundary |
 | Architecture documentation | Ownership intent and methodology tradeoffs require human-readable explanations |
 | Independent review | Review evaluates assumptions and evidence quality that deterministic checks cannot decide |

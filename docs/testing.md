@@ -8,35 +8,35 @@ Match test scope to risk:
 - **Statistical changes:** unit tests, property tests where useful, and
   synthetic recovery validation when behavior could affect conclusions.
 - **Report changes:** renderer tests, decision-impact tests, sensitivity tests,
-  and snapshot review.
+  and committed-report review.
 - **CLI changes:** command tests and at least one realistic study path.
 
-For report-affecting work, run the snapshot test. For methodology-affecting
-work, run `make check` and `make verify`.
+For methodology-affecting work, run `make check` and `make verify`.
 
-## Snapshots
+## Committed reports
 
-Report snapshots are expected artifacts, not incidental churn. Update them
-only when the rendered change is intended and you have reviewed the diff:
-
-```bash
-UPDATE_SNAPSHOTS=1 uv run pytest tests/report/test_snapshot.py
-```
+`reports/<id>/report.md` is the only copy of each rendered report.
+`tests/report/test_committed_reports.py` renders each one again from committed
+evidence and compares it with the committed file. Only the `git_commit` line can differ.
+A stale report fails the fast lane, and the failure prints the CLI command that
+regenerates it. Review the rendered diff before you commit it.
 
 ## Test lanes
 
 `make check` is the fast lane and the first CI job. It runs lock, lint,
 import-contract, format, and type checks, then pytest in parallel through
-pytest-xdist. It skips the directories in the Makefile `VERIFY_TESTS` list.
+pytest-xdist.
 
-`make verify` is the slow lane and the second CI job. It runs only the
-`VERIFY_TESTS` directories:
+`make verify` is the slow lane. CI runs it after the fast lane passes.
+It runs only the tests marked `verify`:
 
 - `tests/packaging/`: sdist hygiene and the installed-wheel workflow.
 - `tests/synthetic_validation/`: recovery and finite-sample calibration
   against `scouting/synthetic/`.
 
-To add a slow suite, add its directory to `VERIFY_TESTS`.
+The pytest `addopts` in `pyproject.toml` exclude `verify` tests from every
+default run, including a bare `uv run pytest`. To add a slow suite, put
+`pytestmark = pytest.mark.verify` in its test module.
 
 ## Locked developer setup
 
@@ -69,7 +69,7 @@ Refresh fetches only revision-pinned URLs, with a 30-second request timeout.
 Use a separate cache directory for each source revision.
 Review candidate output in a separate `--output-dir` before replacing canonical evidence.
 Any differing existing fixture requires `--accept-evidence-change`, including during replay.
-Rerun affected reports and review their evidence after an accepted change.
+Regenerate affected reports with the command the committed-report test prints, then review their evidence.
 
 Each tool stages parquet and provenance, then validates the staged pair before canonical promotion.
 A failed replacement restores files already replaced by that operation.

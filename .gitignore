@@ -32,8 +32,10 @@ htmlcov/
 *.local.json
 
 # Claude / agent local state
-.agents/
-.claude/
+.agents/*
+!.agents/skills/
+.claude/*
+!.claude/skills
 .codex/
 worktrees/
 
@@ -81,3 +83,6 @@ reports/.*.publish.lock
 
 # import-linter
 .import_linter_cache/
+
+# verify-eval-audit evidence
+.verify/

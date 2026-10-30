@@ -13,6 +13,8 @@ from pathlib import Path
 import polars as pl
 import pytest
 
+pytestmark = pytest.mark.verify
+
 
 @pytest.fixture(scope="module")
 def truth(scouting_dir: Path) -> dict:

@@ -10,14 +10,16 @@ composite-score factory, or causal model of scaffolds. Keep that shape.
 ```bash
 make setup     # locked install, dev extras
 make check     # fast lane and first CI job: lock, ruff, import contracts, format, mypy, pytest
-make verify    # slow lane, second CI job: installed-wheel smoke test and synthetic recovery/calibration
-UPDATE_SNAPSHOTS=1 uv run --locked pytest tests/report/test_snapshot.py   # only after reviewing the diff
+make verify    # slow lane, after check in CI: tests marked `verify` (wheel install, synthetic recovery), then `verify all` + `verify control`
 
 uv run --locked eval-audit spec schema --model study|run|summary
-uv run --locked eval-audit audit studies/gaia-hal-generalist.yaml
+uv run --locked eval-audit report studies/gaia-hal-generalist.yaml --out-dir /tmp/eval-audit-reports
 ```
 
+Prove changes with `make drive` (`verify-eval-audit` skill at `.agents/skills/verify-eval-audit/`).
 Run `make verify` for methodology, CLI, template, or packaging changes.
+A stale `reports/<id>/report.md` fails the fast lane, and the failure prints the regeneration command.
+Review the rendered diff before you accept it.
 For the module owner of each change and focused test commands, read
 [docs/architecture.md](docs/architecture.md).
 
@@ -42,16 +44,17 @@ For the module owner of each change and focused test commands, read
 
 | Rule | Enforced by | Added |
 | --- | --- | --- |
-| Lower layers never import higher ones: schema, ingest, evidence, stats, report, pipeline, cli | `pyproject.toml::[tool.importlinter]`, `Makefile::lint-imports` | 2026-11-06 |
-| v0 outcomes are `success_rate`, higher is better | `eval_audit/schema/study.py::must be 'success_rate' in v0`, `tests/stats/test_analyze.py::test_analyze__unsupported_outcome_fails_loudly` | 2026-04-29 |
+| Lower layers never import higher ones; the contract owns the layer order | `pyproject.toml::tool.importlinter`, `Makefile::lint-imports` | 2026-11-06 |
+| v0 outcomes are `success_rate`, higher is better | `eval_audit/schema/study.py::_study_invariant_errors`, `tests/stats/test_analyze.py::test_analyze__unsupported_outcome_fails_loudly` | 2026-04-29 |
 | Cross-harness claims are refused and write no report | `tests/cli/test_audit_cmd.py::test_audit__cross_harness_refusal_does_not_write_report` | 2026-05-06 |
-| Cost provenance has exactly four modes | `eval_audit/schema/enums.py::class CostProvenance`, `tests/schema/test_cost_not_available_provenance.py` | 2026-05-05 |
+| Cost provenance has exactly four modes | `eval_audit/schema/enums.py::CostProvenance`, `tests/schema/test_cost_not_available_provenance.py` | 2026-05-05 |
 | Field references match the Pydantic models | `tests/docs/test_study_schema.py`, `tests/docs/test_input_contract.py` | 2026-05-05 |
-| Reports are byte-deterministic and match committed snapshots | `tests/report/test_snapshot.py` | 2026-04-29 |
-| `uv.lock` is current; `uv` is the only dependency workflow | `Makefile::uv lock --check` | 2026-11-05 |
-| CI runs the Make targets, not copies of them | `.github/workflows/ci.yml::run: make check`, `.github/workflows/ci.yml::run: make verify` | 2026-11-06 |
+| Committed reports match a fresh render from committed evidence | `tests/report/test_committed_reports.py::test_committed_reports__match_fresh_render` | 2026-11-06 |
+| `uv.lock` matches `pyproject.toml` | `Makefile::lock-check` | 2026-11-05 |
+| CI jobs run only setup and one Make target; `verify` waits for `check` | `tests/test_ci_workflow.py::test_ci_workflow__runs_only_make_targets` | 2026-11-06 |
 | Local caches and `.env` stay out of the sdist | `tests/packaging/test_sdist.py` | 2026-05-22 |
 | Estimators recover known effects within declared bounds | `tests/synthetic_validation/test_recovery.py`, `tests/synthetic_validation/test_calibration.py` | 2026-04-29 |
+| `verify control` must observe FAIL before a verify pass counts | `.agents/skills/verify-eval-audit/verify::control` | 2026-11-06 |
 | Every citation in this table exists | `tests/docs/test_enforced_rules.py` | 2026-11-06 |
 
 ## Docs
@@ -65,6 +68,6 @@ For the module owner of each change and focused test commands, read
 | Ingest adapters and cost provenance | [docs/design-ingest.md](docs/design-ingest.md) |
 | Stats, intervals, Pareto | [docs/design-stats.md](docs/design-stats.md) |
 | Reports, decision rules, CLI | [docs/design-reports.md](docs/design-reports.md) |
-| Test lanes, snapshots, fixture replay | [docs/testing.md](docs/testing.md) |
+| Test lanes, committed reports, fixture replay | [docs/testing.md](docs/testing.md) |
 
 If a doc disagrees with code, fix the doc in the same change.

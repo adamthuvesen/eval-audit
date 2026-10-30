@@ -7,6 +7,10 @@ import subprocess
 import tarfile
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.verify
+
 
 def test_sdist__excludes_local_caches_and_build_outputs(repo_root: Path, tmp_path: Path) -> None:
     """The published sdist should contain source artifacts, not local machine state."""
