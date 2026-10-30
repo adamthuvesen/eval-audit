@@ -38,6 +38,5 @@ format-check:
 
 typecheck:
 	uv run --locked basedpyright
-	uv run --locked python tools/baseline_ratchet.py
 
 check: lock-check lint lint-imports format-check typecheck test

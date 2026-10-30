@@ -102,7 +102,7 @@ line-length = 100
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "PTH", "RUF"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "PTH", "RUF", "PGH003"]
 # RUF001-003: reports and docs use real math symbols (x, alpha, minus) on purpose.
 ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 
@@ -111,7 +111,7 @@ ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 "eval_audit/cli.py" = ["B008"]
 
 [tool.basedpyright]
-include = ["eval_audit", "tools/fixture_io.py", "tools/baseline_ratchet.py", "tests"]
+include = ["eval_audit", "tools/fixture_io.py", "tests"]
 pythonVersion = "3.14"
 venvPath = "."
 venv = ".venv"
@@ -121,10 +121,12 @@ reportUnknownArgumentType = false
 reportUnknownVariableType = false
 reportUnknownParameterType = false
 reportUnknownLambdaType = false
+reportMissingTypeStubs = false
 
 [[tool.basedpyright.executionEnvironments]]
 root = "tests"
 reportMissingParameterType = false
+reportPrivateUsage = false
 
 # Lower layers must not import higher ones. Put new modules in the lowest layer that
 # owns their concept; if a contract fails, move the shared code down, not the import up.

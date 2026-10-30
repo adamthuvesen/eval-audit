@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import polars as pl
 import pytest
+
+from eval_audit.schema.enums import Verdict
+from eval_audit.stats.results import AgentSummary, ClaimResult
 
 
 @pytest.fixture
@@ -422,9 +425,12 @@ def test_render_audit_summary_stanza__unknown_decision_token_raises() -> None:
     from eval_audit.report import ReportContractError
     from eval_audit.report.sections.audit_summary import render_audit_summary_stanza
 
-    fake_claim = type(
-        "C", (), {"delta_point_estimate": 0.0, "delta_ci_low": -0.05, "delta_ci_high": 0.05}
-    )()
+    fake_claim = cast(
+        ClaimResult,
+        type(
+            "C", (), {"delta_point_estimate": 0.0, "delta_ci_low": -0.05, "delta_ci_high": 0.05}
+        )(),
+    )
 
     with pytest.raises(ReportContractError) as exc_info:
         render_audit_summary_stanza(
@@ -528,18 +534,24 @@ def _pushback_presentation(cost_provenance_class: str, residual_risks_text: str)
     )
 
 
+def _agent_summary(agent_id: str, n_errored: int) -> AgentSummary:
+    return AgentSummary(
+        agent_id=agent_id,
+        n_graded=10,
+        n_errored=n_errored,
+        success_rate=0.5,
+        success_rate_ci_low=0.4,
+        success_rate_ci_high=0.6,
+        total_cost_usd=None,
+        cost_per_success_usd=None,
+    )
+
+
 def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
     """Errored rows -> cost provenance -> residual risks, comma-separated."""
-    from dataclasses import dataclass
-
     from eval_audit.report.sections.audit_summary import reviewer_pushback
 
-    @dataclass
-    class FakeAgent:
-        agent_id: str
-        n_errored: int
-
-    per_agent = [FakeAgent("a", 3), FakeAgent("b", 0)]
+    per_agent = [_agent_summary("a", 3), _agent_summary("b", 0)]
     residual = "1. risk one\n2. risk two\n"
 
     line = reviewer_pushback(
@@ -558,16 +570,9 @@ def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
 
 
 def test_reviewer_pushback__none_flagged_when_no_caveats_apply() -> None:
-    from dataclasses import dataclass
-
     from eval_audit.report.sections.audit_summary import reviewer_pushback
 
-    @dataclass
-    class FakeAgent:
-        agent_id: str
-        n_errored: int
-
-    per_agent = [FakeAgent("a", 0), FakeAgent("b", 0)]
+    per_agent = [_agent_summary("a", 0), _agent_summary("b", 0)]
     placeholder = (
         "_(no scouting decision document at scouting/foo-decision.md; "
         "residual risks not surfaced.)_"
@@ -746,7 +751,7 @@ def test_audit_summary__verdict_rationale_no_per_claim_numbers() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _row(dim: str, val: str, verdict: str):
+def _row(dim: str, val: str, verdict: Verdict):
     """Build a SensitivityRow without importing the dataclass at module level."""
     from eval_audit.report.sensitivity import SensitivityRow
 

@@ -9,7 +9,7 @@ composite-score factory, or causal model of scaffolds. Keep that shape.
 
 ```bash
 make setup     # locked install, dev extras
-make check     # fast lane and first CI job: lock, ruff, import contracts, format, basedpyright, baseline ratchet, pytest
+make check     # fast lane and first CI job: lock, ruff, import contracts, format, basedpyright, pytest
 make fix       # ruff --fix and ruff format
 make verify    # drive the real CLI (ARGS=all|list|control|<drive>)
 make slow      # slow lane, after check in CI: tests marked `verify` (wheel install, synthetic recovery), then `verify all` + `verify control`
@@ -57,7 +57,7 @@ For the module owner of each change and focused test commands, read
 | Local caches and `.env` stay out of the sdist | `tests/packaging/test_sdist.py` | 2026-05-22 |
 | Estimators recover known effects within declared bounds | `tests/synthetic_validation/test_recovery.py`, `tests/synthetic_validation/test_calibration.py` | 2026-04-29 |
 | `verify control` must observe FAIL before a verify pass counts | `.agents/skills/verify-eval-audit/verify::control` | 2026-11-06 |
-| Baselined type errors never exceed `origin/main`'s count | `tools/baseline_ratchet.py::main`, `Makefile::typecheck` | 2026-11-06 |
+| basedpyright reports zero errors in strict mode, with no baseline file | `pyproject.toml::typeCheckingMode`, `Makefile::typecheck` | 2026-11-07 |
 | Every citation in this table exists | `tests/docs/test_enforced_rules.py` | 2026-11-06 |
 
 ## Docs

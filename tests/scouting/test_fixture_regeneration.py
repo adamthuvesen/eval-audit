@@ -154,13 +154,14 @@ def test_swe__offline_replay_stages_before_promotion(
 def test_terminal__missing_usage_or_timestamp_rejected_offline(
     missing: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    record = {
-        "agent_result": {"n_input_tokens": 1, "n_output_tokens": 2},
+    agent_result = {"n_input_tokens": 1, "n_output_tokens": 2}
+    record: dict[str, object] = {
+        "agent_result": agent_result,
         "started_at": "2026-01-01T00:00:00Z",
         "finished_at": "2026-01-01T00:00:01Z",
     }
     if missing.startswith("n_"):
-        record["agent_result"].pop(missing)
+        agent_result.pop(missing)
     else:
         record.pop(missing)
     path = f"{terminal.SUBMISSION_ROOT}/submission/run/trial/result.json"
