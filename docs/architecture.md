@@ -73,11 +73,11 @@ Unrelated files remain untouched. Symlinked owned artifacts and output-root esca
 | Change | Focused check |
 | --- | --- |
 | Canonical input or comparability | `uv run --locked pytest tests/schema tests/ingest tests/test_evidence.py` |
-| Inference or sensitivity | `uv run --locked pytest tests/stats tests/report/test_analysis_settings.py` and `make test-synthetic` |
+| Inference or sensitivity | `uv run --locked pytest tests/stats tests/report/test_analysis_settings.py` and `make verify` |
 | Publication or portfolio | `uv run --locked pytest tests/test_artifacts.py tests/cli/test_portfolio_cmd.py` |
-| CLI or template | `make test-cli` and `make test-packaging` |
-| Fixture or historical harness | `make test-scouting` |
-| Report wording or provenance | `make test-snapshots` and report tests |
+| CLI or template | `uv run --locked pytest tests/cli` and `make verify` |
+| Fixture or historical harness | `uv run --locked pytest tests/scouting` |
+| Report wording or provenance | `uv run --locked pytest tests/report` |
 | Complete verification | `make check` |
 
 Use `make setup` before verification. Missing caches or prerequisites fail visibly.
@@ -97,7 +97,7 @@ The remaining checks serve requirements those mechanisms cannot establish alone:
 | Wheel smoke test | Source imports cannot prove packaged resources and runtime-only installation work |
 | Fixture replay tests | Typed I/O cannot prove source hashes, decoding, or rollback behavior |
 | Reviewed report snapshots | Types cannot establish that prose accurately communicates numerical conclusions |
-| Ruff, mypy, lock checks in CI | These enforce source-wide properties and reproducible resolution beyond a runtime boundary |
+| Ruff, mypy, import-linter, lock checks in CI | These enforce source-wide properties and reproducible resolution beyond a runtime boundary |
 | Architecture documentation | Ownership intent and methodology tradeoffs require human-readable explanations |
 | Independent review | Review evaluates assumptions and evidence quality that deterministic checks cannot decide |
 

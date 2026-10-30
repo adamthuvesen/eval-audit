@@ -105,7 +105,6 @@ def calibration_counts() -> CalibrationCounts:
     )
 
 
-@pytest.mark.synthetic_validation
 def test_null_family_rejection_within_predeclared_binomial_bound(calibration_counts) -> None:
     assert calibration_counts.null_family_rejections <= _MAX_NULL_REJECTIONS, calibration_counts
     assert calibration_counts.excluded_null_family_rejections <= _MAX_NULL_REJECTIONS, (
@@ -113,13 +112,11 @@ def test_null_family_rejection_within_predeclared_binomial_bound(calibration_cou
     )
 
 
-@pytest.mark.synthetic_validation
 def test_interval_coverage_within_predeclared_binomial_bound(calibration_counts) -> None:
     assert calibration_counts.null_covered >= _MIN_COVERED, calibration_counts
     assert calibration_counts.excluded_null_covered >= _MIN_COVERED, calibration_counts
     assert calibration_counts.alternative_covered >= _MIN_COVERED, calibration_counts
 
 
-@pytest.mark.synthetic_validation
 def test_large_effect_detection_within_predeclared_binomial_bound(calibration_counts) -> None:
     assert calibration_counts.alternative_detected >= _MIN_DETECTED, calibration_counts

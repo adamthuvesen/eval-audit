@@ -51,6 +51,8 @@ dev = [
     "ruff>=0.5",
     # Used only by scouting/synthetic/generate.py; not a runtime dep of eval-audit.
     "pyarrow>=17.0",
+    "import-linter>=2.15",
+    "pytest-xdist>=3.8.0",
 ]
 
 [project.scripts]
@@ -91,9 +93,6 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
-markers = [
-    "synthetic_validation: end-to-end recovery checks against scouting/synthetic/",
-]
 
 [tool.ruff]
 line-length = 100
@@ -119,3 +118,22 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 module = ["scipy", "scipy.*", "yaml"]
 ignore_missing_imports = true
+
+# Lower layers must not import higher ones. Put new modules in the lowest layer that
+# owns their concept; if a contract fails, move the shared code down, not the import up.
+[tool.importlinter]
+root_package = "eval_audit"
+
+[[tool.importlinter.contracts]]
+name = "schema -> ingest -> evidence -> stats -> report -> pipeline -> cli layering"
+type = "layers"
+layers = [
+    "eval_audit.cli",
+    "eval_audit.pipeline | eval_audit.portfolio",
+    "eval_audit.checks | eval_audit.artifacts",
+    "eval_audit.report",
+    "eval_audit.stats",
+    "eval_audit.evidence",
+    "eval_audit.ingest",
+    "eval_audit.schema",
+]

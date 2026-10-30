@@ -12,7 +12,7 @@ Match test scope to risk:
 - **CLI changes:** command tests and at least one realistic study path.
 
 For report-affecting work, run the snapshot test. For methodology-affecting
-work, run `make check` plus the synthetic-validation gate when relevant.
+work, run `make check` and `make verify`.
 
 ## Snapshots
 
@@ -23,32 +23,25 @@ only when the rendered change is intended and you have reviewed the diff:
 UPDATE_SNAPSHOTS=1 uv run pytest tests/report/test_snapshot.py
 ```
 
-## Synthetic-validation gate
+## Test lanes
 
-The `synthetic_validation` marker runs end-to-end recovery checks against
-`scouting/synthetic/`. Run it for methodology-affecting work:
+`make check` is the fast lane and the first CI job. It runs lock, lint,
+import-contract, format, and type checks, then pytest in parallel through
+pytest-xdist. It skips the directories in the Makefile `VERIFY_TESTS` list.
 
-```bash
-uv run pytest -m synthetic_validation tests/synthetic_validation
-```
+`make verify` is the slow lane and the second CI job. It runs only the
+`VERIFY_TESTS` directories:
+
+- `tests/packaging/`: sdist hygiene and the installed-wheel workflow.
+- `tests/synthetic_validation/`: recovery and finite-sample calibration
+  against `scouting/synthetic/`.
+
+To add a slow suite, add its directory to `VERIFY_TESTS`.
 
 ## Locked developer setup
 
 Use `make setup` to check the lockfile and install development dependencies with `uv sync --locked --extra dev`.
-`make check` runs the same named checks locally and in CI:
-
-| Target | Scope |
-| --- | --- |
-| `make lock-check` | Reject a stale lockfile |
-| `make lint` | Ruff lint |
-| `make format-check` | Ruff format check |
-| `make typecheck` | Runtime package and shared fixture I/O helpers |
-| `make test` | Full test suite |
-| `make test-cli` | Command behavior |
-| `make test-packaging` | Source distribution hygiene and installed wheel workflow |
-| `make test-scouting` | Offline fixture replay, promotion failures, historical grader safeguards |
-| `make test-snapshots` | Report snapshots |
-| `make test-synthetic` | Synthetic recovery gate |
+Run focused suites with `uv run --locked pytest <path>`.
 
 The wheel test builds a wheel and installs it in a temporary virtual environment outside the checkout.
 It exports exact runtime artifacts from `uv.lock` through `pylock.toml` and installs cached artifacts offline.

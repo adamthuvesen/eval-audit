@@ -24,8 +24,7 @@ def scouting_dir(repo_root: Path) -> Path:
     return repo_root / "scouting"
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _ensure_example_fixtures(repo_root: Path) -> None:
+def pytest_sessionstart(session: pytest.Session) -> None:
     """Regenerate gitignored example parquet fixtures at session start when missing.
 
     The committed `make_runs.py` scripts under `examples/<name>/` are the
@@ -33,8 +32,12 @@ def _ensure_example_fixtures(repo_root: Path) -> None:
     themselves are gitignored. On a fresh checkout (CI included) the parquets
     do not exist until `make_runs.py` runs. Several tests reference these
     parquets directly, so we auto-regenerate them here rather than coupling
-    every test to a per-test setup hook.
+    every test to a per-test setup hook. Under pytest-xdist only the controller
+    writes, before workers start, so workers never race on the same file.
     """
+    if hasattr(session.config, "workerinput"):
+        return
+    repo_root = Path(__file__).resolve().parent.parent
     examples = (
         repo_root / "examples" / "byo-minimal",
         repo_root / "examples" / "decision-gallery",

@@ -78,3 +78,6 @@ scouting/humaneval-direct-completion/graded/
 
 # Persistent per-study publication locks contain no audit evidence.
 reports/.*.publish.lock
+
+# import-linter
+.import_linter_cache/

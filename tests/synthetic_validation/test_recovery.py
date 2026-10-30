@@ -69,7 +69,6 @@ def analysis(scouting_dir: Path):
     return analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
 
 
-@pytest.mark.synthetic_validation
 def test_synthetic_validation__per_agent_success_rate_within_tolerance(analysis, truth) -> None:
     """Recovered per-agent success rate is within +/- 10pp of truth.json."""
     by_id = {s.agent_id: s for s in analysis.per_agent}
@@ -81,7 +80,6 @@ def test_synthetic_validation__per_agent_success_rate_within_tolerance(analysis,
         )
 
 
-@pytest.mark.synthetic_validation
 def test_synthetic_validation__pairwise_true_effect_ranking_matches(
     analysis, truth, scouting_dir: Path
 ) -> None:
@@ -111,13 +109,11 @@ def test_synthetic_validation__pairwise_true_effect_ranking_matches(
         )
 
 
-@pytest.mark.synthetic_validation
 def test_synthetic_validation__pareto_membership_matches_truth(analysis, truth) -> None:
     """Pareto frontier membership matches truth.json exactly."""
     assert analysis.pareto_frontier == set(truth["pareto_frontier"])
 
 
-@pytest.mark.synthetic_validation
 def test_synthetic_validation__primary_pair_holm_does_not_reject(analysis, truth) -> None:
     """Holm-Bonferroni adjusted p-value for the primary pair does NOT reject at alpha=0.05."""
     primary_pair = tuple(truth["primary_pair"])

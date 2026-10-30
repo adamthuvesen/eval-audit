@@ -1,114 +1,70 @@
 # AGENTS.md: eval-audit
 
-`eval-audit` is a small Python methodology toolkit for deciding whether
-benchmark score differences are large, reliable, and cost-aware enough to
-justify switching models. It is not a benchmark runner, leaderboard, tracing
-system, composite-score factory, or causal model of scaffolds. Keep that shape.
+`eval-audit` is a small Python methodology toolkit. It decides whether benchmark
+score differences are large, reliable, and cost-aware enough to justify a model
+switch. It is not a benchmark runner, leaderboard, tracing system,
+composite-score factory, or causal model of scaffolds. Keep that shape.
 
-User-level guidance (tone, principles, git etiquette) lives in
-`~/.claude/CLAUDE.md` and `~/dotfiles/agents/AGENTS.md` and is *not* duplicated
-here. This file is for project-specific facts.
-
-## Layout
-
-```
-eval_audit/
-├── schema/      StudySpec + RunRecord validation, audit summary shapes
-├── ingest/      public-data fixture adapters → canonical task-level rows
-├── stats/       intervals, bootstrap, correction, paired analysis, Pareto
-├── report/      markdown rendering, decision rules, sensitivity tables
-├── spec/        deterministic study-spec rendering
-├── evidence.py  canonical validation, study scope, and comparability
-├── pipeline.py  prepare one audit artifact set without writes
-├── artifacts.py contained publication and completion state
-└── cli.py       Typer CLI (entry point eval-audit)
-
-studies/         declared study YAML files
-reports/         committed demo reports and analysis JSON
-scouting/        fixture provenance, candidate inventories, decisions
-examples/        BYO worked example (byo-minimal/)
-tests/           schema, ingest, stats, report, CLI, snapshot, doc-parity, synthetic
-docs/            field references + per-subsystem design docs; see Index
-```
-
-## Quickstart
+## Commands
 
 ```bash
-make setup
-make check        # ruff check + format check + mypy + pytest (the CI gate)
-make test         # pytest only
-make lint         # ruff check only
+make setup     # locked install, dev extras
+make check     # fast lane and first CI job: lock, ruff, import contracts, format, mypy, pytest
+make verify    # slow lane, second CI job: installed-wheel smoke test and synthetic recovery/calibration
+UPDATE_SNAPSHOTS=1 uv run --locked pytest tests/report/test_snapshot.py   # only after reviewing the diff
 
-uv run eval-audit spec validate studies/gaia-hal-generalist.yaml
-uv run eval-audit analyze studies/gaia-hal-generalist.yaml
-uv run eval-audit report studies/gaia-hal-generalist.yaml
+uv run --locked eval-audit spec schema --model study|run|summary
+uv run --locked eval-audit audit studies/gaia-hal-generalist.yaml
 ```
 
-`make check` is the single source of truth for CI. The workflow invokes it
-directly. Local success covers the local environment. CI validates its own Python and OS environment.
+Run `make verify` for methodology, CLI, template, or packaging changes.
+For the module owner of each change and focused test commands, read
+[docs/architecture.md](docs/architecture.md).
 
-## Critical Conventions
+## Judgment Calls
 
-Non-obvious rules; verify each against code before relying on it.
-
-- **Preserve the v0 contract** unless the user explicitly asks to expand it:
-  `success_rate`, `higher_is_better`, task-level paired comparisons within one
-  harness, frequentist intervals/corrections, markdown reports. Broadening to
-  latency, cost, lower-is-better, partial credit, or composite scores needs
-  metric-specific schema, inference, report semantics, and tests. Never a
-  silent widen.
+- **Preserve the v0 contract** unless the user explicitly asks to expand it.
+  Broadening beyond task-level `success_rate` needs metric-specific schema,
+  inference, report semantics, and tests. Never widen silently.
 - **Never make cross-harness comparisons look causal.** If harnesses differ,
-  say so plainly and keep the existing refusal behavior.
-- **Never hide uncertainty.** Confidence intervals, adjusted p-values, target
-  MDE, errored-row policy, cost provenance, and sensitivity tables are the
-  product, not decorations.
-- **Cost provenance is first-class** and has four explicit modes
-  (`reconciled`, `partial`, `as_reported_only`, `cost_not_available`); never fabricate
-  cost to dodge the no-data mode. See [docs/design-ingest.md](docs/design-ingest.md).
-- **Reports are deterministic.** Snapshot changes are intentional artifacts, not
-  incidental churn; regenerate them only after reviewing the diff. See
-  [docs/testing.md](docs/testing.md).
-- **`uv` is the only dependency workflow.** No second toolchain, no new deps
-  without asking, no notebooks for simple scripts.
-- **Keep changes small and methodology-aware.** No drive-by refactors.
-- **Never commit secrets, `.env`, or AI-attribution lines.**
+  say so plainly and keep the refusal.
+- **Never hide uncertainty.** Intervals, adjusted p-values, target MDE,
+  errored-row policy, cost provenance, and sensitivity tables are the product.
+- **Never fabricate cost** to avoid the `cost_not_available` mode.
+- A cautious refusal beats a polished but unsupported conclusion. When unsure
+  whether a comparison is within one harness, whether the outcome is
+  engine-supported, or whether a fixture is regenerable from committed
+  provenance, stop and name the uncertainty.
+- An import-contract failure means the shared code belongs in a lower layer.
+  Move the code down; do not reorder the layers.
 
-## Read The Docs First
+## Enforced Rules
 
-Before editing a subsystem, read the matching doc:
+| Rule | Enforced by | Added |
+| --- | --- | --- |
+| Lower layers never import higher ones: schema, ingest, evidence, stats, report, pipeline, cli | `pyproject.toml::[tool.importlinter]`, `Makefile::lint-imports` | 2026-11-06 |
+| v0 outcomes are `success_rate`, higher is better | `eval_audit/schema/study.py::must be 'success_rate' in v0`, `tests/stats/test_analyze.py::test_analyze__unsupported_outcome_fails_loudly` | 2026-04-29 |
+| Cross-harness claims are refused and write no report | `tests/cli/test_audit_cmd.py::test_audit__cross_harness_refusal_does_not_write_report` | 2026-05-06 |
+| Cost provenance has exactly four modes | `eval_audit/schema/enums.py::class CostProvenance`, `tests/schema/test_cost_not_available_provenance.py` | 2026-05-05 |
+| Field references match the Pydantic models | `tests/docs/test_study_schema.py`, `tests/docs/test_input_contract.py` | 2026-05-05 |
+| Reports are byte-deterministic and match committed snapshots | `tests/report/test_snapshot.py` | 2026-04-29 |
+| `uv.lock` is current; `uv` is the only dependency workflow | `Makefile::uv lock --check` | 2026-11-05 |
+| CI runs the Make targets, not copies of them | `.github/workflows/ci.yml::run: make check`, `.github/workflows/ci.yml::run: make verify` | 2026-11-06 |
+| Local caches and `.env` stay out of the sdist | `tests/packaging/test_sdist.py` | 2026-05-22 |
+| Estimators recover known effects within declared bounds | `tests/synthetic_validation/test_recovery.py`, `tests/synthetic_validation/test_calibration.py` | 2026-04-29 |
+| Every citation in this table exists | `tests/docs/test_enforced_rules.py` | 2026-11-06 |
+
+## Docs
 
 | Subsystem | Doc |
 | --- | --- |
-| Declared study YAML (field reference) | [docs/STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md) |
-| BYO run data (`RunRecord` field reference) | [docs/INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md) |
-| Schema / validation | [docs/design-schema.md](docs/design-schema.md) |
-| Ingest adapters / cost provenance | [docs/design-ingest.md](docs/design-ingest.md) |
-| Stats / intervals / Pareto | [docs/design-stats.md](docs/design-stats.md) |
-| Reports / decision rules / CLI | [docs/design-reports.md](docs/design-reports.md) |
-| Testing scope + snapshot/synthetic gates | [docs/testing.md](docs/testing.md) |
+| Ownership and change recipes | [docs/architecture.md](docs/architecture.md) |
+| Declared study YAML | [docs/STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md) |
+| BYO run data (`RunRecord`) | [docs/INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md) |
+| Schema and validation | [docs/design-schema.md](docs/design-schema.md) |
+| Ingest adapters and cost provenance | [docs/design-ingest.md](docs/design-ingest.md) |
+| Stats, intervals, Pareto | [docs/design-stats.md](docs/design-stats.md) |
+| Reports, decision rules, CLI | [docs/design-reports.md](docs/design-reports.md) |
+| Test lanes, snapshots, fixture replay | [docs/testing.md](docs/testing.md) |
 
-The field references ([STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md),
-[INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md)) are pinned to the code by
-doc-parity tests in `tests/docs/`. A schema change without a matching doc edit
-fails CI. If a doc disagrees with code, fix the doc in the same change.
-
-## Verification
-
-Beyond `make check`, this repo has two gates that bite:
-
-- **Report-affecting work:** run the snapshot test, and only regenerate
-  snapshots with `UPDATE_SNAPSHOTS=1` after reviewing the diff.
-- **Methodology-affecting work:** run the synthetic-validation recovery gate
-  (`uv run pytest -m synthetic_validation tests/synthetic_validation`).
-
-A cautious refusal beats a polished but unsupported benchmark conclusion. When
-unsure whether a comparison is within one harness, whether the outcome is
-engine-supported, or whether a fixture is regenerable from committed provenance,
-stop and name the uncertainty.
-
-## Index
-
-Start with [docs/architecture.md](docs/architecture.md) for ownership and change recipes.
-Then read [docs/STUDY_SCHEMA.md](docs/STUDY_SCHEMA.md) and
-[docs/INPUT_CONTRACT.md](docs/INPUT_CONTRACT.md) for the data contract, then
-follow the per-subsystem design docs above.
+If a doc disagrees with code, fix the doc in the same change.
