@@ -15,9 +15,10 @@ For methodology-affecting work, run `make check` and `make slow`.
 
 ## Committed reports
 
-`reports/<id>/report.md` is the only copy of each rendered report.
+`reports/<id>/` is the only copy of each rendered report and its JSON artifacts.
 `tests/report/test_committed_reports.py` renders each one again from committed
-evidence and compares it with the committed file. Only the `git_commit` line can differ.
+evidence and compares every artifact with the committed file. Only the `git_commit`
+value can differ. The `summary.json` hashes must match the committed files.
 A stale report fails the fast lane, and the failure prints the CLI command that
 regenerates it. Review the rendered diff before you commit it.
 

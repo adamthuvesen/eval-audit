@@ -20,7 +20,7 @@ uv run --locked eval-audit report studies/gaia-hal-generalist.yaml --out-dir /tm
 
 Prove changes with `make verify` (`verify-eval-audit` skill at `.agents/skills/verify-eval-audit/`).
 Run `make slow` for methodology, CLI, template, or packaging changes.
-A stale `reports/<id>/report.md` fails the fast lane, and the failure prints the regeneration command.
+A stale artifact in `reports/<id>/` fails the fast lane, and the failure prints the regeneration command.
 Review the rendered diff before you accept it.
 For the module owner of each change and focused test commands, read
 [docs/architecture.md](docs/architecture.md).

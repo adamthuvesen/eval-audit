@@ -6,6 +6,7 @@ are equal to the committed runs.parquet. Edits to either must come together.
 
 from __future__ import annotations
 
+import importlib.util
 import shutil
 import subprocess
 import sys
@@ -49,3 +50,20 @@ def test_byo_minimal__make_runs_round_trips(repo_root: Path, tmp_path: Path) -> 
             f"either the script changed and the committed parquet wasn't updated, "
             f"or the parquet was hand-edited"
         )
+
+
+def test_decision_gallery__build_frame_matches_committed_parquet(repo_root: Path) -> None:
+    """The committed decision-gallery parquet equals a fresh `build_frame()`."""
+    example_dir = repo_root / "examples" / "decision-gallery"
+    spec = importlib.util.spec_from_file_location(
+        "decision_gallery_make_runs", example_dir / "make_runs.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    produced: pl.DataFrame = module.build_frame()
+    committed = pl.read_parquet(example_dir / "runs.parquet")
+    assert produced.equals(committed), (
+        "examples/decision-gallery/runs.parquet drifts from make_runs.py. Rerun "
+        "`uv run --locked python examples/decision-gallery/make_runs.py` and review the diff."
+    )

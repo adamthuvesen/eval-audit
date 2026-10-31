@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import subprocess
-import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -22,45 +20,6 @@ def repo_root() -> Path:
 @pytest.fixture(scope="session")
 def scouting_dir(repo_root: Path) -> Path:
     return repo_root / "scouting"
-
-
-def pytest_sessionstart(session: pytest.Session) -> None:
-    """Regenerate gitignored example parquet fixtures at session start when missing.
-
-    The committed `make_runs.py` scripts under `examples/<name>/` are the
-    source of truth for the toy parquet fixtures; the parquet files
-    themselves are gitignored. On a fresh checkout (CI included) the parquets
-    do not exist until `make_runs.py` runs. Several tests reference these
-    parquets directly, so we auto-regenerate them here rather than coupling
-    every test to a per-test setup hook. Under pytest-xdist only the controller
-    writes, before workers start, so workers never race on the same file.
-    """
-    if hasattr(session.config, "workerinput"):
-        return
-    repo_root = Path(__file__).resolve().parent.parent
-    examples = (
-        repo_root / "examples" / "byo-minimal",
-        repo_root / "examples" / "decision-gallery",
-    )
-    for example_dir in examples:
-        parquet = example_dir / "runs.parquet"
-        if parquet.exists():
-            continue
-        script = example_dir / "make_runs.py"
-        if not script.exists():
-            continue
-        result = subprocess.run(
-            [sys.executable, str(script)],
-            cwd=str(example_dir),
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"failed to regenerate {parquet} via {script}:\n"
-                f"stdout: {result.stdout}\nstderr: {result.stderr}"
-            )
 
 
 @pytest.fixture

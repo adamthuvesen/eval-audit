@@ -1,11 +1,14 @@
-"""Committed `reports/<id>/report.md` files match a fresh render from committed evidence.
+"""Committed `reports/<id>/` artifacts match a fresh render from committed evidence.
 
-`reports/` is the only copy of each rendered report. Only the `git_commit` line may
-differ, because it records the commit that produced the file.
+`reports/` is the only copy of each rendered report. Only the `git_commit` value may
+differ, because it records the commit that produced the file. The `summary.json` hashes of
+`report.md` and `report.html` follow from that value, so they must match the committed files.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -26,10 +29,27 @@ REPORT_COMMANDS = {
     "terminal-bench-2-mux": "report studies/terminal-bench-2-mux.yaml",
 }
 GIT_COMMIT_LINE = re.compile(r"^- \*\*git_commit:\*\* `[^`]*`$", re.MULTILINE)
+GIT_COMMIT_HTML = re.compile(
+    r'(<span class="kv-label">git_commit</span><span class="kv-value"><code>)[^<]*(</code>)'
+)
+COMMIT_DEPENDENT = {"report_md", "report_html"}
 
 
 def _normalized(markdown: str) -> str:
     return GIT_COMMIT_LINE.sub("- **git_commit:** `<commit>`", markdown)
+
+
+def _normalized_artifact(report_dir: Path, name: str) -> str:
+    text = (report_dir / name).read_text()
+    if name == "report.md":
+        return _normalized(text)
+    if name == "report.html":
+        return GIT_COMMIT_HTML.sub(r"\1<commit>\2", text)
+    if name == "summary.json":
+        summary = json.loads(text)
+        for key in COMMIT_DEPENDENT & summary["artifact_hashes"].keys():
+            text = text.replace(summary["artifact_hashes"][key], f"<{key}>")
+    return text
 
 
 def test_committed_reports__every_report_has_a_regeneration_command(repo_root: Path) -> None:
@@ -47,12 +67,24 @@ def test_committed_reports__match_fresh_render(
     args = REPORT_COMMANDS[report_id].split()
     result = CliRunner().invoke(app, [*args, "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
-    fresh = (tmp_path / report_id / "report.md").read_text()
-    committed = (repo_root / "reports" / report_id / "report.md").read_text()
-    assert _normalized(fresh) == _normalized(committed), (
-        f"reports/{report_id}/report.md is stale. Review the change, then regenerate it with:\n"
-        f"  uv run --locked eval-audit {REPORT_COMMANDS[report_id]}"
+    fresh_dir = tmp_path / report_id
+    committed_dir = repo_root / "reports" / report_id
+    committed_names = sorted(path.name for path in committed_dir.iterdir() if path.is_file())
+    fresh_names = sorted(path.name for path in fresh_dir.iterdir())
+    assert committed_names == fresh_names, (
+        f"reports/{report_id}/ holds {committed_names}, but a fresh render writes {fresh_names}."
     )
+    summary = json.loads((committed_dir / "summary.json").read_text())
+    for key, path in summary["artifact_paths"].items():
+        digest = hashlib.sha256((committed_dir / path).read_bytes()).hexdigest()
+        assert summary["artifact_hashes"][key] == digest, (
+            f"reports/{report_id}/summary.json records a stale hash for {path}."
+        )
+    for name in committed_names:
+        assert _normalized_artifact(fresh_dir, name) == _normalized_artifact(committed_dir, name), (
+            f"reports/{report_id}/{name} is stale. Review the change, then regenerate it with:\n"
+            f"  uv run --locked eval-audit {REPORT_COMMANDS[report_id]}"
+        )
 
 
 def test_humaneval_direct_completion_runs_parquet__cost_provenance_is_partial(
