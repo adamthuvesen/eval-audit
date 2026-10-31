@@ -3,19 +3,19 @@
 Host execution of model completions is disabled. Python isolated mode and a
 sanitized environment do not restrict filesystem access, network access, or resources.
 The CLI refuses execution until an isolated execution backend exists.
-The private trusted-fixture helper is only for repository-authored test programs.
+`grade_trusted_fixture` runs repository-authored test programs only. Never pass model output to it.
 Recorded historical grades are preserved and are not revalidated by this tool.
 """
 
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import sys
 import tempfile
 import textwrap
 from pathlib import Path
+from typing import Any
 
 HERE = Path(__file__).resolve().parent
 TASKS_PATH = HERE / "humaneval-tasks-30.jsonl"
@@ -23,18 +23,6 @@ RAW_DIR = HERE / "raw"
 GRADED_DIR = HERE / "graded"
 
 GRADE_TIMEOUT_S = 10
-_FENCE_RE = re.compile(r"```(?:python)?\n?(.*?)```", re.DOTALL)
-
-
-def _extract_completion(payload: dict) -> str:
-    """Pull the assistant's text out of an Anthropic Messages API payload."""
-    blocks = payload.get("content", [])
-    text_parts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
-    raw = "\n".join(text_parts)
-    fence = _FENCE_RE.search(raw)
-    if fence:
-        return fence.group(1)
-    return raw
 
 
 def _candidates(prompt: str, completion: str, test: str, entry_point: str) -> list[str]:
@@ -142,7 +130,9 @@ def _trusted_fixture_env() -> dict[str, str]:
     return {"PATH": os.environ.get("PATH", "")}
 
 
-def _grade_trusted_fixture(prompt: str, completion: str, test: str, entry_point: str) -> dict:
+def grade_trusted_fixture(
+    prompt: str, completion: str, test: str, entry_point: str
+) -> dict[str, Any]:
     """Execute repository-authored fixtures only. This helper provides no containment."""
     program = _build_program(prompt, completion, test, entry_point)
     with tempfile.TemporaryDirectory(prefix="humaneval-direct-completion-grade-") as tmp:
@@ -193,7 +183,7 @@ def _grade_trusted_fixture(prompt: str, completion: str, test: str, entry_point:
             }
 
 
-def _grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dict:
+def grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dict[str, Any]:
     """Refuse untrusted execution until an isolated execution backend is available."""
     return {
         "success": None,

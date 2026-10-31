@@ -28,6 +28,7 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 HERE = Path(__file__).resolve().parent
 TASKS_PATH = HERE / "humaneval-tasks-30.jsonl"
@@ -108,7 +109,7 @@ def _git_commit() -> str:
         return "unknown"
 
 
-def _call_api(api_key: str, model_id: str, prompt: str, *, approved: bool) -> dict:
+def _call_api(api_key: str, model_id: str, prompt: str, *, approved: bool) -> dict[str, Any]:
     require_approval(approved)
     body = json.dumps(
         {

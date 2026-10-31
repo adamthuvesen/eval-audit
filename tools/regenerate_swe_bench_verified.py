@@ -27,6 +27,7 @@ import hashlib
 import io
 import json
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -82,7 +83,9 @@ def _load_task_universe(parquet_bytes: bytes) -> list[str]:
     return sorted(universe)
 
 
-def _load_results_json(sources: FixtureSources, commit: str, submission: str) -> tuple[bytes, dict]:
+def _load_results_json(
+    sources: FixtureSources, commit: str, submission: str
+) -> tuple[bytes, dict[str, Any]]:
     url = RESULTS_URL_TEMPLATE.format(commit=commit, submission=submission)
     raw = sources.read(url)
     parsed = json.loads(raw.decode("utf-8"))

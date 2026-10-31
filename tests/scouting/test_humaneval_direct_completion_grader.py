@@ -28,7 +28,7 @@ def test_grader__refuses_untrusted_host_execution(monkeypatch: pytest.MonkeyPatc
         pytest.fail("untrusted host execution must not start")
 
     monkeypatch.setattr(grade.subprocess, "run", unexpected_execution)
-    result = grade._grade_one("", "", "", "f")
+    result = grade.grade_one("", "", "", "f")
     assert result["success"] is None
     assert result["grader_crash"] is True
     assert result["reason"] == "isolation_required"
@@ -59,7 +59,7 @@ def test_trusted_fixture__requires_completed_check(
     completion: str, expected_success: bool, reason: str
 ) -> None:
     grade = _load_grade_module()
-    result = grade._grade_trusted_fixture(
+    result = grade.grade_trusted_fixture(
         prompt="def f():\n",
         completion=completion,
         test="def check(fn):\n    assert fn() == 1\n",
@@ -75,7 +75,7 @@ def test_trusted_fixture__reduces_environment_exposure(monkeypatch: pytest.Monke
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-secret")
     monkeypatch.setenv("PYTHONPATH", "/tmp/test-pythonpath")
     assert "HOME" not in grade._trusted_fixture_env()
-    result = grade._grade_trusted_fixture(
+    result = grade.grade_trusted_fixture(
         prompt="def f():\n",
         completion=(
             "    import os, math\n"
@@ -96,7 +96,7 @@ def test_trusted_fixture__setup_crash_is_an_error(monkeypatch: pytest.MonkeyPatc
         raise OSError("simulated subprocess setup failure")
 
     monkeypatch.setattr(grade.subprocess, "run", raise_os_error)
-    result = grade._grade_trusted_fixture("def f():\n", "    return 1", "def check(fn): pass", "f")
+    result = grade.grade_trusted_fixture("def f():\n", "    return 1", "def check(fn): pass", "f")
     assert result["success"] is None
     assert result["reason"] == "infrastructure_error"
 
@@ -104,7 +104,7 @@ def test_trusted_fixture__setup_crash_is_an_error(monkeypatch: pytest.MonkeyPatc
 def test_trusted_fixture__timeout_is_a_model_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     grade = _load_grade_module()
     monkeypatch.setattr(grade, "GRADE_TIMEOUT_S", 0.05)
-    result = grade._grade_trusted_fixture(
+    result = grade.grade_trusted_fixture(
         "def f():\n", "    while True: pass", "def check(fn): fn()", "f"
     )
     assert result["success"] is False

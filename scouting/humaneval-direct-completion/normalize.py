@@ -27,6 +27,7 @@ import re
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import yaml
@@ -42,15 +43,7 @@ TASK_ID_RE = re.compile(r"^HumanEval/(\d+)$")
 HARNESS_ID = "eval-audit/humaneval-direct-completion-v1"
 
 
-def _short(model_id: str) -> str:
-    if "haiku" in model_id:
-        return "haiku45"
-    if "sonnet" in model_id:
-        return "sonnet46"
-    raise ValueError(f"unrecognized model_id: {model_id}")
-
-
-def _per_call_cost_usd(tokens_in: int, tokens_out: int, rates: dict) -> float:
+def _per_call_cost_usd(tokens_in: int, tokens_out: int, rates: dict[str, Any]) -> float:
     return (
         tokens_in * rates["input_per_mtok"] / 1_000_000
         + tokens_out * rates["output_per_mtok"] / 1_000_000
@@ -70,7 +63,7 @@ def main() -> None:
     if not files:
         raise SystemExit(f"no graded outputs under {GRADED_DIR}.")
 
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for path in files:
         record = json.loads(path.read_text())
         agent_id = record["agent_id"]

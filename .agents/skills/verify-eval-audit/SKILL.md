@@ -5,7 +5,7 @@ description: "Drives the real eval-audit CLI (audit, init, validate, the cross-h
 
 # Verify eval-audit
 
-`verify` runs the installed `.venv/bin/eval-audit` console script the way a user does. It audits `examples/byo-minimal`, follows the `init` scaffold's own README steps, and checks that a cross-harness claim is refused. Every output goes to a temp dir with a temp HOME. Nothing is written to `reports/`, and nothing reaches the network.
+`verify` runs the installed `.venv/bin/eval-audit` console script the way a user does. It audits `examples/byo-minimal`, follows the `init` scaffold's own README steps, and checks that a cross-harness claim is refused. Every output goes to a temp dir with a temp HOME. Nothing is written to `reports/`. Tripwire shims for network and install commands (`curl`, `uv`, `pip`, and others) lead PATH, and HTTP proxies point at a dead port, so a drive that tries to reach the network fails.
 
 ## Run
 

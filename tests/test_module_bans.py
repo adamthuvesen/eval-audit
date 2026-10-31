@@ -36,8 +36,9 @@ def test_module_bans__fire_in_a_new_package_module(repo_root: Path) -> None:
     assert banned == ["asyncio", "os.system", "subprocess", "urllib.request"], done.stdout
 
 
-# Each owner may use only its own banned modules. pyproject.toml exempts owners from all of
-# TID251, so this test reruns the ban with those exemptions cleared.
+# Each owner may use only its own banned modules, and no other file may use any. pyproject.toml
+# exempts owners from all of TID251, so this test reruns the ban over the whole repository with
+# those exemptions and every `noqa` comment ignored.
 OWNER_ALLOWANCES = {
     "eval_audit/cli.py": {"subprocess"},
     "eval_audit/cli_templates.py": {"subprocess"},
@@ -63,7 +64,6 @@ def test_module_bans__owners_use_only_their_own_modules(repo_root: Path) -> None
         "Every TID251 exemption in pyproject.toml needs an entry in OWNER_ALLOWANCES."
     )
     ruff = Path(sys.executable).parent / "ruff"
-    owner_paths = [pattern.removesuffix("/**") for pattern in OWNER_ALLOWANCES]
     done = subprocess.run(
         [
             str(ruff),
@@ -71,11 +71,13 @@ def test_module_bans__owners_use_only_their_own_modules(repo_root: Path) -> None
             "--no-cache",
             "--select",
             "TID251",
+            "--ignore-noqa",
             "--config",
             "lint.per-file-ignores = {}",
             "--output-format",
             "json",
-            *owner_paths,
+            ".",
+            ".agents/skills/verify-eval-audit/verify",
         ],
         cwd=repo_root,
         capture_output=True,
@@ -89,6 +91,6 @@ def test_module_bans__owners_use_only_their_own_modules(repo_root: Path) -> None
         for hit in hits
         for relative in [Path(hit["filename"]).relative_to(repo_root).as_posix()]
         for banned in [hit["message"].split("`")[1]]
-        if banned not in OWNER_ALLOWANCES[_owner(relative)]
+        if banned not in OWNER_ALLOWANCES.get(_owner(relative), set())
     )
     assert not misplaced, f"Banned modules outside their owner allowance: {misplaced}"

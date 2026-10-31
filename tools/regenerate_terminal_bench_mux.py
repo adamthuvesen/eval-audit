@@ -22,6 +22,7 @@ import json
 import urllib.parse
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import yaml
@@ -60,7 +61,7 @@ SUBMISSIONS = {
 }
 
 
-def _api_tree(sources: FixtureSources, path: str) -> list[dict]:
+def _api_tree(sources: FixtureSources, path: str) -> list[dict[str, Any]]:
     quoted = urllib.parse.quote(path, safe="/")
     url = f"https://huggingface.co/api/datasets/{DATASET_ID}/tree/{sources.manifest.revisions['dataset']}/{quoted}?limit=1000"
     items = json.loads(sources.read(url))
@@ -82,7 +83,7 @@ def _submission_path(submission: str) -> str:
     return f"{SUBMISSION_ROOT}/{submission}"
 
 
-def _metadata(sources: FixtureSources, submission: str) -> tuple[dict, bytes]:
+def _metadata(sources: FixtureSources, submission: str) -> tuple[dict[str, Any], bytes]:
     path = f"{_submission_path(submission)}/metadata.yaml"
     raw = sources.read(_resolve_url(sources, path))
     return yaml.safe_load(raw.decode("utf-8")), raw
@@ -106,7 +107,7 @@ def _task_trial_dirs(sources: FixtureSources, submission: str, run_id: str) -> l
 
 def _result(
     sources: FixtureSources, submission: str, run_id: str, trial_dir: str
-) -> tuple[dict, bytes]:
+) -> tuple[dict[str, Any], bytes]:
     rel_path = f"{_submission_path(submission)}/{run_id}/{trial_dir}/result.json"
     raw = sources.read(_resolve_url(sources, rel_path))
     parsed = json.loads(raw.decode("utf-8"))
@@ -133,9 +134,11 @@ def _result(
     return parsed, raw
 
 
-def _load_submission(sources: FixtureSources, submission: str) -> tuple[dict, dict]:
+def _load_submission(
+    sources: FixtureSources, submission: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
     metadata, metadata_raw = _metadata(sources, submission)
-    runs: dict[str, list[dict]] = {}
+    runs: dict[str, list[dict[str, Any]]] = {}
     manifest_hash = hashlib.sha256()
     manifest_hash.update(metadata_raw)
     result_count = 0
@@ -173,8 +176,8 @@ def main() -> None:
         revisions={"dataset": args.revision} if args.mode == "refresh" else {},
     )
     fetched_at = sources.manifest.recorded_at
-    submissions: dict[str, dict] = {}
-    submission_provenance: dict[str, dict] = {}
+    submissions: dict[str, dict[str, Any]] = {}
+    submission_provenance: dict[str, dict[str, Any]] = {}
 
     print(f"Reading Terminal-Bench 2.0 Mux sources ({args.mode})...")
     for submission in SUBMISSIONS:

@@ -16,6 +16,7 @@ The committed runs.parquet must round-trip from this script.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -88,7 +89,7 @@ def _row(
     task_id: str,
     success: bool,
     cost: float,
-) -> dict:
+) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -114,7 +115,7 @@ def _row(
 
 
 def build_frame() -> pl.DataFrame:
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for agent_id, successes, cost in _AGENT_BLOCKS:
         if len(successes) != TASKS_PER_AGENT:
             raise ValueError(

@@ -9,7 +9,7 @@ import re
 import tempfile
 import urllib.error
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -104,7 +104,7 @@ class FixtureSources:
 
 def promote_fixture(
     frame: pl.DataFrame,
-    provenance: dict[str, object],
+    provenance: Mapping[str, object],
     destination: Path,
     validate: Callable[[Path], object],
     *,

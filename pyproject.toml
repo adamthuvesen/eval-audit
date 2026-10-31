@@ -151,7 +151,7 @@ ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 "tests/**" = ["TID251"]
 
 [tool.basedpyright]
-include = ["eval_audit", "tools/fixture_io.py", "tests"]
+include = ["."]
 pythonVersion = "3.14"
 venvPath = "."
 venv = ".venv"
