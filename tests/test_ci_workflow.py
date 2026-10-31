@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
@@ -21,4 +22,19 @@ def test_ci_workflow__runs_only_make_targets(repo_root: Path) -> None:
     assert actual == expected, (
         "CI jobs must run only Python install, `make setup`, then one Make target. Put new checks in the "
         f"Makefile `check` or `slow` target, not in .github/workflows/ci.yml. Got: {actual}"
+    )
+
+
+def test_ci_workflow__pins_actions_and_uv_exactly(repo_root: Path) -> None:
+    workflow = yaml.safe_load((repo_root / ".github/workflows/ci.yml").read_text())
+    steps = [step for job in workflow["jobs"].values() for step in job["steps"]]
+    actions = [step["uses"] for step in steps if "uses" in step]
+    assert all(re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", uses) for uses in actions), actions
+    uv_versions = [
+        str(step.get("with", {}).get("version", ""))
+        for step in steps
+        if str(step.get("uses", "")).startswith("astral-sh/setup-uv@")
+    ]
+    assert uv_versions and all(re.fullmatch(r"\d+\.\d+\.\d+", v) for v in uv_versions), (
+        f"Every setup-uv step must pin an exact uv `version:`. Got: {uv_versions}"
     )

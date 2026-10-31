@@ -95,6 +95,7 @@ exclude = [
 testpaths = ["tests"]
 # `verify` tests (wheel install, simulations) run only through `make slow`.
 addopts = "-q -m 'not verify'"
+strict_markers = true
 markers = ["verify: slow suite, excluded by default; run with make slow"]
 
 [tool.ruff]
@@ -102,13 +103,52 @@ line-length = 100
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "PTH", "RUF", "PGH003"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "PTH", "RUF", "PGH003", "TID251"]
 # RUF001-003: reports and docs use real math symbols (x, alpha, minus) on purpose.
 ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"subprocess".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"pty".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"asyncio".msg = "The package has no async code; asyncio would open an unowned subprocess path."
+"os.system".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.popen".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.execv".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.execve".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.execvp".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.execvpe".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.execl".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.execle".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.execlp".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.execlpe".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.spawnv".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.spawnve".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.spawnvp".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.spawnvpe".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.spawnl".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.spawnle".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.spawnlp".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.spawnlpe".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.posix_spawn".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"os.posix_spawnp".msg = "Process calls belong to the named owner files in pyproject.toml per-file-ignores."
+"socket".msg = "Network clients belong to the named owner files in pyproject.toml per-file-ignores."
+"http.client".msg = "Network clients belong to the named owner files in pyproject.toml per-file-ignores."
+"urllib.request".msg = "Network clients belong to the named owner files in pyproject.toml per-file-ignores."
+"requests".msg = "Network clients belong to the named owner files in pyproject.toml per-file-ignores."
+"httpx".msg = "Network clients belong to the named owner files in pyproject.toml per-file-ignores."
+"anthropic".msg = "Paid SDKs belong to the named owner files in pyproject.toml per-file-ignores."
+"openai".msg = "Paid SDKs belong to the named owner files in pyproject.toml per-file-ignores."
+
 [tool.ruff.lint.per-file-ignores]
 # Typer's idiomatic API requires Argument()/Option() calls in defaults.
-"eval_audit/cli.py" = ["B008"]
+"eval_audit/cli.py" = ["B008", "TID251"]
+# Owners of process and network calls. Tests drive git and the CLI directly.
+"eval_audit/cli_templates.py" = ["TID251"]
+"tools/fixture_io.py" = ["TID251"]
+"scouting/humaneval-direct-completion/run.py" = ["TID251"]
+"scouting/humaneval-direct-completion/grade.py" = ["TID251"]
+".agents/skills/verify-eval-audit/verify" = ["TID251"]
+"tests/**" = ["TID251"]
 
 [tool.basedpyright]
 include = ["eval_audit", "tools/fixture_io.py", "tests"]

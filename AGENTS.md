@@ -54,11 +54,13 @@ For the module owner of each change and focused test commands, read
 | Committed reports match a fresh render from committed evidence | `tests/report/test_committed_reports.py::test_committed_reports__match_fresh_render` | 2026-11-06 |
 | `uv.lock` matches `pyproject.toml` | `Makefile::lock-check` | 2026-11-05 |
 | CI jobs run only setup and one Make target; `slow` waits for `check` | `tests/test_ci_workflow.py::test_ci_workflow__runs_only_make_targets` | 2026-11-06 |
+| CI actions pin 40-character SHAs and uv pins an exact version | `tests/test_ci_workflow.py::test_ci_workflow__pins_actions_and_uv_exactly` | 2026-11-07 |
 | Local caches and `.env` stay out of the sdist | `tests/packaging/test_sdist.py` | 2026-05-22 |
 | Estimators recover known effects within declared bounds | `tests/synthetic_validation/test_recovery.py`, `tests/synthetic_validation/test_calibration.py` | 2026-04-29 |
 | `verify control` must observe FAIL before a verify pass counts | `.agents/skills/verify-eval-audit/verify::control` | 2026-11-06 |
 | basedpyright reports zero errors in strict mode, with no baseline file | `pyproject.toml::typeCheckingMode`, `Makefile::typecheck` | 2026-11-07 |
 | Paid API calls refuse without approval, before any raw output is written | `scouting/humaneval-direct-completion/run.py::require_approval`, `tests/scouting/test_humaneval_run_spend.py` | 2026-11-07 |
+| Process, network, and paid-SDK modules are banned outside their owner files | `pyproject.toml::tool.ruff.lint.flake8-tidy-imports.banned-api`, `tests/test_module_bans.py` | 2026-11-07 |
 | Every citation in this table exists | `tests/docs/test_enforced_rules.py` | 2026-11-06 |
 | No file downgrades strict type checking with a `# pyright:` mode comment | `tests/test_strict_mode.py::test_no_file_downgrades_type_checking_mode` | 2026-11-07 |
 

@@ -21,7 +21,7 @@ You can also call `.agents/skills/verify-eval-audit/verify <args>` directly.
 
 ## Reading results
 
-Each drive prints `PASS|FAIL <drive> <seconds>s <detail>`. A FAIL detail names the expected and the actual value, or the command's exit code and the tail of its output. The run ends with `evidence: .verify/runs/<utc>-<sha7>[-dirty]/`, which holds `preflight.log`, one `<drive>.<step>.json` per command (argv, cwd, env, exit, stdout, stderr), `audit.summary.json`, and `summary.json`. The helper does not retry, so it never reports `FLAKY`. A FAIL is a FAIL.
+Each drive prints `PASS|FAIL <drive> <seconds>s <detail>`. A FAIL detail names the expected and the actual value, or the command's exit code and the tail of its output. The run ends with `evidence: .verify/runs/<utc>-<sha7>[-dirty]/`, which holds `preflight.log`, one `<drive>.<step>.json` per command (argv, cwd, env, exit, stdout, stderr), `audit.summary.json`, and `summary.json`. `summary.json` records the overall `result`. A run that changes the checkout (a tracked, untracked, or ignored file, the index, HEAD, or `.git/config` and hooks) adds `FAIL checkout` and fails. The helper does not retry, so it never reports `FLAKY`. A FAIL is a FAIL.
 
 Preflight refuses to run when the locked environment does not resolve, when `eval_audit` imports from outside this checkout, or when the installed version differs from `pyproject.toml`.
 

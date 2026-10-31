@@ -4,6 +4,7 @@
 import atexit
 import datetime as dt
 import fnmatch
+import hashlib
 import json
 import os
 import re
@@ -51,6 +52,44 @@ def git(*args: str) -> str:
     return subprocess.run(
         ["git", *args], cwd=ROOT, env=env, capture_output=True, text=True, check=True
     ).stdout.strip()
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "absent"
+
+
+def checkout_state() -> dict[str, str]:
+    """HEAD, the index, git config and hooks, and every changed, untracked, or ignored path.
+
+    Ignored files compare by size and mtime, because .venv holds too many files to hash.
+    """
+    git_dir = (ROOT / git("rev-parse", "--git-common-dir")).resolve()
+    state = {
+        "HEAD": git("rev-parse", "HEAD"),
+        "branch": git("rev-parse", "--abbrev-ref", "HEAD"),
+        "index": git("ls-files", "--stage"),
+        ".git/config": digest(git_dir / "config"),
+    }
+    for hook in sorted((git_dir / "hooks").glob("*")):
+        state[f".git/hooks/{hook.name}"] = digest(hook)
+    listing = git("status", "--porcelain", "-z", "--untracked-files=all", "--ignored")
+    for entry in filter(None, listing.split("\0")):
+        code, path = entry[:2], entry[3:]
+        if path.startswith(".verify/") or "__pycache__" in path.split("/"):
+            continue
+        target = ROOT / path
+        if code == "!!":
+            if target.exists():
+                info = target.stat()
+                state[path] = f"ignored:{info.st_size}:{info.st_mtime_ns}"
+        else:
+            state[path] = f"{code}:{digest(target)}"
+    return state
+
+
+def changed_state(before: dict[str, str]) -> list[str]:
+    after = checkout_state()
+    return sorted(key for key in before.keys() | after.keys() if before.get(key) != after.get(key))
 
 
 class Run:
@@ -315,10 +354,11 @@ def control() -> int:
 def execute(names: list[str], control: bool = False) -> int:
     sha = git("rev-parse", "--short=7", "HEAD")
     dirty = bool(git("status", "--porcelain"))
-    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%S%fZ")
     run_dir = ROOT / ".verify" / "runs" / f"{stamp}-{sha}{'-dirty' if dirty else ''}"
     run_dir.mkdir(parents=True)
     preflight(run_dir)
+    before = checkout_state()
     results = []
     for name in names:
         drive = DRIVES[name]
@@ -336,26 +376,33 @@ def execute(names: list[str], control: bool = False) -> int:
             result, detail = "FAIL", f"took {seconds}s, budget {drive.timeout}s"
         print(f"{result} {'control' if control else name} {seconds}s {detail}")
         results.append({"drive": name, "result": result, "seconds": seconds, "detail": detail})
+    changed = changed_state(before)
+    if changed:
+        detail = f"the run changed the checkout: {', '.join(changed[:10])}"
+        print(f"FAIL checkout {detail}")
+        results.append({"drive": "checkout", "result": "FAIL", "seconds": 0.0, "detail": detail})
+    failures = [str(r["detail"]) for r in results if r["result"] == "FAIL"]
+    if control:
+        passed = len(failures) == 1 and failures[0].startswith(CONTROL_FAILURE)
+        if passed:
+            print("control: FAIL observed")
+        elif failures:
+            print(f"control: failed for another reason; expected {CONTROL_FAILURE!r}")
+        else:
+            print("control: passed unexpectedly; the drive cannot fail")
+    else:
+        passed = not failures
     summary = {
         "sha": git("rev-parse", "HEAD"),
         "dirty": dirty,
         "control": control,
+        "result": "PASS" if passed else "FAIL",
+        "checkout_changed": changed,
         "drives": results,
     }
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     print(f"evidence: {run_dir}")
-    failed = any(r["result"] == "FAIL" for r in results)
-    if control:
-        failures = [str(r["detail"]) for r in results if r["result"] == "FAIL"]
-        if len(failures) == 1 and failures[0].startswith(CONTROL_FAILURE):
-            print("control: FAIL observed")
-            return 0
-        if failures:
-            print(f"control: failed for another reason; expected {CONTROL_FAILURE!r}")
-        else:
-            print("control: passed unexpectedly; the drive cannot fail")
-        return 1
-    return 1 if failed else 0
+    return 0 if passed else 1
 
 
 def main(argv: list[str]) -> int:
