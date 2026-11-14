@@ -80,6 +80,7 @@ def _inspect(study: StudySpec, runs: pl.DataFrame) -> PreparedEvidence:
         study = StudySpec.model_validate(study.model_dump())
     except ValidationError as exc:
         diagnostics = [_check("study_loads", "error", "fail", str(exc), {})]
+        # Revalidation failed, so the fields can hold any runtime type despite their annotations.
         if (
             isinstance(study.primary_outcome, PrimaryOutcome)  # pyright: ignore[reportUnnecessaryIsInstance]
             and isinstance(study.claims, list)  # pyright: ignore[reportUnnecessaryIsInstance]

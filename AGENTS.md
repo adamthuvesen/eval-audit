@@ -49,19 +49,19 @@ For the module owner of each change and focused test commands, read
 | Lower layers never import higher ones; the contract owns the layer order | `pyproject.toml::tool.importlinter`, `Makefile::lint-imports` | 2026-11-06 |
 | v0 outcomes are `success_rate`, higher is better | `eval_audit/schema/study.py::_study_invariant_errors`, `tests/stats/test_analyze.py::test_analyze__unsupported_outcome_fails_loudly` | 2026-04-29 |
 | Cross-harness claims are refused and write no report | `tests/cli/test_audit_cmd.py::test_audit__cross_harness_refusal_does_not_write_report` | 2026-05-06 |
-| Cost provenance has exactly four modes | `eval_audit/schema/enums.py::CostProvenance`, `tests/schema/test_cost_not_available_provenance.py` | 2026-05-05 |
-| Field references match the Pydantic models | `tests/docs/test_study_schema.py`, `tests/docs/test_input_contract.py` | 2026-05-05 |
+| Cost provenance has exactly four modes | `eval_audit/schema/enums.py::CostProvenance`, `tests/schema/test_cost_not_available_provenance.py::test_cost_not_available__reports_both_violations_together` | 2026-05-05 |
+| Field references match the Pydantic models | `tests/docs/test_study_schema.py::test_study_schema__top_level_fields_match_studyspec`, `tests/docs/test_input_contract.py::test_input_contract__field_list_matches_run_record_schema` | 2026-05-05 |
 | Committed reports match a fresh render from committed evidence | `tests/report/test_committed_reports.py::test_committed_reports__match_fresh_render` | 2026-11-06 |
 | `uv.lock` matches `pyproject.toml` | `Makefile::lock-check` | 2026-11-05 |
 | CI jobs run only setup and one Make target; `slow` waits for `check` | `tests/test_ci_workflow.py::test_ci_workflow__runs_only_make_targets` | 2026-11-06 |
 | CI actions pin 40-character SHAs and uv pins an exact version | `tests/test_ci_workflow.py::test_ci_workflow__pins_actions_and_uv_exactly` | 2026-11-07 |
-| Local caches and `.env` stay out of the sdist | `tests/packaging/test_sdist.py` | 2026-05-22 |
-| Estimators recover known effects within declared bounds | `tests/synthetic_validation/test_recovery.py`, `tests/synthetic_validation/test_calibration.py` | 2026-04-29 |
+| Local caches and `.env` stay out of the sdist | `tests/packaging/test_sdist.py::test_sdist__excludes_local_caches_and_build_outputs` | 2026-05-22 |
+| Estimators recover known effects within declared bounds | `tests/synthetic_validation/test_recovery.py::test_synthetic_validation__per_agent_success_rate_within_tolerance`, `tests/synthetic_validation/test_calibration.py::test_interval_coverage_within_predeclared_binomial_bound` | 2026-04-29 |
 | `verify control` must observe FAIL before a verify pass counts | `.agents/skills/verify-eval-audit/verify::control` | 2026-11-06 |
 | basedpyright reports zero errors in strict mode, with no baseline file | `pyproject.toml::typeCheckingMode`, `Makefile::typecheck` | 2026-11-07 |
-| Paid API calls refuse without approval, before any raw output is written | `scouting/humaneval-direct-completion/run.py::require_approval`, `tests/scouting/test_humaneval_run_spend.py` | 2026-11-07 |
-| Process, network, and paid-SDK modules are banned outside their owner files | `pyproject.toml::tool.ruff.lint.flake8-tidy-imports.banned-api`, `tests/test_module_bans.py` | 2026-11-07 |
-| Every citation in this table exists | `tests/docs/test_enforced_rules.py` | 2026-11-06 |
+| Paid API calls refuse without approval, before any raw output is written | `scouting/humaneval-direct-completion/run.py::require_approval`, `tests/scouting/test_humaneval_run_spend.py::test_call_api__refuses_without_explicit_approval` | 2026-11-07 |
+| Process, network, and paid-SDK modules are banned outside their owner files | `pyproject.toml::tool.ruff.lint.flake8-tidy-imports.banned-api`, `tests/test_module_bans.py::test_module_bans__owners_use_only_their_own_modules` | 2026-11-07 |
+| Every citation in this table exists | `tests/docs/test_enforced_rules.py::test_enforced_rules__citations_exist` | 2026-11-06 |
 | No file downgrades strict type checking with a `# pyright:` mode comment | `tests/test_strict_mode.py::test_no_file_downgrades_type_checking_mode` | 2026-11-07 |
 
 ## Docs

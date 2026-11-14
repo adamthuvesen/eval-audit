@@ -1,4 +1,4 @@
-"""A file-level `# pyright:` mode comment must not turn strict type checking off for that file."""
+"""A file-level `# pyright:` comment must not turn strict type checking, or one of its rules, off."""
 
 import os
 import re
@@ -6,9 +6,8 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOWNGRADE = re.compile(
-    r"^\s*#\s*pyright:\s*(?:[^#\n]*,\s*)?(?:basic|standard|off|recommended|all|strict\s*=\s*false)\b"
-)
+# Any file-level comment except a bare `strict` can turn a mode or a single rule off.
+DOWNGRADE = re.compile(r"^\s*#\s*(?:based)?pyright:(?!\s*strict\s*$)")
 
 
 def is_python_file(path: Path) -> bool:
@@ -47,9 +46,11 @@ def downgrades_in(paths: list[Path], root: Path = ROOT) -> list[str]:
 
 def test_scan_finds_an_unstaged_downgrade(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q", str(tmp_path)], env=git_env(), check=True)
-    (tmp_path / "probe.py").write_text("x: int = 1\n# pyright: basic\n")
+    (tmp_path / "probe.py").write_text(
+        "x: int = 1\n# pyright: basic\n# pyright: reportArgumentType=false\n# pyright: strict\n"
+    )
     found = downgrades_in(checkout_python_files(tmp_path), tmp_path)
-    assert found == ["probe.py:2"]
+    assert found == ["probe.py:2", "probe.py:3"]
 
 
 def test_no_file_downgrades_type_checking_mode() -> None:

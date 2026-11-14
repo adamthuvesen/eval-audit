@@ -28,7 +28,9 @@ def citation_problems(agents_md: str, repo_root: Path) -> list[str]:
             target = repo_root / path
             if not target.is_file():
                 problems.append(f"{citation}: file {path} does not exist")
-            elif name and not re.search(
+            elif not name:
+                problems.append(f"{citation}: cite an exact name as {path}::<name>")
+            elif not re.search(
                 DEFINITION.format(re.escape(name)), target.read_text(), re.MULTILINE
             ):
                 problems.append(f"{citation}: {path} does not define {name!r}")
@@ -39,11 +41,13 @@ def test_enforced_rules__flags_rotted_citations(repo_root: Path) -> None:
     table = (
         "\n## Enforced Rules\n\n| Rule | Enforced by | Added |\n| --- | --- | --- |\n"
         "| a | `Makefile::check-typo` | x |\n| b | `missing.py` | x |\n| c | none | x |\n"
+        "| d | `Makefile` | x |\n"
     )
     assert citation_problems(table, repo_root) == [
         "Makefile::check-typo: Makefile does not define 'check-typo'",
         "missing.py: file missing.py does not exist",
         "row cites nothing: | c | none | x |",
+        "Makefile: cite an exact name as Makefile::<name>",
     ]
 
 

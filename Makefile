@@ -1,3 +1,5 @@
+SHELL := /bin/bash -euo pipefail
+
 .PHONY: setup lock-check test slow verify lint lint-imports fix format format-check typecheck check
 
 setup: lock-check
