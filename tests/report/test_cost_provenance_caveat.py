@@ -59,9 +59,9 @@ def _stub_study_for_taubench():
 
 
 def _render_taubench_report(repo_root: Path, readiness_kwargs) -> str:
+    from eval_audit.evidence_types import EvidenceSource
     from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
     from eval_audit.report.markdown import render_report
-    from eval_audit.report.provenance import EvidenceSource
     from eval_audit.stats import analyze
 
     study = _stub_study_for_taubench()
@@ -125,9 +125,9 @@ def test_caveat__as_reported_only_renders_sub_block(repo_root: Path, readiness_k
 
 def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path, readiness_kwargs) -> None:
     """Reconciled fixtures do not get a cost-provenance caveat warning block."""
+    from eval_audit.evidence_types import EvidenceSource
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.report.markdown import render_report
-    from eval_audit.report.provenance import EvidenceSource
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 
@@ -227,9 +227,9 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
     """
     import shutil
 
+    from eval_audit.evidence_types import EvidenceSource
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.report.markdown import render_report
-    from eval_audit.report.provenance import EvidenceSource
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
 

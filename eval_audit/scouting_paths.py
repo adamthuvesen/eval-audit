@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from eval_audit.report.provenance import EvidenceSource
+    from eval_audit.evidence_types import EvidenceSource
     from eval_audit.schema import StudySpec
 
 

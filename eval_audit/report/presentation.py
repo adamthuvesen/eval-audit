@@ -8,9 +8,9 @@ from typing import Any
 
 import polars as pl
 
+from eval_audit.evidence_types import EvidenceSource
 from eval_audit.report import ReportContractError
 from eval_audit.report.provenance import (
-    EvidenceSource,
     load_scouting_artifacts,
     resolve_decision_artifacts,
 )
@@ -32,16 +32,6 @@ class StudyPresentation:
     residual_risks_text: str
     decision_md_label: str | None
     cost_recon_data: dict[str, Any]
-
-
-def row_level_cost_provenance(runs: pl.DataFrame) -> str:
-    """Strict row-level cost provenance for preregistered and BYO studies."""
-    if "cost_provenance" not in runs.columns or runs.is_empty():
-        return "n/a"
-    values = sorted(str(v) for v in runs["cost_provenance"].unique().to_list())
-    if len(values) == 1:
-        return values[0]
-    raise ReportContractError(f"ambiguous cost_provenance across runs frame: {values}")
 
 
 def resolve_report_cost_provenance(

@@ -33,7 +33,7 @@ def readiness_kwargs() -> Callable[..., dict[str, str]]:
     user sees in `reports/<id>/check.json`.
     """
     from eval_audit.checks import check_evidence
-    from eval_audit.report.provenance import EvidenceSource
+    from eval_audit.evidence_types import EvidenceSource
 
     def _build(
         study: StudySpec, runs: pl.DataFrame, repo_root: Path, source: EvidenceSource | None = None

@@ -111,8 +111,8 @@ def test_report__inherited_residual_risks_are_not_edited(
     bullets in scouting/gaia-hal-generalist-decision.md byte-for-byte after whitespace normalization.
     """
     study, runs, result = gaia_hal_generalist_inputs
+    from eval_audit.evidence_types import EvidenceSource
     from eval_audit.report.markdown import render_report
-    from eval_audit.report.provenance import EvidenceSource
 
     text = render_report(
         result,
@@ -191,14 +191,27 @@ def test_report__snapshot_diff_caught_in_tests(
     assert mutated != snapshot_path.read_text(), "snapshot mechanism failed to detect mutation"
 
 
-def test_report__cross_harness_study_produces_no_report_file(
-    repo_root: Path, tmp_path: Path
-) -> None:
+def _build(study, runs: pl.DataFrame, repo_root: Path, tmp_path: Path) -> None:
+    from eval_audit.evidence_types import EvidenceSource
+    from eval_audit.pipeline import build_audit
+
+    build_audit(
+        study,
+        runs,
+        study_path=repo_root / "studies" / f"{study.id}.yaml",
+        source=EvidenceSource(tmp_path / "runs.parquet", "0" * 64, "canonical"),
+        repo_root=repo_root,
+        bootstrap_iterations=2_000,
+        bootstrap_seed=42,
+        git_commit="deadbeef",
+    )
+
+
+def test_report__cross_harness_study_builds_no_artifacts(repo_root: Path, tmp_path: Path) -> None:
     """WHEN a study spec is rendered against a frame where treatment and control rows
-    have different harness values, THEN no markdown file is written and a
-    CrossHarnessComparisonError propagates.
+    have different harness values, THEN build_audit raises
+    CrossHarnessComparisonError before it builds any artifact bytes.
     """
-    from eval_audit.report.markdown import render_report_to
     from eval_audit.schema import StudySpec
     from eval_audit.stats import CrossHarnessComparisonError
 
@@ -253,28 +266,17 @@ def test_report__cross_harness_study_produces_no_report_file(
         },
     ]
     runs = pl.DataFrame(rows, strict=False)
-    out_path = tmp_path / "report.md"
 
     with pytest.raises(CrossHarnessComparisonError):
-        render_report_to(
-            out_path,
-            study,
-            runs,
-            clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
-            git_commit="deadbeef",
-            fixture_sha256="0" * 64,
-            repo_root=repo_root,
-        )
-    assert not out_path.exists(), "report file was written despite cross-harness rejection"
+        _build(study, runs, repo_root, tmp_path)
 
 
-def test_report__incomplete_reconstructed_cost_produces_no_report_file(
+def test_report__incomplete_reconstructed_cost_builds_no_artifacts(
     repo_root: Path, tmp_path: Path
 ) -> None:
     """WHEN a claimed agent has mixed null/non-null reconstructed costs,
-    THEN render_report_to propagates the analysis error and writes no report.
+    THEN build_audit propagates the analysis error before it builds any artifact bytes.
     """
-    from eval_audit.report.markdown import render_report_to
     from eval_audit.schema import StudySpec
     from eval_audit.stats import CostProvenanceError
 
@@ -315,20 +317,9 @@ def test_report__incomplete_reconstructed_cost_produces_no_report_file(
         ],
         strict=False,
     )
-    out_path = tmp_path / "report.md"
 
     with pytest.raises(CostProvenanceError):
-        render_report_to(
-            out_path,
-            study,
-            runs,
-            clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
-            git_commit="deadbeef",
-            fixture_sha256="0" * 64,
-            repo_root=repo_root,
-        )
-
-    assert not out_path.exists(), "report file was written despite incomplete cost data"
+        _build(study, runs, repo_root, tmp_path)
 
 
 def test_report__unsupported_lower_is_better_study_is_not_rendered(

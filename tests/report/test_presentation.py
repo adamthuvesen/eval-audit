@@ -6,13 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import polars as pl
-import pytest
 
-from eval_audit.report import ReportContractError
 from eval_audit.report.presentation import (
     resolve_report_cost_provenance,
     resolve_study_presentation,
-    row_level_cost_provenance,
 )
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import CostProvenance
@@ -85,17 +82,6 @@ def _row(cost_provenance: str) -> dict[str, Any]:
         "cost_provenance": cost_provenance,
         "rerun_metadata": {},
     }
-
-
-def test_row_level_cost_provenance__uniform_value() -> None:
-    runs = pl.DataFrame([_row("cost_not_available"), _row("cost_not_available")])
-    assert row_level_cost_provenance(runs) == CostProvenance.COST_NOT_AVAILABLE.value
-
-
-def test_row_level_cost_provenance__ambiguous_raises() -> None:
-    runs = pl.DataFrame([_row("reconciled"), _row("cost_not_available")])
-    with pytest.raises(ReportContractError, match="ambiguous"):
-        row_level_cost_provenance(runs)
 
 
 def test_resolve_report_cost_provenance__declared_reanalysis_without_recon() -> None:

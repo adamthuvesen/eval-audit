@@ -2,40 +2,16 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
+from eval_audit.evidence_types import EvidenceSource
 from eval_audit.report import ReportContractError
 from eval_audit.schema import StudySpec
 from eval_audit.scouting_paths import resolve_evidence_decision_doc
-
-
-@dataclass(frozen=True)
-class EvidenceSource:
-    fixture_path: Path
-    fixture_sha256: str
-    source_kind: Literal["canonical", "adapter"]
-    source_dir: Path | None = None
-
-    def display_path(self, repo_root: Path) -> str:
-        try:
-            return str(self.fixture_path.resolve().relative_to(repo_root.resolve()))
-        except ValueError:
-            return str(self.fixture_path.resolve())
-
-    @classmethod
-    def from_path(
-        cls,
-        path: Path,
-        *,
-        source_kind: Literal["canonical", "adapter"],
-        source_dir: Path | None = None,
-    ) -> EvidenceSource:
-        return cls(path, hashlib.sha256(path.read_bytes()).hexdigest(), source_kind, source_dir)
 
 
 @dataclass(frozen=True)

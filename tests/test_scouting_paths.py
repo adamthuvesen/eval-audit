@@ -7,7 +7,7 @@ from typing import Literal
 
 import pytest
 
-from eval_audit.report.provenance import EvidenceSource
+from eval_audit.evidence_types import EvidenceSource
 from eval_audit.schema import StudySpec
 from eval_audit.scouting_paths import resolve_evidence_decision_doc
 

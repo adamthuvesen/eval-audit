@@ -8,6 +8,7 @@ from pathlib import Path
 
 import polars as pl
 
+from eval_audit.evidence_types import EvidenceSource
 from eval_audit.report import ReportContractError
 from eval_audit.report.caveats import (
     render_as_reported_only_caveat,
@@ -16,7 +17,6 @@ from eval_audit.report.caveats import (
 from eval_audit.report.decisions import decision_impact
 from eval_audit.report.formatters import format_pp
 from eval_audit.report.presentation import StudyPresentation, resolve_study_presentation
-from eval_audit.report.provenance import EvidenceSource
 from eval_audit.report.sections.audit_summary import (
     render_audit_summary,
 )
@@ -44,7 +44,7 @@ from eval_audit.report.sensitivity import (
 from eval_audit.report.summary import claim_status
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import CostProvenance
-from eval_audit.stats import AnalysisResult, analyze
+from eval_audit.stats import AnalysisResult
 from eval_audit.stats.sensitivity import sensitivity_scenarios
 
 
@@ -346,46 +346,3 @@ def render_report(
     )
 
     return "\n".join(parts)
-
-
-def render_report_to(
-    out_path: Path,
-    study: StudySpec,
-    runs: pl.DataFrame,
-    *,
-    clock: Callable[[], datetime],
-    git_commit: str,
-    fixture_sha256: str,
-    repo_root: Path,
-    bootstrap_iterations: int = 10_000,
-    bootstrap_seed: int = 42,
-    source: EvidenceSource | None = None,
-    evidence_readiness: str = "ready",
-    check_sha256: str = "0" * 64,
-) -> Path:
-    """Run analyze() then render to disk. CrossHarnessComparisonError propagates
-    BEFORE any file is written.
-    """
-    result = analyze(
-        study,
-        runs,
-        bootstrap_iterations=bootstrap_iterations,
-        bootstrap_seed=bootstrap_seed,
-    )
-    text = render_report(
-        result,
-        study,
-        runs,
-        clock=clock,
-        git_commit=git_commit,
-        fixture_sha256=fixture_sha256,
-        repo_root=repo_root,
-        bootstrap_iterations=bootstrap_iterations,
-        bootstrap_seed=bootstrap_seed,
-        evidence_readiness=evidence_readiness,
-        check_sha256=check_sha256,
-        source=source,
-    )
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(text)
-    return out_path

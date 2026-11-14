@@ -46,7 +46,7 @@ For the module owner of each change and focused test commands, read
 
 | Rule | Enforced by |
 | --- | --- |
-| Lower layers never import higher ones; the contract owns the layer order | `pyproject.toml::tool.importlinter`, `Makefile::lint-imports` |
+| Lower layers never import higher ones; every top-level module sits in a layer, and the contract owns the layer order | `pyproject.toml::tool.importlinter`, `Makefile::lint-imports` |
 | v0 outcomes are `success_rate`, higher is better | `eval_audit/schema/study.py::_study_invariant_errors`, `tests/stats/test_analyze.py::test_analyze__unsupported_outcome_fails_loudly` |
 | Cross-harness claims are refused and write no report | `tests/cli/test_audit_cmd.py::test_audit__cross_harness_refusal_does_not_write_report` |
 | Cost provenance has exactly four modes | `eval_audit/schema/enums.py::CostProvenance`, `tests/schema/test_cost_not_available_provenance.py::test_cost_not_available__reports_both_violations_together` |

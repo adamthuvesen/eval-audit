@@ -5,23 +5,24 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 import polars as pl
 from pydantic import ValidationError
 from yaml import YAMLError
 
-from eval_audit.evidence import EvidenceCheck, Json, PreparedEvidence, inspect_evidence
+from eval_audit.evidence import PreparedEvidence, inspect_evidence
+from eval_audit.evidence_types import (
+    CheckSeverity,
+    CheckStatus,
+    EvidenceCheck,
+    EvidenceSource,
+    Json,
+)
 from eval_audit.ingest import IngestContractError
 from eval_audit.ingest.generic import load_run_records
-from eval_audit.report.provenance import EvidenceSource
 from eval_audit.schema import StudySpec
 from eval_audit.schema.enums import ReadinessStatus
 from eval_audit.scouting_paths import resolve_evidence_decision_doc
-
-CheckSeverity = Literal["error", "warning", "info"]
-CheckStatus = Literal["pass", "fail"]
-
 
 _STATIC_FIX_SUGGESTIONS = {
     "study_loads": (

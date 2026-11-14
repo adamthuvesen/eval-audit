@@ -186,15 +186,17 @@ reportPrivateUsage = false
 root_package = "eval_audit"
 
 [[tool.importlinter.contracts]]
-name = "schema -> ingest -> evidence -> stats -> report -> pipeline -> cli layering"
+name = "Dependencies point down the layers"
 type = "layers"
+containers = ["eval_audit"]
 layers = [
-    "eval_audit.cli",
-    "eval_audit.pipeline | eval_audit.portfolio",
-    "eval_audit.checks | eval_audit.artifacts",
-    "eval_audit.report",
-    "eval_audit.stats",
-    "eval_audit.evidence",
-    "eval_audit.ingest",
-    "eval_audit.schema",
+    "cli",
+    "pipeline | portfolio",
+    "checks | artifacts",
+    "report",
+    "stats",
+    "evidence",
+    "ingest | errors | scouting_paths | spec | fixtures | cli_templates",
+    "evidence_types | schema",
 ]
+exhaustive = true

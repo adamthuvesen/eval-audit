@@ -9,10 +9,10 @@ import pytest
 
 from eval_audit.checks import check_evidence, check_paths, check_prepared_evidence
 from eval_audit.evidence import prepare_evidence
+from eval_audit.evidence_types import EvidenceSource
 from eval_audit.ingest.generic import load_run_records
 from eval_audit.report.presentation import resolve_study_presentation
 from eval_audit.report.provenance import (
-    EvidenceSource,
     extract_residual_risks,
     load_scouting_artifacts,
 )

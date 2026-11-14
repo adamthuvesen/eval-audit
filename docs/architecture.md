@@ -26,10 +26,10 @@ flowchart LR
 | `stats/` | Inference, declared accounting policy, and whole-study sensitivity | Change statistical behavior with explicit methodology evidence |
 | `report/provenance.py`, `scouting_paths.py` | Bind selected input to receipts and known residual-risk documents | Add a concrete source binding |
 | `report/` | Explain one analysis and its assumptions | Change decision wording or presentation |
-| `pipeline.py` | Build one complete artifact set without filesystem writes | Change workflow composition |
+| `pipeline.py` | Choose the evidence source, gate readiness and verdicts, and build one complete artifact set without filesystem writes | Change workflow composition, source selection, or gate rules |
 | `artifacts.py` | Containment, writer ownership, publication, and rollback | Change artifact lifetime or completion behavior |
 | `portfolio.py` | Inspect completed, stale, incomplete, and invalid audits | Change evidence-index behavior |
-| `cli.py` | Parse arguments, choose sources, and report errors | Add a user operation through existing owners |
+| `cli.py` | Parse arguments, print results, and report errors | Add a user operation through existing owners |
 | `tools/fixture_io.py` | Cached source bytes, receipts, and fixture promotion | Change reusable regeneration mechanics |
 
 `prepare_evidence` owns a revalidated study copy and a scoped canonical frame.

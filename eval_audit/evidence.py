@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Literal
 
 import polars as pl
 from pydantic import ValidationError
@@ -15,23 +14,10 @@ from eval_audit.errors import (
     CrossHarnessComparisonError,
     UnsupportedOutcomeError,
 )
+from eval_audit.evidence_types import CheckSeverity, CheckStatus, EvidenceCheck, Json, JsonScalar
 from eval_audit.ingest.base import IngestContractError, validate_run_records
 from eval_audit.schema import Claim, PrimaryOutcome, StudySpec
 from eval_audit.schema.enums import CostProvenance
-
-JsonScalar = str | int | float | bool | None
-Json = JsonScalar | list["Json"] | dict[str, "Json"]
-CheckSeverity = Literal["error", "warning", "info"]
-CheckStatus = Literal["pass", "fail"]
-
-
-@dataclass(frozen=True)
-class EvidenceCheck:
-    id: str
-    severity: CheckSeverity
-    status: CheckStatus
-    message: str
-    details: dict[str, Json]
 
 
 @dataclass(frozen=True)

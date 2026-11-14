@@ -7,7 +7,6 @@ Commands:
 
 from __future__ import annotations
 
-import dataclasses
 import importlib.metadata
 import json
 import shlex
@@ -15,9 +14,7 @@ import subprocess
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import cast
 
-import polars as pl
 import typer
 from polars.exceptions import PolarsError
 from pydantic import BaseModel, ValidationError
@@ -25,43 +22,37 @@ from yaml import YAMLError
 
 from eval_audit.artifacts import audit_directory, publish_artifacts
 from eval_audit.checks import (
-    ReadinessCheck,
-    ReadinessResult,
     ReadinessStatus,
-    check_evidence,
     check_paths,
     readiness_from_diagnostics,
     render_readiness_text,
 )
 from eval_audit.cli_templates import SLUG_RE, ScaffoldError, scaffold_byo_study
 from eval_audit.errors import AnalysisInputError
-from eval_audit.fixtures import benchmark_dir_name
-from eval_audit.ingest import IngestAdapter, IngestContractError
+from eval_audit.ingest import IngestContractError
 from eval_audit.ingest.generic import load_run_records
-from eval_audit.ingest.hal_gaia import HalGaiaAdapter
-from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
-from eval_audit.ingest.swe_bench_verified import SweBenchVerifiedAdapter
-from eval_audit.ingest.synthetic import SyntheticAdapter
-from eval_audit.ingest.terminal_bench import TerminalBenchMuxAdapter
-from eval_audit.pipeline import analysis_json_bytes, build_audit, claim_verdicts
+from eval_audit.pipeline import (
+    GateOptionError,
+    UnsupportedBenchmarkError,
+    allowed_gate_verdicts,
+    analysis_json_bytes,
+    build_audit,
+    claim_verdicts,
+    gate,
+    gate_output_text,
+    load_evidence,
+    validated_min_readiness,
+)
 from eval_audit.portfolio import (
     load_portfolio_rows,
     portfolio_json_bytes,
     render_portfolio_markdown,
 )
 from eval_audit.report import ReportContractError
-from eval_audit.report.decisions import DECISION_IMPACT_VOCAB
-from eval_audit.report.provenance import EvidenceSource
 from eval_audit.schema import RunRecord, StudySpec
 from eval_audit.schema.audit_summary import AuditSummary
 from eval_audit.spec import render_study_spec
 from eval_audit.stats import analyze
-
-_READINESS_RANK: dict[ReadinessStatus, int] = {
-    "not_ready": 0,
-    "ready_with_warnings": 1,
-    "ready": 2,
-}
 
 
 def _cli_errors[**P](command: Callable[P, None]) -> Callable[P, None]:
@@ -121,7 +112,9 @@ def _cli_errors[**P](command: Callable[P, None]) -> Callable[P, None]:
                 )
                 typer.echo(f"{prefix}: {exc}", err=True)
             raise typer.Exit(
-                code=2 if isinstance(exc, (ValidationError, YAMLError)) else 1
+                code=2
+                if isinstance(exc, (ValidationError, YAMLError, UnsupportedBenchmarkError))
+                else 1
             ) from exc
 
     return wrapped
@@ -224,81 +217,11 @@ def spec_render_cmd(
     typer.echo(f"wrote {out}")
 
 
-_ADAPTERS: dict[str, Callable[[], IngestAdapter]] = {
-    "gaia": HalGaiaAdapter,
-    "synthetic": SyntheticAdapter,
-    "tau_bench": HalTauBenchAdapter,
-    "swe-bench-verified": SweBenchVerifiedAdapter,
-    "terminal-bench-2": TerminalBenchMuxAdapter,
-}
-
-# Benchmarks whose committed fixture lives under `examples/<study.id>/` rather
-# than `scouting/candidates/<benchmark>/`. Public-submission re-analyses ship
-# their canonical RunRecord parquet inside the repo (see scouting-fixtures
-# capability spec) because the upstream artifacts (e.g. S3-hosted submission
-# logs) are not committed.
-_EXAMPLES_BACKED_BENCHMARKS: frozenset[str] = frozenset({"swe-bench-verified", "terminal-bench-2"})
-
-
-@dataclasses.dataclass(frozen=True)
-class _FixtureSource:
-    adapter_factory: Callable[[], IngestAdapter]
-    source_dir: Path
-    parquet_path: Path
-
-
 def _resolve_repo_root(explicit: Path | None) -> Path:
     if explicit is not None:
         return explicit
     here = Path(__file__).resolve()
     return here.parent.parent
-
-
-def _fixture_source(study: StudySpec, repo_root: Path) -> _FixtureSource:
-    if study.benchmark not in _ADAPTERS:
-        raise typer.BadParameter(
-            f"no benchmark-keyed ingest adapter for benchmark={study.benchmark!r}. "
-            "Pass --runs PATH for canonical BYO RunRecord parquet, or use one "
-            f"of the adapter-backed benchmarks: {sorted(_ADAPTERS)}"
-        )
-    if study.benchmark == "synthetic":
-        source = repo_root / "scouting" / "synthetic"
-        parquet_name = "runs.parquet"
-    elif study.benchmark in _EXAMPLES_BACKED_BENCHMARKS:
-        source = repo_root / "examples" / study.id
-        parquet_name = "runs.parquet"
-    else:
-        source = repo_root / "scouting" / "candidates" / benchmark_dir_name(study.benchmark)
-        parquet_name = "sample.parquet"
-    return _FixtureSource(
-        adapter_factory=_ADAPTERS[study.benchmark],
-        source_dir=source,
-        parquet_path=source / parquet_name,
-    )
-
-
-def _load_evidence(
-    study: StudySpec, repo_root: Path, runs_override: Path | None
-) -> tuple[pl.DataFrame, EvidenceSource]:
-    if runs_override is not None:
-        if not runs_override.is_file():
-            raise IngestContractError(f"runs parquet must be a readable file: {runs_override}")
-        source = EvidenceSource.from_path(runs_override, source_kind="canonical")
-        frame = load_run_records(runs_override)
-    else:
-        fixture = _fixture_source(study, repo_root)
-        source = EvidenceSource.from_path(
-            fixture.parquet_path, source_kind="adapter", source_dir=fixture.source_dir
-        )
-        frame = fixture.adapter_factory().load(fixture.source_dir)
-    if (
-        EvidenceSource.from_path(source.fixture_path, source_kind=source.source_kind).fixture_sha256
-        != source.fixture_sha256
-    ):
-        raise IngestContractError(
-            f"runs changed while loading: {source.fixture_path}; retry with a stable input file"
-        )
-    return frame, source
 
 
 def _git_commit(repo_root: Path) -> str:
@@ -312,138 +235,14 @@ def _git_commit(repo_root: Path) -> str:
         return "unknown"
 
 
-def _failed_checks(readiness: ReadinessResult) -> list[ReadinessCheck]:
-    return [check for check in readiness.checks if check.status == "fail"]
-
-
-def _readiness_meets_minimum(
-    readiness: ReadinessStatus,
-    minimum: ReadinessStatus,
-) -> bool:
-    return _READINESS_RANK[readiness] >= _READINESS_RANK[minimum]
-
-
-def _validated_min_readiness(value: str) -> ReadinessStatus:
-    if value not in {"ready", "ready_with_warnings"}:
-        typer.echo(
-            "--min-readiness must be one of: ready, ready_with_warnings",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-    return cast(ReadinessStatus, value)
-
-
-def _allowed_gate_verdicts(allow_verdict: list[str] | None) -> list[str]:
-    requested_verdicts = list(allow_verdict or DECISION_IMPACT_VOCAB)
-    unknown = sorted(set(requested_verdicts) - set(DECISION_IMPACT_VOCAB))
-    if unknown:
-        typer.echo(
-            "unsupported verdict name(s): "
-            f"{', '.join(unknown)}. Controlled vocabulary: "
-            f"{', '.join(DECISION_IMPACT_VOCAB)}",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-    return requested_verdicts
-
-
-def _readiness_gate_failures(
-    readiness: ReadinessResult,
-    min_readiness: ReadinessStatus,
-) -> list[dict[str, object]]:
-    if readiness.status == "not_ready":
-        return [
-            {
-                "type": "readiness",
-                "check_id": check.id,
-                "severity": check.severity,
-                "message": check.message,
-                "fix_suggestion": check.fix_suggestion,
-            }
-            for check in _failed_checks(readiness)
-        ]
-    if not _readiness_meets_minimum(readiness.status, min_readiness):
-        return [
-            {
-                "type": "readiness",
-                "message": (f"readiness {readiness.status} does not meet minimum {min_readiness}"),
-            }
-        ]
-    return []
-
-
-def _verdict_gate_failures(
-    claims: list[dict[str, str]],
-    allowed_verdicts: list[str],
-) -> list[dict[str, object]]:
-    return [
-        {
-            "type": "verdict",
-            "claim_id": claim["claim_id"],
-            "verdict": claim["verdict"],
-            "allowed_verdicts": allowed_verdicts,
-        }
-        for claim in claims
-        if claim["verdict"] not in allowed_verdicts
-    ]
-
-
-def _gate_claims_and_failures(
-    *,
-    study: StudySpec,
-    runs_frame: pl.DataFrame,
-    readiness: ReadinessResult,
-    min_readiness: ReadinessStatus,
-    allowed_verdicts: list[str],
-    bootstrap_iterations: int,
-    bootstrap_seed: int,
-) -> tuple[list[dict[str, str]], list[dict[str, object]]]:
-    readiness_failures = _readiness_gate_failures(readiness, min_readiness)
-    if readiness_failures:
-        return [], readiness_failures
-
-    result = analyze(
-        study,
-        runs_frame,
-        bootstrap_iterations=bootstrap_iterations,
-        bootstrap_seed=bootstrap_seed,
-    )
-    claims = claim_verdicts(result, study)
-    return claims, _verdict_gate_failures(claims, allowed_verdicts)
-
-
-def _emit_gate_output(payload: dict[str, object], *, json_output: bool) -> None:
-    if json_output:
-        typer.echo(
-            json.dumps(payload, allow_nan=False, indent=2, sort_keys=True) + "\n",
-            nl=False,
-        )
-        return
-
-    typer.echo(
-        f"gate {payload['status']}: study={payload['study_id']} readiness={payload['readiness']}"
-    )
-    claims = payload["claims"]
-    failures = payload["failures"]
-    if isinstance(claims, list):
-        for claim in claims:
-            typer.echo(f"claim {claim['claim_id']}: {claim['verdict']}")
-    if isinstance(failures, list):
-        for failure in failures:
-            if failure["type"] == "verdict":
-                typer.echo(
-                    "failure: claim "
-                    f"{failure['claim_id']} verdict {failure['verdict']} "
-                    "not in allowed verdicts "
-                    f"{', '.join(failure['allowed_verdicts'])}"
-                )
-            elif "check_id" in failure:
-                typer.echo(
-                    f"failure: {failure['check_id']}: "
-                    f"{failure['message']}; fix: {failure['fix_suggestion']}"
-                )
-            else:
-                typer.echo(f"failure: {failure['message']}")
+def _gate_options(
+    min_readiness: str, allow_verdict: list[str] | None
+) -> tuple[ReadinessStatus, list[str]]:
+    try:
+        return validated_min_readiness(min_readiness), allowed_gate_verdicts(allow_verdict)
+    except GateOptionError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
 
 
 @app.command(name="analyze")
@@ -466,7 +265,7 @@ def analyze_cmd(
     """Run analysis end-to-end and write `reports/<id>/analysis.json`."""
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
-    runs_frame, _source = _load_evidence(study, root, runs)
+    runs_frame, _source = load_evidence(study, root, runs)
     result = analyze(
         study,
         runs_frame,
@@ -500,7 +299,7 @@ def audit_cmd(
     """Validate, check readiness, analyze, and write check.json, analysis.json, report.md, and summary.json."""
     root = _resolve_repo_root(repo_root)
     study = _load_study_or_exit(study_yaml)
-    runs_frame, source = _load_evidence(study, root, runs)
+    runs_frame, source = load_evidence(study, root, runs)
     products = build_audit(
         study,
         runs_frame,
@@ -550,35 +349,22 @@ def gate_cmd(
     bootstrap_seed: int = typer.Option(42, "--bootstrap-seed"),
 ) -> None:
     """CI-friendly gate over evidence readiness and claim verdicts."""
-    minimum = _validated_min_readiness(min_readiness)
-    allowed_verdicts = _allowed_gate_verdicts(allow_verdict)
+    minimum, allowed_verdicts = _gate_options(min_readiness, allow_verdict)
     root = _resolve_repo_root(repo_root)
     study = StudySpec.from_yaml(study_yaml)
-    runs_frame, source = _load_evidence(study, root, runs)
-    readiness = check_evidence(study, runs_frame, repo_root=root, source=source)
-    claims, failures = _gate_claims_and_failures(
-        study=study,
-        runs_frame=runs_frame,
-        readiness=readiness,
+    runs_frame, source = load_evidence(study, root, runs)
+    payload = gate(
+        study,
+        runs_frame,
+        source=source,
+        repo_root=root,
         min_readiness=minimum,
         allowed_verdicts=allowed_verdicts,
         bootstrap_iterations=bootstrap_iterations,
         bootstrap_seed=bootstrap_seed,
     )
-
-    status = "pass" if not failures else "fail"
-    payload: dict[str, object] = {
-        "study_id": study.id,
-        "status": status,
-        "readiness": readiness.status,
-        "allowed_verdicts": allowed_verdicts,
-        "claims": claims,
-        "failures": failures,
-    }
-
-    _emit_gate_output(payload, json_output=json_output)
-
-    if failures:
+    typer.echo(gate_output_text(payload, json_output=json_output), nl=False)
+    if payload["failures"]:
         raise typer.Exit(code=1)
 
 
@@ -646,7 +432,7 @@ def report_cmd(
             "--skip-validation is deprecated. Evidence validation always runs; synthetic recovery runs in make slow.",
             err=True,
         )
-    runs_frame, source = _load_evidence(study, root, runs)
+    runs_frame, source = load_evidence(study, root, runs)
     products = build_audit(
         study,
         runs_frame,
