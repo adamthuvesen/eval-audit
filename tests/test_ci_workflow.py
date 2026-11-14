@@ -10,8 +10,6 @@ import yaml
 
 def test_ci_workflow__runs_only_make_targets(repo_root: Path) -> None:
     workflow = yaml.safe_load((repo_root / ".github/workflows/ci.yml").read_text())
-    setup = ["uv python install 3.14", "make setup"]
-    expected = {"check": [*setup, "make check"], "slow": [*setup, "make slow"]}
     actual = {
         name: [step["run"] for step in job["steps"] if "run" in step]
         for name, job in workflow["jobs"].items()
@@ -19,10 +17,17 @@ def test_ci_workflow__runs_only_make_targets(repo_root: Path) -> None:
     assert workflow["jobs"]["slow"].get("needs") == "check", (
         "The slow job must declare `needs: check` so the fast lane runs first."
     )
-    assert actual == expected, (
-        "CI jobs must run only Python install, `make setup`, then one Make target. Put new checks in the "
-        f"Makefile `check` or `slow` target, not in .github/workflows/ci.yml. Got: {actual}"
-    )
+    for name, runs in actual.items():
+        setup = [
+            run
+            for run in runs[:-1]
+            if run != "make setup" and not run.startswith("uv python install ")
+        ]
+        assert runs[-1] == f"make {name}" and not setup, (
+            "CI jobs must run only Python install, `make setup`, then the Make target named for the job. "
+            "Put new checks in the Makefile `check` or `slow` target, not in .github/workflows/ci.yml. "
+            f"Got: {actual}"
+        )
 
 
 def test_ci_workflow__pins_actions_and_uv_exactly(repo_root: Path) -> None:

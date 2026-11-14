@@ -104,7 +104,6 @@ def test_caveat__as_reported_only_renders_sub_block(repo_root: Path, readiness_k
     """
     text = _render_taubench_report(repo_root, readiness_kwargs)
 
-    # Sub-block exists.
     assert "### Cost provenance caveat" in text
 
     # Sections appear in the correct order.

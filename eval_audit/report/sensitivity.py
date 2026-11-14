@@ -12,7 +12,6 @@ from eval_audit.schema.enums import Verdict
 from eval_audit.stats import AnalysisResult, ClaimResult
 from eval_audit.stats.sensitivity import (
     SensitivityScenario,
-    recompute_scenario,
     sensitivity_scenarios,
 )
 
@@ -104,35 +103,6 @@ def _scenario_verdict(
     return _baseline_verdict(perturbed, scenario.result, study)
 
 
-def verdict_with_alpha(
-    claim: ClaimResult,
-    result: AnalysisResult,
-    study: StudySpec,
-    *,
-    alpha: float,
-    runs: pl.DataFrame | None = None,
-) -> Verdict:
-    """Recompute the p-value decision and confidence intervals at the requested alpha."""
-    if runs is None:
-        if alpha == result.settings.alpha:
-            return _baseline_verdict(claim, result, study)
-        raise ValueError("runs are required to recompute confidence intervals at a changed alpha")
-    scenario = recompute_scenario(study, runs, result, alpha=alpha)
-    verdict = _scenario_verdict(claim, scenario, study)
-    assert verdict is not None
-    return verdict
-
-
-def verdict_with_no_correction(
-    claim: ClaimResult, result: AnalysisResult, study: StudySpec, *, alpha: float
-) -> Verdict:
-    if alpha != result.settings.alpha:
-        raise ValueError("no-correction sensitivity must use the baseline alpha")
-    return decision_impact(
-        claim_context_for_result(claim, result, study, rejects_null=claim.raw_p_value <= alpha)
-    )
-
-
 def verdict_with_cost_gap_threshold(
     claim: ClaimResult,
     result: AnalysisResult,
@@ -153,21 +123,6 @@ def check_settings(
         and bootstrap_iterations != result.settings.bootstrap_iterations
     ) or (bootstrap_seed is not None and bootstrap_seed != result.settings.bootstrap_seed):
         raise ValueError("sensitivity bootstrap settings must match the analysis result")
-
-
-def verdict_with_errored_excluded(
-    claim: ClaimResult,
-    runs: pl.DataFrame,
-    study: StudySpec,
-    result: AnalysisResult,
-    *,
-    bootstrap_iterations: int | None = None,
-    bootstrap_seed: int | None = None,
-) -> Verdict | None:
-    """Return no verdict when exclusion leaves insufficient paired or Pareto evidence."""
-    check_settings(result, bootstrap_iterations, bootstrap_seed)
-    scenario = recompute_scenario(study, runs, result, exclude_errored=True)
-    return _scenario_verdict(claim, scenario, study)
 
 
 def compute_sensitivity_rows(

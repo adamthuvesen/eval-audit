@@ -237,7 +237,6 @@ def test_adapter_load__missing_provenance_raises(tmp_path: Path) -> None:
 
 
 def test_adapter_load__valid_fixture_round_trips(tmp_path: Path) -> None:
-    """A complete fixture round-trips through the adapter."""
     universe = _synthetic_universe()
     submissions = {
         "20251127_openhands_claude-opus-4-5": _treatment_submission(universe),
@@ -473,7 +472,6 @@ def test_adapter_validate__rejects_truncated_universe() -> None:
 
 
 def test_adapter_validate__rejects_duplicate_task_id() -> None:
-    """Adapter validate() rejects frames where an agent has a duplicated task_id."""
     from eval_audit.ingest.base import IngestContractError
 
     universe = _synthetic_universe()

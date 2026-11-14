@@ -212,7 +212,6 @@ def suppressed_report(tmp_path_factory: pytest.TempPathFactory) -> str:
 
 
 def test_render__cost_not_available_caveat_block_present(suppressed_report: str) -> None:
-    """The rendered report contains the cost_not_available caveat block."""
     text = suppressed_report
     assert "### Cost provenance caveat" in text
     assert "Cost provenance: cost_not_available" in text

@@ -80,7 +80,6 @@ def test_sensitivity__baseline_row_matches_claims_table_verdict(gaia_hal_general
 
     for claim in result.claims:
         block = _extract_sensitivity_block(text, claim.claim_id)
-        # Pull the baseline row.
         baseline_match = re.search(r"\| baseline \| locked \| (\S+) \|", block)
         assert baseline_match, f"baseline row missing for {claim.claim_id}"
         baseline_verdict = baseline_match.group(1)
@@ -163,7 +162,6 @@ def test_sensitivity__flip_annotation_only_on_non_baseline_verdicts(
     for claim in result.claims:
         block = _extract_sensitivity_block(text, claim.claim_id)
         rows = re.findall(r"\| (\S+) \| (\S+) \| ([^|]+) \|", block)
-        # Locate baseline.
         baseline_verdict = None
         for d, _v, verdict_cell in rows:
             if d == "baseline":

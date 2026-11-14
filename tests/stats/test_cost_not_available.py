@@ -119,7 +119,6 @@ def test_agent_summary__cost_not_available_returns_none_costs() -> None:
     assert by_id["treat"].cost_per_success_usd is None
     assert by_id["ctrl"].total_cost_usd is None
     assert by_id["ctrl"].cost_per_success_usd is None
-    # Outcome accounting unchanged
     assert by_id["treat"].n_graded == 5
     assert by_id["treat"].success_rate == pytest.approx(0.6)
     assert by_id["ctrl"].success_rate == pytest.approx(0.4)

@@ -357,11 +357,6 @@ def test_report__unsupported_lower_is_better_study_is_not_rendered(
     assert "higher_is_better" in str(exc_info.value)
 
 
-# ---------------------------------------------------------------------------
-# Audit Summary header — unit tests for the helpers and the rendered section.
-# ---------------------------------------------------------------------------
-
-
 @pytest.fixture
 def tau_bench_airline_tool_calling_inputs(repo_root: Path):
     from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
@@ -678,7 +673,6 @@ def test_audit_summary__claim_status_matches_claims_table_value(
         for line in after_summary.splitlines()
         if line.startswith("|") and not line.startswith("|---") and "|---" not in line
     ]
-    # Skip header row.
     data_row = claims_rows[1]
     cells = [c.strip() for c in data_row.split("|")[1:-1]]
     table_status = cells[2]
@@ -744,11 +738,6 @@ def test_audit_summary__verdict_rationale_no_per_claim_numbers() -> None:
             f"rule-explanation rationale should not include pp/n=/dollar values — those "
             f"belong in the **Why** bullet."
         )
-
-
-# ---------------------------------------------------------------------------
-# Robustness Review — unit tests for the helpers and the rendered section.
-# ---------------------------------------------------------------------------
 
 
 def _row(dim: str, val: str, verdict: Verdict):

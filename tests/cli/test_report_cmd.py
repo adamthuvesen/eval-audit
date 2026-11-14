@@ -43,7 +43,6 @@ def test_cli_report__default_invocation_writes_complete_audit(
         print(result.output)
     assert result.exit_code == 0, f"report cmd failed: {result.output}"
     assert (out_dir / "gaia-hal-generalist" / "summary.json").is_file()
-    # Report file written.
     assert (out_dir / "gaia-hal-generalist" / "report.md").exists()
 
 
