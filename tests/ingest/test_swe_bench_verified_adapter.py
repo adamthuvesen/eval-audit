@@ -97,7 +97,7 @@ def test_build_canonical_frame__no_generation_maps_to_graded_failure() -> None:
         & (pl.col("task_id").is_in(universe[388:390]))
     )
     assert no_gen_rows.height == 2
-    assert (no_gen_rows["success"] == False).all()  # noqa: E712
+    assert (no_gen_rows["success"] == False).all()  # noqa: E712 - polars expression, not a Python bool test
     assert (no_gen_rows["outcome_status"] == "graded").all()
     statuses = [row["upstream_status"] for row in no_gen_rows["rerun_metadata"]]
     assert all(s == "no_generation" for s in statuses)

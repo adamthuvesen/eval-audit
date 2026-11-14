@@ -192,7 +192,9 @@ EXPECTED_AUDIT = {
 }
 # The control passes only when the drive fails on exactly this planted expectation.
 CONTROL_EXPECTED = {**EXPECTED_AUDIT, "verdict": "hold"}
-CONTROL_FAILURE = f"byo-minimal claim alice_vs_bob: expected {CONTROL_EXPECTED!r}, got "
+CONTROL_FAILURE = (
+    f"byo-minimal claim alice_vs_bob: expected {CONTROL_EXPECTED!r}, got {EXPECTED_AUDIT!r}"
+)
 
 
 def drive_audit(run: Run, expected: Mapping[str, object] | None = None) -> str:
@@ -412,7 +414,7 @@ def execute(names: list[str], control: bool = False) -> int:
         results.append({"drive": "checkout", "result": "FAIL", "seconds": 0.0, "detail": detail})
     failures = [str(r["detail"]) for r in results if r["result"] == "FAIL"]
     if control:
-        passed = len(failures) == 1 and failures[0].startswith(CONTROL_FAILURE)
+        passed = failures == [CONTROL_FAILURE]
         if passed:
             print("control: FAIL observed")
         elif failures:

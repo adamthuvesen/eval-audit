@@ -1,4 +1,4 @@
-"""A file-level `# pyright:` comment must not turn strict type checking, or one of its rules, off."""
+"""No file turns strict type checking or lint off, and every inline `noqa` gives a reason."""
 
 import os
 import re
@@ -12,7 +12,7 @@ DOWNGRADE = re.compile(r"^\s*#\s*(?:based)?pyright:(?!\s*strict\s*$)")
 
 def is_python_file(path: Path) -> bool:
     if path.suffix:
-        return path.suffix == ".py"
+        return path.suffix in {".py", ".pyi"}
     with path.open("rb") as handle:
         first_line = handle.readline()
     return first_line.startswith(b"#!") and b"python" in first_line
@@ -58,3 +58,41 @@ def test_no_file_downgrades_type_checking_mode() -> None:
     assert not downgrades, "file-level `# pyright:` comment turns strict mode off: " + ", ".join(
         downgrades
     )
+
+
+FILE_WIDE_LINT_OFF = re.compile(r"^\s*#\s*(?:ruff|flake8):\s*noqa", re.IGNORECASE)
+NOQA_WITHOUT_REASON = re.compile(
+    r"#\s*noqa\b(?!(?::\s*[A-Z]+\d+(?:\s*,\s*[A-Z]+\d+)*)\s+-\s+\S)", re.IGNORECASE
+)
+
+
+def lint_suppression_problems(paths: list[Path], root: Path = ROOT) -> list[str]:
+    problems: list[str] = []
+    for path in paths:
+        for number, line in enumerate(path.read_text(errors="replace").splitlines(), start=1):
+            where = f"{path.relative_to(root)}:{number}"
+            if FILE_WIDE_LINT_OFF.match(line):
+                problems.append(f"{where} turns lint off for the whole file")
+            elif NOQA_WITHOUT_REASON.search(line) and path.name != Path(__file__).name:
+                problems.append(f"{where} has a noqa with no rule code or no ` - reason`")
+    return problems
+
+
+def test_scan_finds_lint_suppressions_without_a_reason(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], env=git_env(), check=True)
+    (tmp_path / "probe.py").write_text(
+        "# ruff: noqa: F401, B006\n"
+        "import os  # noqa\n"
+        "import sys  # noqa: F401\n"
+        "import re  # noqa: F401 - re-exported\n"
+    )
+    assert lint_suppression_problems(checkout_python_files(tmp_path), tmp_path) == [
+        "probe.py:1 turns lint off for the whole file",
+        "probe.py:2 has a noqa with no rule code or no ` - reason`",
+        "probe.py:3 has a noqa with no rule code or no ` - reason`",
+    ]
+
+
+def test_lint_suppressions_are_scoped_and_explained() -> None:
+    problems = lint_suppression_problems(checkout_python_files())
+    assert not problems, "; ".join(problems)

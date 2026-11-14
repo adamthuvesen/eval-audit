@@ -61,6 +61,7 @@ For the module owner of each change and focused test commands, read
 | basedpyright reports zero errors in strict mode, with no baseline file | `pyproject.toml::typeCheckingMode`, `Makefile::typecheck` | 2026-11-07 |
 | Paid API calls refuse without approval, before any raw output is written | `scouting/humaneval-direct-completion/run.py::require_approval`, `tests/scouting/test_humaneval_run_spend.py::test_call_api__refuses_without_explicit_approval` | 2026-11-07 |
 | Process, network, and paid-SDK modules are banned outside their owner files | `pyproject.toml::tool.ruff.lint.flake8-tidy-imports.banned-api`, `tests/test_module_bans.py::test_module_bans__owners_use_only_their_own_modules` | 2026-11-07 |
+| No file turns lint off wholesale, and every inline `noqa` names a rule and gives a reason | `tests/test_strict_mode.py::test_lint_suppressions_are_scoped_and_explained` | 2026-11-07 |
 | Every citation in this table exists | `tests/docs/test_enforced_rules.py::test_enforced_rules__citations_exist` | 2026-11-06 |
 | No file downgrades strict type checking with a `# pyright:` mode comment | `tests/test_strict_mode.py::test_no_file_downgrades_type_checking_mode` | 2026-11-07 |
 

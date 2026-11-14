@@ -386,8 +386,8 @@ def test_errored_row_policy__mixed_reconstructed_cost_fails_analysis() -> None:
 # Hypothesis property test: for any random agent row distribution with errored,
 # graded-success, and graded-fail counts, the recovered success_rate is consistent.
 
-from hypothesis import given, settings  # noqa: E402
-from hypothesis import strategies as st  # noqa: E402
+from hypothesis import given, settings  # noqa: E402 - the property test imports hypothesis next to its use
+from hypothesis import strategies as st  # noqa: E402 - the property test imports hypothesis next to its use
 
 
 @given(
