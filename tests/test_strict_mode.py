@@ -64,6 +64,7 @@ FILE_WIDE_LINT_OFF = re.compile(r"^\s*#\s*(?:ruff|flake8):\s*noqa", re.IGNORECAS
 NOQA_WITHOUT_REASON = re.compile(
     r"#\s*noqa\b(?!(?::\s*[A-Z]+\d+(?:\s*,\s*[A-Z]+\d+)*)\s+-\s+\S)", re.IGNORECASE
 )
+NOQA_ON_BAN = re.compile(r"#\s*noqa\b[^#\n]*\bTID251\b", re.IGNORECASE)
 
 
 def lint_suppression_problems(paths: list[Path], root: Path = ROOT) -> list[str]:
@@ -73,7 +74,11 @@ def lint_suppression_problems(paths: list[Path], root: Path = ROOT) -> list[str]
             where = f"{path.relative_to(root)}:{number}"
             if FILE_WIDE_LINT_OFF.match(line):
                 problems.append(f"{where} turns lint off for the whole file")
-            elif NOQA_WITHOUT_REASON.search(line) and path.name != Path(__file__).name:
+            elif path.name == Path(__file__).name:
+                continue
+            elif NOQA_ON_BAN.search(line):
+                problems.append(f"{where} silences a banned API; name an owner in pyproject.toml")
+            elif NOQA_WITHOUT_REASON.search(line):
                 problems.append(f"{where} has a noqa with no rule code or no ` - reason`")
     return problems
 
@@ -85,14 +90,50 @@ def test_scan_finds_lint_suppressions_without_a_reason(tmp_path: Path) -> None:
         "import os  # noqa\n"
         "import sys  # noqa: F401\n"
         "import re  # noqa: F401 - re-exported\n"
+        "import subprocess  # noqa: TID251 - needed here\n"
     )
     assert lint_suppression_problems(checkout_python_files(tmp_path), tmp_path) == [
         "probe.py:1 turns lint off for the whole file",
         "probe.py:2 has a noqa with no rule code or no ` - reason`",
         "probe.py:3 has a noqa with no rule code or no ` - reason`",
+        "probe.py:5 silences a banned API; name an owner in pyproject.toml",
     ]
 
 
 def test_lint_suppressions_are_scoped_and_explained() -> None:
     problems = lint_suppression_problems(checkout_python_files())
     assert not problems, "; ".join(problems)
+
+
+PYRIGHT_IGNORE = re.compile(r"#\s*pyright:\s*ignore")
+IGNORE_WITH_RULE_AND_REASON = re.compile(
+    r"#\s*pyright:\s*ignore\[[A-Za-z]+(?:,\s*[A-Za-z]+)*\]\s+#\s*\S"
+)
+
+
+def unexplained_pyright_ignores(paths: list[Path], root: Path = ROOT) -> list[str]:
+    return [
+        f"{path.relative_to(root)}:{number}"
+        for path in paths
+        if path.name != Path(__file__).name
+        for number, line in enumerate(path.read_text(errors="replace").splitlines(), start=1)
+        if PYRIGHT_IGNORE.search(line) and not IGNORE_WITH_RULE_AND_REASON.search(line)
+    ]
+
+
+def test_scan_finds_pyright_ignores_without_a_reason(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], env=git_env(), check=True)
+    (tmp_path / "probe.py").write_text(
+        "a = 1  # pyright: ignore[reportAny]\n"
+        "b = 1  # pyright: ignore[reportAny]  # runtime proof\n"
+        "c = 1  # pyright: ignore\n"
+    )
+    assert unexplained_pyright_ignores(checkout_python_files(tmp_path), tmp_path) == [
+        "probe.py:1",
+        "probe.py:3",
+    ]
+
+
+def test_pyright_ignores_name_a_rule_and_give_a_reason() -> None:
+    problems = unexplained_pyright_ignores(checkout_python_files())
+    assert not problems, "write `# pyright: ignore[rule]  # reason`: " + ", ".join(problems)

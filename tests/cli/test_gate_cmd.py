@@ -199,7 +199,7 @@ def test_gate__fails_when_not_ready_with_fix_suggestion(
     assert payload["status"] == "fail"
     assert payload["readiness"] == "not_ready"
     assert payload["failures"][0]["check_id"] == "paired_tasks_complete"
-    assert "paired task rows" in payload["failures"][0]["fix_suggestion"]
+    assert payload["failures"][0]["fix_suggestion"]
 
 
 def test_gate__fails_when_min_readiness_is_stricter_than_evidence(

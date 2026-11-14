@@ -399,6 +399,8 @@ def execute(names: list[str], control: bool = False) -> int:
             result = "PASS"
         except (DriveFailure, subprocess.TimeoutExpired, KeyError, json.JSONDecodeError) as error:
             result, detail = "FAIL", str(error)
+        except SystemExit as error:
+            result, detail = "FAIL", f"drive exited the run: SystemExit({error.code!r})"
         hits = tripwire_hits()
         if hits:
             result, detail = "FAIL", f"tripwire hit: {'; '.join(hits)[:300]}"

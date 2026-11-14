@@ -39,14 +39,14 @@ def citation_problems(agents_md: str, repo_root: Path) -> list[str]:
 
 def test_enforced_rules__flags_rotted_citations(repo_root: Path) -> None:
     table = (
-        "\n## Enforced Rules\n\n| Rule | Enforced by | Added |\n| --- | --- | --- |\n"
-        "| a | `Makefile::check-typo` | x |\n| b | `missing.py` | x |\n| c | none | x |\n"
-        "| d | `Makefile` | x |\n"
+        "\n## Enforced Rules\n\n| Rule | Enforced by |\n| --- | --- |\n"
+        "| a | `Makefile::check-typo` |\n| b | `missing.py` |\n| c | none |\n"
+        "| d | `Makefile` |\n"
     )
     assert citation_problems(table, repo_root) == [
         "Makefile::check-typo: Makefile does not define 'check-typo'",
         "missing.py: file missing.py does not exist",
-        "row cites nothing: | c | none | x |",
+        "row cites nothing: | c | none |",
         "Makefile: cite an exact name as Makefile::<name>",
     ]
 

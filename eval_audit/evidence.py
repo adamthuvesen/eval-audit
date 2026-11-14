@@ -82,9 +82,9 @@ def _inspect(study: StudySpec, runs: pl.DataFrame) -> PreparedEvidence:
         diagnostics = [_check("study_loads", "error", "fail", str(exc), {})]
         # Revalidation failed, so the fields can hold any runtime type despite their annotations.
         if (
-            isinstance(study.primary_outcome, PrimaryOutcome)  # pyright: ignore[reportUnnecessaryIsInstance]
-            and isinstance(study.claims, list)  # pyright: ignore[reportUnnecessaryIsInstance]
-            and all(isinstance(claim, Claim) for claim in study.claims)  # pyright: ignore[reportUnnecessaryIsInstance]
+            isinstance(study.primary_outcome, PrimaryOutcome)  # pyright: ignore[reportUnnecessaryIsInstance]  # fields hold any type after failed revalidation
+            and isinstance(study.claims, list)  # pyright: ignore[reportUnnecessaryIsInstance]  # fields hold any type after failed revalidation
+            and all(isinstance(claim, Claim) for claim in study.claims)  # pyright: ignore[reportUnnecessaryIsInstance]  # fields hold any type after failed revalidation
         ):
             outcome_check = _outcome_supported(study)
             if outcome_check.status == "fail":
