@@ -72,6 +72,9 @@ def test_module_bans__owners_use_only_their_own_modules(repo_root: Path) -> None
             "--select",
             "TID251",
             "--ignore-noqa",
+            # The root config for every file, so a nested ruff config cannot drop the bans.
+            "--config",
+            "pyproject.toml",
             "--config",
             "lint.per-file-ignores = {}",
             "--output-format",

@@ -26,8 +26,13 @@ def test_ci_workflow__runs_only_make_targets(repo_root: Path) -> None:
 
 
 def test_ci_workflow__pins_actions_and_uv_exactly(repo_root: Path) -> None:
-    workflow = yaml.safe_load((repo_root / ".github/workflows/ci.yml").read_text())
-    steps = [step for job in workflow["jobs"].values() for step in job["steps"]]
+    workflows = sorted((repo_root / ".github/workflows").glob("*.y*ml"))
+    steps = [
+        step
+        for path in workflows
+        for job in yaml.safe_load(path.read_text())["jobs"].values()
+        for step in job.get("steps", [])
+    ]
     actions = [step["uses"] for step in steps if "uses" in step]
     assert all(re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", uses) for uses in actions), actions
     uv_versions = [

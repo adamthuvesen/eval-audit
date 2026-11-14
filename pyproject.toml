@@ -103,7 +103,7 @@ line-length = 100
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "PTH", "RUF", "PGH003", "TID251"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "PTH", "RUF", "PGH003", "PGH004", "TID251"]
 # RUF001-003: reports and docs use real math symbols (x, alpha, minus) on purpose.
 ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 
@@ -138,6 +138,15 @@ ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 "httpx".msg = "Network clients belong to the named owner files in pyproject.toml per-file-ignores."
 "anthropic".msg = "Paid SDKs belong to the named owner files in pyproject.toml per-file-ignores."
 "openai".msg = "Paid SDKs belong to the named owner files in pyproject.toml per-file-ignores."
+"urllib3".msg = "Network clients belong to the named owner files in pyproject.toml per-file-ignores."
+"aiohttp".msg = "Network clients belong to the named owner files in pyproject.toml per-file-ignores."
+"google.genai".msg = "Paid SDKs belong to the named owner files in pyproject.toml per-file-ignores."
+"google.generativeai".msg = "Paid SDKs belong to the named owner files in pyproject.toml per-file-ignores."
+"mistralai".msg = "Paid SDKs belong to the named owner files in pyproject.toml per-file-ignores."
+"cohere".msg = "Paid SDKs belong to the named owner files in pyproject.toml per-file-ignores."
+"boto3".msg = "Warehouse and cloud drivers belong to the named owner files in pyproject.toml per-file-ignores."
+"botocore".msg = "Warehouse and cloud drivers belong to the named owner files in pyproject.toml per-file-ignores."
+"snowflake".msg = "Warehouse and cloud drivers belong to the named owner files in pyproject.toml per-file-ignores."
 
 [tool.ruff.lint.per-file-ignores]
 # Typer's idiomatic API requires Argument()/Option() calls in defaults.
@@ -158,6 +167,7 @@ venv = ".venv"
 typeCheckingMode = "strict"
 enableTypeIgnoreComments = false
 reportUnnecessaryTypeIgnoreComment = "error"
+reportIgnoreCommentWithoutRule = "error"
 reportUnknownMemberType = false
 reportUnknownArgumentType = false
 reportUnknownVariableType = false
