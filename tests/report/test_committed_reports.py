@@ -32,11 +32,21 @@ GIT_COMMIT_LINE = re.compile(r"^- \*\*git_commit:\*\* `[^`]*`$", re.MULTILINE)
 GIT_COMMIT_HTML = re.compile(
     r'(<span class="kv-label">git_commit</span><span class="kv-value"><code>)[^<]*(</code>)'
 )
-COMMIT_DEPENDENT = {"report_md", "report_html"}
 
 
 def _normalized(markdown: str) -> str:
     return GIT_COMMIT_LINE.sub("- **git_commit:** `<commit>`", markdown)
+
+
+def _rounded(value: object) -> object:
+    """Round floats so a render on Linux CI matches one on macOS in the last digit."""
+    if isinstance(value, float):
+        return float(f"{value:.10g}")
+    if isinstance(value, dict):
+        return {key: _rounded(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_rounded(item) for item in value]
+    return value
 
 
 def _normalized_artifact(report_dir: Path, name: str) -> str:
@@ -45,10 +55,15 @@ def _normalized_artifact(report_dir: Path, name: str) -> str:
         return _normalized(text)
     if name == "report.html":
         return GIT_COMMIT_HTML.sub(r"\1<commit>\2", text)
-    if name == "summary.json":
-        summary = json.loads(text)
-        for key in COMMIT_DEPENDENT & summary["artifact_hashes"].keys():
-            text = text.replace(summary["artifact_hashes"][key], f"<{key}>")
+    if name.endswith(".json"):
+        data = json.loads(text)
+        if name == "summary.json":
+            # Each artifact is compared on its own below, and the hashes are checked
+            # against the committed files above, so the hash values add nothing here.
+            for owner in [data, *data.get("claims", [])]:
+                if "artifact_hashes" in owner:
+                    owner["artifact_hashes"] = {key: f"<{key}>" for key in owner["artifact_hashes"]}
+        return json.dumps(_rounded(data), indent=2, sort_keys=True)
     return text
 
 
