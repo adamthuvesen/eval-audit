@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import polars as pl
 
-from eval_audit.ingest._prices import PRICE_TABLE_PINNED_AT
 from eval_audit.report.presentation import StudyPresentation
 from eval_audit.schema import StudySpec
 
@@ -56,7 +55,7 @@ def _controlled_artifact_lines(
 
 
 def _controlled_run_metadata_lines(study: StudySpec, runs: pl.DataFrame) -> list[str]:
-    first_meta: dict = runs.row(0, named=True)["rerun_metadata"] or {}
+    first_meta: dict[str, Any] = runs.row(0, named=True)["rerun_metadata"] or {}
     parts: list[str] = []
     if task_source := first_meta.get("task_source"):
         parts.append(f"- **task_source:** `{task_source}`")
@@ -121,7 +120,6 @@ def render_public_provenance(presentation: StudyPresentation) -> list[str]:
     parts.append(f"- **source_fixture:** `{presentation.source_fixture_rel}`")
     parts.append(f"- **source_url:** {presentation.source_url}")
     parts.append(f"- **retrieved_at:** `{presentation.retrieved_at}`")
-    parts.append(f"- **price_table_pinned_at:** `{PRICE_TABLE_PINNED_AT}`")
     parts.append(f"- **cost_provenance:** `{presentation.cost_provenance}`")
     parts.append("")
     return parts

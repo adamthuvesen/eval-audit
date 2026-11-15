@@ -9,8 +9,8 @@ def _stub_claim_result(
     delta_lo: float = -0.05,
     delta_hi: float = 0.05,
     delta_point: float = 0.0,
-    treatment_cost: float = 100.0,
-    control_cost: float = 100.0,
+    treatment_cost: float | None = 100.0,
+    control_cost: float | None = 100.0,
     treatment_dominated: bool = False,
     direction_matches_claim: bool = True,
 ):

@@ -26,6 +26,7 @@ from eval_audit.stats.resolution import (
 from eval_audit.stats.results import (
     AgentSummary,
     AnalysisResult,
+    AnalysisSettings,
     ClaimResult,
     ParetoStatus,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "AgentSummary",
     "AnalysisInputError",
     "AnalysisResult",
+    "AnalysisSettings",
     "BootstrapResult",
     "ClaimResult",
     "CostProvenanceError",

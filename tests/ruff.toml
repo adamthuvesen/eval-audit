@@ -1,0 +1,16 @@
+extend = "../pyproject.toml"
+# Same first-party root as the parent config, resolved from this file.
+src = [".."]
+
+# Tests drive the CLI and git through their own exemption in the parent per-file-ignores, so the
+# process and network bans do not repeat here. Sleeping or reading the clock makes a test slow and
+# flaky: wait on an event or inject a fake clock.
+[lint]
+per-file-ignores = {}
+
+[lint.flake8-tidy-imports.banned-api]
+"time.sleep".msg = "Tests must not sleep. Wait on an event or a condition, or inject a fake clock."
+"asyncio.sleep".msg = "Tests must not sleep. Wait on an event or a condition, or inject a fake clock."
+"time.time".msg = "Tests must not read the wall clock. Inject a fake clock or pass the timestamp in."
+"time.perf_counter".msg = "Tests must not time themselves. Assert on behavior or inject a fake clock."
+"time.monotonic".msg = "Tests must not time themselves. Assert on behavior or inject a fake clock."

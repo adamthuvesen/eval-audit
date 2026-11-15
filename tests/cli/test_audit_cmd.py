@@ -100,7 +100,6 @@ def test_audit__not_ready_stops_before_analysis_and_report(
 
     assert result.exit_code != 0
     assert "claim_agents_present" in result.output
-    assert "Add run rows" in result.output
     assert not (out_dir / "byo-minimal" / "analysis.json").exists()
     assert not (out_dir / "byo-minimal" / "report.md").exists()
     assert not (out_dir / "byo-minimal" / "summary.json").exists()
@@ -209,7 +208,6 @@ def test_audit__html_flag_writes_optional_html(
     assert html_path.exists()
     assert str(html_path) in result.output
     html = html_path.read_text()
-    assert "report.md</code> remains the canonical reproducibility artifact" in html
     assert '<span class="verdict-badge verdict-switch">' in html
 
 

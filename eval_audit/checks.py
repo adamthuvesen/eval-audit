@@ -3,33 +3,26 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 import polars as pl
 from pydantic import ValidationError
 from yaml import YAMLError
 
+from eval_audit.evidence import PreparedEvidence, inspect_evidence
+from eval_audit.evidence_types import (
+    CheckSeverity,
+    CheckStatus,
+    EvidenceCheck,
+    EvidenceSource,
+    Json,
+)
 from eval_audit.ingest import IngestContractError
 from eval_audit.ingest.generic import load_run_records
-from eval_audit.schema import Claim, StudySpec
-from eval_audit.schema.enums import CostProvenance
-from eval_audit.scouting_paths import resolve_decision_doc
-
-ReadinessStatus = Literal["ready", "ready_with_warnings", "not_ready"]
-CheckSeverity = Literal["error", "warning", "info"]
-CheckStatus = Literal["pass", "fail"]
-JsonScalar = str | int | float | bool | None
-Json = JsonScalar | list["Json"] | dict[str, "Json"]
-
-
-def _json_array(values: Iterable[JsonScalar]) -> list[Json]:
-    items: list[Json] = []
-    items.extend(values)
-    return items
-
+from eval_audit.schema import StudySpec
+from eval_audit.schema.enums import ReadinessStatus
+from eval_audit.scouting_paths import resolve_evidence_decision_doc
 
 _STATIC_FIX_SUGGESTIONS = {
     "study_loads": (
@@ -108,26 +101,16 @@ class ReadinessResult:
         return self.to_json().encode()
 
 
-@dataclass(frozen=True)
-class _ClaimPairingDetails:
-    claim_id: str
-    treatment_task_count: int
-    control_task_count: int
-    paired_task_count: int
-    missing_treatment_count: int
-    missing_control_count: int
-    duplicate_observation_keys: list[str]
-    invalid_task_run_count_keys: list[str]
-
-    @property
-    def has_failures(self) -> bool:
-        return (
-            self.missing_treatment_count > 0
-            or self.missing_control_count > 0
-            or self.paired_task_count == 0
-            or bool(self.duplicate_observation_keys)
-            or bool(self.invalid_task_run_count_keys)
-        )
+def readiness_from_diagnostics(
+    study_id: str | None, diagnostics: tuple[EvidenceCheck, ...]
+) -> ReadinessResult:
+    return _result(
+        study_id,
+        [
+            _check(item.id, item.severity, item.status, item.message, item.details)
+            for item in diagnostics
+        ],
+    )
 
 
 def render_readiness_text(result: ReadinessResult) -> str:
@@ -215,6 +198,7 @@ def check_paths(
         runs,
         repo_root=repo_root,
         initial_checks=checks,
+        source=EvidenceSource.from_path(runs_parquet, source_kind="canonical"),
     )
 
 
@@ -226,6 +210,7 @@ def check_loaded_evidence(
     *,
     repo_root: Path,
     initial_checks: list[ReadinessCheck] | None = None,
+    source: EvidenceSource | None = None,
 ) -> ReadinessResult:
     checks = list(initial_checks or [])
     if not initial_checks:
@@ -247,7 +232,7 @@ def check_loaded_evidence(
                 ),
             ]
         )
-    return check_evidence(study, runs, repo_root=repo_root, initial_checks=checks)
+    return check_evidence(study, runs, repo_root=repo_root, initial_checks=checks, source=source)
 
 
 def check_evidence(
@@ -256,6 +241,44 @@ def check_evidence(
     *,
     repo_root: Path,
     initial_checks: list[ReadinessCheck] | None = None,
+    source: EvidenceSource | None = None,
+) -> ReadinessResult:
+    return _readiness_for_diagnostics(
+        study,
+        runs,
+        inspect_evidence(study, runs),
+        repo_root=repo_root,
+        initial_checks=initial_checks,
+        source=source,
+    )
+
+
+def check_prepared_evidence(
+    evidence: PreparedEvidence,
+    *,
+    repo_root: Path,
+    initial_checks: list[ReadinessCheck] | None = None,
+    source: EvidenceSource | None = None,
+) -> ReadinessResult:
+    """Render readiness checks from evidence that already passed preparation."""
+    return _readiness_for_diagnostics(
+        evidence.study,
+        evidence.runs,
+        evidence.diagnostics,
+        repo_root=repo_root,
+        initial_checks=initial_checks,
+        source=source,
+    )
+
+
+def _readiness_for_diagnostics(
+    study: StudySpec,
+    runs: pl.DataFrame,
+    diagnostics: tuple[EvidenceCheck, ...],
+    *,
+    repo_root: Path,
+    initial_checks: list[ReadinessCheck] | None,
+    source: EvidenceSource | None,
 ) -> ReadinessResult:
     checks: list[ReadinessCheck] = list(initial_checks) if initial_checks is not None else []
     if initial_checks is None:
@@ -272,328 +295,22 @@ def check_evidence(
             ]
         )
 
-    checks.append(_claim_agents_present(study, runs))
-    checks.append(_claimed_rows_match_study_harness(study, runs))
-    checks.append(_paired_tasks_complete(study, runs))
-    checks.append(_outcome_supported(study))
-    checks.append(_cost_provenance_explicit(study, runs))
+    for diagnostic in diagnostics:
+        checks = [check for check in checks if check.id != diagnostic.id]
+        checks.append(
+            _check(
+                diagnostic.id,
+                diagnostic.severity,
+                diagnostic.status,
+                diagnostic.message,
+                diagnostic.details,
+            )
+        )
+    if any(check.id in {"study_loads", "runs_load"} and check.status == "fail" for check in checks):
+        return _result(study.id, checks)
     checks.append(_target_mde_declared(study))
-    checks.append(_residual_risks_source(study, repo_root))
+    checks.append(_residual_risks_source(study, repo_root, source))
     return _result(study.id, checks)
-
-
-def _claim_agents_present(study: StudySpec, runs: pl.DataFrame) -> ReadinessCheck:
-    missing: list[str] = []
-    for claim in study.claims:
-        for role, agent_id in (
-            ("treatment", claim.treatment),
-            ("control", claim.control),
-        ):
-            if runs.filter(pl.col("agent_id") == agent_id).height == 0:
-                missing.append(f"{claim.id}:{role}:{agent_id}")
-    if missing:
-        return _check(
-            "claim_agents_present",
-            "error",
-            "fail",
-            "one or more claimed agents have no rows in the run data",
-            {"missing": _json_array(sorted(missing))},
-        )
-    return _check(
-        "claim_agents_present",
-        "error",
-        "pass",
-        "all claimed agents have rows",
-        {"claims": [claim.id for claim in study.claims]},
-    )
-
-
-def _claimed_rows_match_study_harness(study: StudySpec, runs: pl.DataFrame) -> ReadinessCheck:
-    mismatches: list[str] = []
-    for claim in study.claims:
-        for role, agent_id in (
-            ("treatment", claim.treatment),
-            ("control", claim.control),
-        ):
-            rows = runs.filter(pl.col("agent_id") == agent_id)
-            if rows.is_empty():
-                continue
-            harnesses = sorted(str(value) for value in rows["harness"].unique().to_list())
-            bad = [value for value in harnesses if value != study.harness]
-            if bad:
-                mismatches.append(f"{claim.id}:{role}:{agent_id}:{bad}")
-    if mismatches:
-        return _check(
-            "claimed_rows_match_study_harness",
-            "error",
-            "fail",
-            "claimed rows must all match study.harness",
-            {
-                "study_harness": study.harness,
-                "mismatches": _json_array(sorted(mismatches)),
-            },
-        )
-    return _check(
-        "claimed_rows_match_study_harness",
-        "error",
-        "pass",
-        "claimed rows match study.harness",
-        {"study_harness": study.harness},
-    )
-
-
-def _paired_tasks_complete(study: StudySpec, runs: pl.DataFrame) -> ReadinessCheck:
-    claim_details = [_claim_pairing_details(study, runs, claim) for claim in study.claims]
-    duplicate_observation_keys = [
-        key for details in claim_details for key in details.duplicate_observation_keys
-    ]
-    invalid_run_count_keys = [
-        key for details in claim_details for key in details.invalid_task_run_count_keys
-    ]
-
-    details: dict[str, Json] = {
-        "claims": [details.claim_id for details in claim_details],
-        "treatment_task_counts": [details.treatment_task_count for details in claim_details],
-        "control_task_counts": [details.control_task_count for details in claim_details],
-        "paired_task_counts": [details.paired_task_count for details in claim_details],
-        "missing_treatment_task_counts": [
-            details.missing_treatment_count for details in claim_details
-        ],
-        "missing_control_task_counts": [details.missing_control_count for details in claim_details],
-    }
-    if duplicate_observation_keys:
-        details["duplicate_observation_keys"] = _json_array(sorted(set(duplicate_observation_keys)))
-    if invalid_run_count_keys:
-        details["invalid_task_run_counts"] = _json_array(sorted(set(invalid_run_count_keys)))
-    failures = [details.claim_id for details in claim_details if details.has_failures]
-    if failures:
-        details["failed_claims"] = _json_array(sorted(set(failures)))
-        return _check(
-            "paired_tasks_complete",
-            "error",
-            "fail",
-            "declared claims must have complete paired task observations",
-            details,
-        )
-    return _check(
-        "paired_tasks_complete",
-        "error",
-        "pass",
-        "declared claims have complete paired task observations",
-        details,
-    )
-
-
-def _claim_pairing_details(
-    study: StudySpec,
-    runs: pl.DataFrame,
-    claim: Claim,
-) -> _ClaimPairingDetails:
-    treatment_tasks = _task_set(runs, claim.treatment)
-    control_tasks = _task_set(runs, claim.control)
-    duplicate_keys: list[str] = []
-    invalid_run_count_keys: list[str] = []
-    for role, agent_id in (
-        ("treatment", claim.treatment),
-        ("control", claim.control),
-    ):
-        rows = runs.filter(pl.col("agent_id") == agent_id)
-        duplicate_keys.extend(_duplicate_observation_keys(claim.id, role, agent_id, rows))
-        invalid_run_count_keys.extend(
-            _invalid_task_run_count_keys(
-                claim.id,
-                role,
-                agent_id,
-                rows,
-                expected_runs=study.design.observed_runs_per_agent,
-            )
-        )
-    return _ClaimPairingDetails(
-        claim_id=claim.id,
-        treatment_task_count=len(treatment_tasks),
-        control_task_count=len(control_tasks),
-        paired_task_count=len(treatment_tasks & control_tasks),
-        missing_treatment_count=len(control_tasks - treatment_tasks),
-        missing_control_count=len(treatment_tasks - control_tasks),
-        duplicate_observation_keys=duplicate_keys,
-        invalid_task_run_count_keys=invalid_run_count_keys,
-    )
-
-
-def _duplicate_observation_keys(
-    claim_id: str,
-    role: str,
-    agent_id: str,
-    rows: pl.DataFrame,
-) -> list[str]:
-    seen: set[tuple[str, str]] = set()
-    duplicates: set[str] = set()
-    for row in rows.select(["task_id", "run_id"]).iter_rows(named=True):
-        task_id = str(row["task_id"])
-        run_id = str(row["run_id"])
-        key = (task_id, run_id)
-        if key in seen:
-            duplicates.add(f"{claim_id}:{role}:{agent_id}:{task_id}:{run_id}")
-            continue
-        seen.add(key)
-    return sorted(duplicates)
-
-
-def _invalid_task_run_count_keys(
-    claim_id: str,
-    role: str,
-    agent_id: str,
-    rows: pl.DataFrame,
-    *,
-    expected_runs: int,
-) -> list[str]:
-    runs_by_task: dict[str, set[str]] = {}
-    for row in rows.select(["task_id", "run_id"]).iter_rows(named=True):
-        task_id = str(row["task_id"])
-        run_id = str(row["run_id"])
-        runs_by_task.setdefault(task_id, set()).add(run_id)
-
-    invalid: list[str] = []
-    for task_id, run_ids in sorted(runs_by_task.items()):
-        observed_runs = len(run_ids)
-        if observed_runs != expected_runs:
-            invalid.append(
-                f"{claim_id}:{role}:{agent_id}:{task_id}:"
-                f"expected={expected_runs}:observed={observed_runs}"
-            )
-    return invalid
-
-
-def _outcome_supported(study: StudySpec) -> ReadinessCheck:
-    failures: list[str] = []
-    if study.primary_outcome.name != "success_rate":
-        failures.append(f"primary_outcome.name={study.primary_outcome.name}")
-    if study.primary_outcome.direction != "higher_is_better":
-        failures.append(f"primary_outcome.direction={study.primary_outcome.direction}")
-    for claim in study.claims:
-        if claim.outcome != "success_rate":
-            failures.append(f"claim.{claim.id}.outcome={claim.outcome}")
-    if failures:
-        return _check(
-            "outcome_supported",
-            "error",
-            "fail",
-            "v0 supports only higher-is-better success_rate outcomes",
-            {"unsupported": _json_array(sorted(failures))},
-        )
-    return _check(
-        "outcome_supported",
-        "error",
-        "pass",
-        "v0 outcome contract is supported",
-        {"outcome": "success_rate", "direction": "higher_is_better"},
-    )
-
-
-def _cost_provenance_explicit(study: StudySpec, runs: pl.DataFrame) -> ReadinessCheck:
-    claimed_agents = _claimed_agent_ids(study)
-    claimed_rows = runs.filter(pl.col("agent_id").is_in(claimed_agents))
-    if claimed_rows.is_empty():
-        return _check(
-            "cost_provenance_explicit",
-            "error",
-            "fail",
-            "no claimed rows are available for cost-provenance checks",
-            {"claimed_agents": _json_array(claimed_agents)},
-        )
-
-    provenance_values = sorted(
-        str(value) for value in claimed_rows["cost_provenance"].unique().to_list()
-    )
-    errors = _cost_provenance_consistency_errors(claimed_agents, claimed_rows)
-    warnings = _cost_provenance_warnings(provenance_values)
-    return _cost_provenance_check(provenance_values, errors, warnings)
-
-
-def _claimed_agent_ids(study: StudySpec) -> list[str]:
-    return sorted(
-        {agent_id for claim in study.claims for agent_id in (claim.treatment, claim.control)}
-    )
-
-
-def _cost_provenance_consistency_errors(
-    claimed_agents: list[str],
-    claimed_rows: pl.DataFrame,
-) -> list[str]:
-    errors: list[str] = []
-    for agent_id in claimed_agents:
-        rows = claimed_rows.filter(pl.col("agent_id") == agent_id)
-        if rows.is_empty():
-            continue
-        errors.extend(_agent_cost_provenance_errors(agent_id, rows))
-    return errors
-
-
-def _agent_cost_provenance_errors(agent_id: str, rows: pl.DataFrame) -> list[str]:
-    agent_values = sorted(str(value) for value in rows["cost_provenance"].unique().to_list())
-    if CostProvenance.COST_NOT_AVAILABLE.value in agent_values and len(agent_values) > 1:
-        return [f"{agent_id}: mixed cost_not_available with {agent_values}"]
-    if agent_values == [CostProvenance.COST_NOT_AVAILABLE.value]:
-        return []
-
-    graded = rows.filter(pl.col("outcome_status") == "graded")
-    if graded.is_empty():
-        return []
-    null_reconstructed = graded["reconstructed_per_task_cost_usd"].null_count()
-    if 0 < null_reconstructed < graded.height:
-        return [
-            f"{agent_id}: incomplete reconstructed_per_task_cost_usd "
-            f"({null_reconstructed}/{graded.height} graded rows null)"
-        ]
-    if null_reconstructed == graded.height and rows["reported_run_total_cost_usd"].null_count() > 0:
-        return [f"{agent_id}: no reconstructed cost and missing reported_run_total_cost_usd"]
-    return []
-
-
-def _cost_provenance_warnings(provenance_values: list[str]) -> list[str]:
-    warnings: list[str] = []
-    if CostProvenance.AS_REPORTED_ONLY.value in provenance_values:
-        warnings.append("cost provenance is as_reported_only")
-    if CostProvenance.COST_NOT_AVAILABLE.value in provenance_values:
-        warnings.append(
-            "cost provenance is cost_not_available; cost-derived views will be suppressed"
-        )
-    if CostProvenance.PARTIAL.value in provenance_values:
-        warnings.append("cost provenance is partial")
-    return warnings
-
-
-def _cost_provenance_check(
-    provenance_values: list[str],
-    errors: list[str],
-    warnings: list[str],
-) -> ReadinessCheck:
-    details: dict[str, Json] = {"cost_provenance": _json_array(provenance_values)}
-    if errors:
-        details["errors"] = _json_array(sorted(errors))
-        return _check(
-            "cost_provenance_explicit",
-            "error",
-            "fail",
-            "cost provenance is incomplete or internally inconsistent",
-            details,
-        )
-    if warnings:
-        details["warnings"] = _json_array(sorted(warnings))
-        return _check(
-            "cost_provenance_explicit",
-            "warning",
-            "fail",
-            "; ".join(sorted(warnings)),
-            details,
-        )
-    return _check(
-        "cost_provenance_explicit",
-        "info",
-        "pass",
-        "cost provenance is reconciled",
-        details,
-    )
 
 
 def _target_mde_declared(study: StudySpec) -> ReadinessCheck:
@@ -614,8 +331,19 @@ def _target_mde_declared(study: StudySpec) -> ReadinessCheck:
     )
 
 
-def _residual_risks_source(study: StudySpec, repo_root: Path) -> ReadinessCheck:
-    path, label = resolve_decision_doc(repo_root, study.benchmark, study.id)
+def _residual_risks_source(
+    study: StudySpec, repo_root: Path, source: EvidenceSource | None
+) -> ReadinessCheck:
+    decision = resolve_evidence_decision_doc(repo_root, study, source)
+    if decision is None:
+        return _check(
+            "residual_risks_source",
+            "warning",
+            "fail",
+            "no residual-risk/scouting decision document bound to this evidence",
+            {"path": "not supplied with this evidence"},
+        )
+    path, label = decision
     if not path.exists():
         return _check(
             "residual_risks_source",
@@ -630,13 +358,6 @@ def _residual_risks_source(study: StudySpec, repo_root: Path) -> ReadinessCheck:
         "pass",
         "residual-risk/scouting decision document found",
         {"path": label},
-    )
-
-
-def _task_set(runs: pl.DataFrame, agent_id: str) -> set[str]:
-    return set(
-        str(value)
-        for value in runs.filter(pl.col("agent_id") == agent_id)["task_id"].unique().to_list()
     )
 
 

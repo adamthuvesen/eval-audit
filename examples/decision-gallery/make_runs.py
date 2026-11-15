@@ -16,6 +16,7 @@ The committed runs.parquet must round-trip from this script.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -46,13 +47,8 @@ HOLD_CONTROL_SUCCESS = [True, True, True, True, True, True, True, True, True, Fa
 HOLD_TREATMENT_COST = 0.02  # per task; 10 tasks → $0.20 total. Cheapest agent.
 HOLD_CONTROL_COST = 0.05  # per task; 10 tasks → $0.50 total. Highest-success agent.
 
-# `rerun_more_n_pattern` claim: tied per-arm success rates with offsetting
-# per-task wins/losses so the bootstrap CI clearly straddles zero. Costs
-# differ by ~6.67% of the cheaper arm, below the 10% material threshold.
-# Per-task pairing: both succeed=3, treatment-only=2, control-only=2,
-# both fail=3 → 2 +1s, 2 −1s, 6 zeros → mean 0, t=0, p=1.0.
-# Verdict path: not dominated, not rejected, CI crosses zero, cost gap < 10%
-# → `rerun_more_n`.
+# Offset per-task wins keep the quality interval across zero. The small cost gap
+# leaves the decision at rerun_more_n. _assert_calibration checks the actual verdict.
 RERUN_TREATMENT_SUCCESS = [True, True, True, True, True, False, False, True, False, False]
 RERUN_CONTROL_SUCCESS = [True, True, True, False, False, True, True, False, False, False]
 RERUN_TREATMENT_COST = 0.030  # per task; 10 tasks → $0.30 total.
@@ -63,9 +59,6 @@ RERUN_CONTROL_COST = 0.032  # per task; 10 tasks → $0.32 total. Gap ~6.67%.
 # CI is entirely positive. The raw t-test p-value sits in the 0.025–0.05
 # range, where Holm-Bonferroni adjustment across the three-claim family
 # pushes the adjusted p above α=0.05.
-# Per-task pairing: both succeed=4, treatment-only=4, control-only=0,
-# both fail=2 → 4 +1s, 6 zeros → mean +0.4, t≈2.58, raw p≈0.030.
-# Holm step 2: adjusted_p = max(3*p_hold, 2*0.030) ≈ 0.060 > 0.05 → not rejected.
 # Verdict path: not dominated, not rejected, CI does NOT cross zero, no cost
 # rule → `inconclusive_no_action`.
 INCONC_TREATMENT_SUCCESS = [True, True, True, True, True, True, True, True, False, False]
@@ -96,7 +89,7 @@ def _row(
     task_id: str,
     success: bool,
     cost: float,
-) -> dict:
+) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -122,7 +115,7 @@ def _row(
 
 
 def build_frame() -> pl.DataFrame:
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for agent_id, successes, cost in _AGENT_BLOCKS:
         if len(successes) != TASKS_PER_AGENT:
             raise ValueError(
@@ -146,47 +139,20 @@ def _assert_calibration(parquet_path: Path) -> None:
     Imports are local so the script's basic write-parquet path stays import-light.
     """
     from eval_audit.ingest.generic import load_run_records
-    from eval_audit.report.decisions import (
-        ClaimContext,
-        decision_impact,
-        direction_matches_claim,
-    )
+    from eval_audit.report.decisions import decision_impact
+    from eval_audit.report.sensitivity import claim_context_for_result
     from eval_audit.schema import StudySpec
     from eval_audit.stats import analyze
-    from eval_audit.stats.pareto import pareto_frontier
 
     repo_root = Path(__file__).resolve().parent.parent.parent
     study = StudySpec.from_yaml(repo_root / "studies" / "decision-gallery.yaml")
     runs = load_run_records(parquet_path)
     result = analyze(study, runs, bootstrap_iterations=10_000, bootstrap_seed=42)
 
-    # Recompute the Pareto frontier so we can mirror the renderer's
-    # treatment_is_dominated check per claim.
-    per_agent_frame = pl.DataFrame(
-        {
-            "agent_id": [s.agent_id for s in result.per_agent],
-            "success_rate": [s.success_rate for s in result.per_agent],
-            "cost": [s.total_cost_usd for s in result.per_agent],
-        }
-    )
-    frontier = set(pareto_frontier(per_agent_frame, success_col="success_rate", cost_col="cost"))
-    cost_by_agent = {s.agent_id: s.total_cost_usd for s in result.per_agent}
-
     failures: list[str] = []
     for claim, claim_result in zip(study.claims, result.claims, strict=True):
         target = _CLAIM_TARGETS[claim.id]
-        ctx = ClaimContext(
-            rejects_null=claim_result.rejects_null,
-            delta_point_estimate=claim_result.delta_point_estimate,
-            delta_ci_low=claim_result.delta_ci_low,
-            delta_ci_high=claim_result.delta_ci_high,
-            treatment_cost_usd=cost_by_agent[claim.treatment],
-            control_cost_usd=cost_by_agent[claim.control],
-            treatment_is_dominated=claim.treatment not in frontier,
-            direction_matches_claim=direction_matches_claim(
-                study.primary_outcome.direction, claim_result.delta_point_estimate
-            ),
-        )
+        ctx = claim_context_for_result(claim_result, result, study)
         actual = decision_impact(ctx)
         if actual != target:
             failures.append(
@@ -196,7 +162,7 @@ def _assert_calibration(parquet_path: Path) -> None:
                 f"raw_p={claim_result.raw_p_value:.4f} "
                 f"adj_p={claim_result.adjusted_p_value:.4f} "
                 f"rejects_null={claim_result.rejects_null} "
-                f"treatment_dominated={claim.treatment not in frontier}"
+                f"treatment_dominated={ctx.treatment_is_dominated}"
             )
 
     if failures:

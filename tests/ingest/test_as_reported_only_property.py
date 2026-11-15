@@ -11,6 +11,7 @@ from hypothesis import strategies as st
 
 from eval_audit.report.markdown import render_report
 from eval_audit.schema import RunRecord, StudySpec
+from eval_audit.schema.enums import CostProvenance, OutcomeStatus
 from eval_audit.stats import analyze
 
 _FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
@@ -38,14 +39,14 @@ def test_as_reported_only__run_record_accepts_none_reconstructed_cost(
             run_id="r",
             task_id=f"t{i}",
             success=(i % 2 == 0),
-            outcome_status="graded",
+            outcome_status=OutcomeStatus.GRADED,
             tokens_in=1,
             tokens_out=1,
             tokens_in_by_model={"m": 1},
             tokens_out_by_model={"m": 1},
             reconstructed_per_task_cost_usd=None,
             reported_run_total_cost_usd=reported_total,
-            cost_provenance="as_reported_only",
+            cost_provenance=CostProvenance.AS_REPORTED_ONLY,
             rerun_metadata={},
         )
     for i in range(n_errored):
@@ -56,14 +57,14 @@ def test_as_reported_only__run_record_accepts_none_reconstructed_cost(
             run_id="r",
             task_id=f"e{i}",
             success=None,
-            outcome_status="errored",
+            outcome_status=OutcomeStatus.ERRORED,
             tokens_in=1,
             tokens_out=1,
             tokens_in_by_model={"m": 1},
             tokens_out_by_model={"m": 1},
             reconstructed_per_task_cost_usd=None,
             reported_run_total_cost_usd=reported_total,
-            cost_provenance="as_reported_only",
+            cost_provenance=CostProvenance.AS_REPORTED_ONLY,
             rerun_metadata={},
         )
 
@@ -80,39 +81,45 @@ def test_as_reported_only__renderer_emits_caveat_block_and_omits_price_pin_metad
         assert "price_table_pinned_at" not in row["rerun_metadata"]
 
     # Use a stub two-agent study so analyze() runs cleanly.
-    study = StudySpec(
-        id="tau-bench-airline-tool-calling-prop",
-        benchmark="tau-bench",
-        analysis_mode="declared_reanalysis",
-        data_observation="full_seen",
-        harness="tau_bench_tool_calling",
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[
-            {"id": "Taubench ToolCalling (claude-3.7-sonnet)"},
-            {"id": "Taubench ToolCalling (o4-mini-2025-04-16 high)"},
-        ],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": 1,
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": 0.05,
-        },
-        cost={"metrics": ["cost_per_success_usd"], "primary_view": "pareto_frontier"},
-        claims=[
-            {
-                "id": "c1",
-                "text": "claude vs o4mini",
-                "treatment": "Taubench ToolCalling (claude-3.7-sonnet)",
-                "control": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
-                "outcome": "success_rate",
-            }
-        ],
+    study = StudySpec.model_validate(
+        {
+            "id": "tau-bench-airline-tool-calling-prop",
+            "benchmark": "tau-bench",
+            "analysis_mode": "declared_reanalysis",
+            "data_observation": "full_seen",
+            "harness": "tau_bench_tool_calling",
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [
+                {"id": "Taubench ToolCalling (claude-3.7-sonnet)"},
+                {"id": "Taubench ToolCalling (o4-mini-2025-04-16 high)"},
+            ],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": 1,
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": 0.05,
+            },
+            "cost": {"metrics": ["cost_per_success_usd"], "primary_view": "pareto_frontier"},
+            "claims": [
+                {
+                    "id": "c1",
+                    "text": "claude vs o4mini",
+                    "treatment": "Taubench ToolCalling (claude-3.7-sonnet)",
+                    "control": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
     runs_two = runs.filter(
         pl.col("agent_id").is_in(

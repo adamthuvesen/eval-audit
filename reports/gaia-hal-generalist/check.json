@@ -1,7 +1,9 @@
 {
   "checks": [
     {
-      "details": {},
+      "details": {
+        "path": "studies/gaia-hal-generalist.yaml"
+      },
       "fix_suggestion": null,
       "id": "study_loads",
       "message": "study YAML loaded",
@@ -10,6 +12,7 @@
     },
     {
       "details": {
+        "path": "scouting/candidates/gaia/sample.parquet",
         "rows": 330
       },
       "fix_suggestion": null,

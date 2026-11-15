@@ -11,14 +11,35 @@ SemVer tags so a reader can navigate the methodology history.
 
 ## [Unreleased]
 
+### Changed
+
+- Analysis, readiness, reports, and gates share one strict evidence boundary.
+  Invalid canonical booleans, duplicate observations, inconsistent run totals,
+  and missing declared competitors now fail before inference.
+- Sensitivity recomputes the complete claim family and alpha-specific intervals.
+  Unavailable scenarios have no verdict. Quality exclusion preserves baseline cost accounting.
+- `report` publishes complete artifacts without running pytest. `--skip-validation` is a deprecated no-op.
+- Artifact publication serializes writers, rejects path escapes, and exposes interrupted writes.
+  Portfolio inspection validates typed summaries and hashes, including optional HTML.
+- Source provenance follows the selected file. Residual-risk documents require explicit fixture bindings.
+- `analysis.json` adds authoritative settings and retains its legacy seed field.
+  Summary schema version 1 remains supported, with stricter consistency validation.
+- Fixture regeneration uses explicit immutable-cache replay or revision-pinned refresh.
+- Historical HumanEval host grading now refuses execution without an isolated backend.
+  Existing evidence stays unchanged. New normalization requires completed-check receipts.
+
 ### Added
 
+- `eval-audit spec schema --model study|run|summary`, derived from the canonical models.
+- Installed-wheel workflow verification without development dependencies.
+- Finite synthetic calibration, publication fault injection, and source-binding failure checks.
+- Locked setup and focused Make targets, plus architecture and ownership documentation.
 - Mypy type checking to the local and CI `make check` gate.
 
 ### Removed
 
 - Unused report-pipeline internals and a decision-document path that the report
-  discarded. Report output is unchanged.
+  discarded.
 
 ## [1.0.0] - 2026-05-03
 

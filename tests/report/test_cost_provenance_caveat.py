@@ -13,46 +13,53 @@ FIXED_CLOCK = datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC)
 def _stub_study_for_taubench():
     from eval_audit.schema import StudySpec
 
-    return StudySpec(
-        id="tau-bench-airline-tool-calling-stub",
-        benchmark="tau-bench",
-        analysis_mode="declared_reanalysis",
-        data_observation="full_seen",
-        harness="tau_bench_tool_calling",
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[
-            {"id": "Taubench ToolCalling (claude-3.7-sonnet)"},
-            {"id": "Taubench ToolCalling (o4-mini-2025-04-16 high)"},
-        ],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": 1,
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": 0.05,
-        },
-        cost={
-            "metrics": ["reported_run_total_cost_usd", "cost_per_success_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": "claude_vs_o4mini",
-                "text": "claude vs o4mini under tool calling",
-                "treatment": "Taubench ToolCalling (claude-3.7-sonnet)",
-                "control": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
-                "outcome": "success_rate",
-            }
-        ],
+    return StudySpec.model_validate(
+        {
+            "id": "tau-bench-airline-tool-calling-stub",
+            "benchmark": "tau-bench",
+            "analysis_mode": "declared_reanalysis",
+            "data_observation": "full_seen",
+            "harness": "tau_bench_tool_calling",
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [
+                {"id": "Taubench ToolCalling (claude-3.7-sonnet)"},
+                {"id": "Taubench ToolCalling (o4-mini-2025-04-16 high)"},
+            ],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": 1,
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": 0.05,
+            },
+            "cost": {
+                "metrics": ["reported_run_total_cost_usd", "cost_per_success_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": "claude_vs_o4mini",
+                    "text": "claude vs o4mini under tool calling",
+                    "treatment": "Taubench ToolCalling (claude-3.7-sonnet)",
+                    "control": "Taubench ToolCalling (o4-mini-2025-04-16 high)",
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
 
 def _render_taubench_report(repo_root: Path, readiness_kwargs) -> str:
+    from eval_audit.evidence_types import EvidenceSource
     from eval_audit.ingest.hal_tau_bench import HalTauBenchAdapter
     from eval_audit.report.markdown import render_report
     from eval_audit.stats import analyze
@@ -77,6 +84,11 @@ def _render_taubench_report(repo_root: Path, readiness_kwargs) -> str:
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=repo_root,
+        source=EvidenceSource.from_path(
+            repo_root / "scouting/candidates/tau-bench/sample.parquet",
+            source_kind="adapter",
+            source_dir=repo_root / "scouting/candidates/tau-bench",
+        ),
         bootstrap_iterations=500,
         bootstrap_seed=42,
         **readiness_kwargs(study, runs, repo_root),
@@ -92,7 +104,6 @@ def test_caveat__as_reported_only_renders_sub_block(repo_root: Path, readiness_k
     """
     text = _render_taubench_report(repo_root, readiness_kwargs)
 
-    # Sub-block exists.
     assert "### Cost provenance caveat" in text
 
     # Sections appear in the correct order.
@@ -114,6 +125,7 @@ def test_caveat__as_reported_only_renders_sub_block(repo_root: Path, readiness_k
 
 def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path, readiness_kwargs) -> None:
     """Reconciled fixtures do not get a cost-provenance caveat warning block."""
+    from eval_audit.evidence_types import EvidenceSource
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.report.markdown import render_report
     from eval_audit.schema import StudySpec
@@ -130,6 +142,11 @@ def test_caveat__reconciled_fixture_omits_sub_block(repo_root: Path, readiness_k
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=repo_root,
+        source=EvidenceSource.from_path(
+            repo_root / "scouting/candidates/gaia/sample.parquet",
+            source_kind="adapter",
+            source_dir=repo_root / "scouting/candidates/gaia",
+        ),
         bootstrap_iterations=10_000,
         bootstrap_seed=42,
         **readiness_kwargs(study, runs, repo_root),
@@ -210,6 +227,7 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
     """
     import shutil
 
+    from eval_audit.evidence_types import EvidenceSource
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
     from eval_audit.report.markdown import render_report
     from eval_audit.schema import StudySpec
@@ -235,6 +253,11 @@ def test_residual_risks__missing_decision_doc_renders_placeholder(
         git_commit="snapshot",
         fixture_sha256="0" * 64,
         repo_root=shadow_root,
+        source=EvidenceSource.from_path(
+            shadow_root / "scouting/candidates/gaia/sample.parquet",
+            source_kind="adapter",
+            source_dir=shadow_root / "scouting/candidates/gaia",
+        ),
         bootstrap_iterations=200,
         bootstrap_seed=42,
     )

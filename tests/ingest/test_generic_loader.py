@@ -67,3 +67,29 @@ def test_generic_loader__byo_example_feeds_analyze_end_to_end(repo_root: Path) -
     assert len(result.claims) == 1
     claim = result.claims[0]
     assert claim.delta_point_estimate == pytest.approx(0.4, abs=1e-9)
+
+
+def test_generic_loader__coercible_success_is_rejected_before_polars_analysis(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    runs = pl.read_parquet(repo_root / "examples/byo-minimal/runs.parquet")
+    path = tmp_path / "string-success.parquet"
+    runs.with_columns(pl.col("success").cast(pl.String)).write_parquet(path)
+    with pytest.raises(IngestContractError, match="success") as error:
+        load_run_records(path)
+    assert error.value.row_index == 0
+    assert error.value.field_path == "success"
+
+
+def test_generic_loader__polars_token_struct_null_padding_is_accepted(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    runs = pl.read_parquet(repo_root / "examples/byo-minimal/runs.parquet")
+    rows = runs.to_dicts()
+    rows[0]["tokens_in_by_model"] = {"first-model": 2}
+    rows[1]["tokens_in_by_model"] = {"second-model": 3}
+    path = tmp_path / "token-structs.parquet"
+    pl.DataFrame(rows).write_parquet(path)
+    loaded = load_run_records(path)
+    assert loaded.height == len(rows)
+    assert loaded["tokens_in_by_model"][0]["first-model"] == 2

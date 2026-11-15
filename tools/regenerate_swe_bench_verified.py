@@ -18,7 +18,7 @@ list of instance_ids) in a deterministic order.
 
 Usage:
 
-    uv run python tools/regenerate_swe_bench_verified.py
+    uv run --locked python tools/regenerate_swe_bench_verified.py --cache-dir .scout-cache/swe-pinned
 """
 
 from __future__ import annotations
@@ -26,25 +26,31 @@ from __future__ import annotations
 import hashlib
 import io
 import json
-import urllib.request
-from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
 from eval_audit.ingest.swe_bench_verified import (
     SWE_BENCH_VERIFIED_TASK_COUNT,
+    SweBenchVerifiedAdapter,
     build_canonical_frame,
+)
+from tools.fixture_io import (
+    FixtureSources,
+    check_refresh_destination,
+    immutable_revision,
+    promote_fixture,
+    regeneration_parser,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = REPO_ROOT / "examples" / "swe-bench-verified-openhands"
 
 VERIFIED_PARQUET_URL = (
-    "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/resolve/main/"
+    "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/resolve/{revision}/"
     "data/test-00000-of-00001.parquet"
 )
-EXPERIMENTS_REPO_API = "https://api.github.com/repos/swe-bench/experiments/commits/main"
 RESULTS_URL_TEMPLATE = (
     "https://raw.githubusercontent.com/swe-bench/experiments/{commit}/"
     "evaluation/verified/{submission}/results/results.json"
@@ -57,11 +63,6 @@ TREATMENT_MODEL_ID = "claude-opus-4-5-202511017"
 CONTROL_MODEL_ID = "gpt-5-2025-08-07"
 
 
-def _fetch(url: str) -> bytes:
-    with urllib.request.urlopen(url) as resp:
-        return resp.read()
-
-
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -71,6 +72,8 @@ def _load_task_universe(parquet_bytes: bytes) -> list[str]:
     if "instance_id" not in frame.columns:
         raise RuntimeError("SWE-bench Verified parquet is missing 'instance_id' column")
     universe = frame["instance_id"].to_list()
+    if any(not isinstance(task, str) or not task for task in universe):
+        raise ValueError("Verified parquet instance_ids must be non-empty strings")
     if len(universe) != SWE_BENCH_VERIFIED_TASK_COUNT:
         raise RuntimeError(
             f"Expected {SWE_BENCH_VERIFIED_TASK_COUNT} Verified tasks; got {len(universe)}"
@@ -80,29 +83,49 @@ def _load_task_universe(parquet_bytes: bytes) -> list[str]:
     return sorted(universe)
 
 
-def _load_results_json(commit: str, submission: str) -> tuple[bytes, dict]:
+def _load_results_json(
+    sources: FixtureSources, commit: str, submission: str
+) -> tuple[bytes, dict[str, Any]]:
     url = RESULTS_URL_TEMPLATE.format(commit=commit, submission=submission)
-    raw = _fetch(url)
+    raw = sources.read(url)
     parsed = json.loads(raw.decode("utf-8"))
+    if not isinstance(parsed, dict) or "resolved" not in parsed:
+        raise ValueError(f"{submission}: expected a results object with resolved task IDs")
+    for field in ("resolved", "no_generation", "no_logs"):
+        values = parsed.get(field, [])
+        if not isinstance(values, list) or any(
+            not isinstance(task, str) or not task for task in values
+        ):
+            raise ValueError(f"{submission}: {field} must be a list of non-empty task IDs")
+        if len(values) != len(set(values)):
+            raise ValueError(f"{submission}: duplicate task IDs in {field}")
     return raw, parsed
 
 
 def main() -> None:
-    print("Resolving swe-bench/experiments main commit...")
-    api = json.loads(_fetch(EXPERIMENTS_REPO_API).decode("utf-8"))
-    pinned_commit = api["sha"]
-    print(f"  pinned_commit={pinned_commit}")
-
-    print(f"Fetching SWE-bench Verified test split parquet ({VERIFIED_PARQUET_URL})...")
-    verified_bytes = _fetch(VERIFIED_PARQUET_URL)
+    parser = regeneration_parser(__doc__ or "Regenerate fixture", FIXTURE_DIR)
+    parser.add_argument("--experiments-revision", type=immutable_revision)
+    args = parser.parse_args()
+    check_refresh_destination(args.mode, args.output_dir, args.accept_evidence_change)
+    revisions = {}
+    if args.mode == "refresh":
+        if not args.revision or not args.experiments_revision:
+            parser.error("refresh requires --revision and --experiments-revision")
+        revisions = {"dataset": args.revision, "experiments": args.experiments_revision}
+    elif args.revision or args.experiments_revision:
+        parser.error("replay uses revisions from the cache manifest")
+    sources = FixtureSources(args.cache_dir, mode=args.mode, revisions=revisions)
+    pinned_commit = sources.manifest.revisions["experiments"]
+    verified_url = VERIFIED_PARQUET_URL.format(revision=sources.manifest.revisions["dataset"])
+    verified_bytes = sources.read(verified_url)
     universe = _load_task_universe(verified_bytes)
     print(f"  loaded {len(universe)} instance_ids")
 
-    print(f"Fetching {TREATMENT_DIR}/results.json ...")
-    treat_raw, treat_parsed = _load_results_json(pinned_commit, TREATMENT_DIR)
+    print(f"Reading {TREATMENT_DIR}/results.json ...")
+    treat_raw, treat_parsed = _load_results_json(sources, pinned_commit, TREATMENT_DIR)
     print(f"  resolved={len(treat_parsed['resolved'])}")
-    print(f"Fetching {CONTROL_DIR}/results.json ...")
-    ctrl_raw, ctrl_parsed = _load_results_json(pinned_commit, CONTROL_DIR)
+    print(f"Reading {CONTROL_DIR}/results.json ...")
+    ctrl_raw, ctrl_parsed = _load_results_json(sources, pinned_commit, CONTROL_DIR)
     print(f"  resolved={len(ctrl_parsed['resolved'])}")
 
     submissions = {
@@ -129,18 +152,14 @@ def main() -> None:
     print(f"  treatment success count: {treat_succ}/{SWE_BENCH_VERIFIED_TASK_COUNT}")
     print(f"  control success count:   {ctrl_succ}/{SWE_BENCH_VERIFIED_TASK_COUNT}")
 
-    FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
-    runs_path = FIXTURE_DIR / "runs.parquet"
-    frame.write_parquet(runs_path)
-    print(f"Wrote {runs_path} ({frame.height} rows)")
-
     provenance = {
         "scouting_decision": "scouting/swe-bench-verified-openhands-decision.md",
         "swe_bench_experiments_commit": pinned_commit,
-        "fetched_at_utc": datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dataset_revision": sources.manifest.revisions["dataset"],
+        "fetched_at_utc": sources.manifest.recorded_at,
         "sources": [
             {
-                "url": VERIFIED_PARQUET_URL,
+                "url": verified_url,
                 "sha256": _sha256(verified_bytes),
                 "purpose": "SWE-bench Verified 500-task universe",
             },
@@ -176,10 +195,30 @@ def main() -> None:
             "omits cost-derived columns and Pareto views."
         ),
     }
-    provenance_path = FIXTURE_DIR / "provenance.json"
-    provenance_path.write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n")
-    print(f"Wrote {provenance_path}")
+    SweBenchVerifiedAdapter().validate(frame)
+    sources.save_manifest()
+    promote_fixture(
+        frame,
+        provenance,
+        args.output_dir,
+        SweBenchVerifiedAdapter().load,
+        accept_evidence_change=args.accept_evidence_change,
+    )
+    print(f"Wrote validated fixture to {args.output_dir}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (
+        ValueError,
+        RuntimeError,
+        OSError,
+        KeyError,
+        TypeError,
+        pl.exceptions.PolarsError,
+    ) as exc:
+        import sys
+
+        print(f"fixture regeneration failed: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None

@@ -416,3 +416,44 @@ claims:
     msg = str(exc_info.value)
     assert "latency_s" in msg
     assert "cost.metrics" in msg
+
+
+@pytest.mark.parametrize("study_id", ["", " ", ".", "..", "../escape", "a/b", "a\\b", "a\x00b"])
+def test_study_id_must_be_a_safe_single_path_component(tmp_path: Path, study_id: str) -> None:
+    import yaml
+    from pydantic import ValidationError
+
+    from eval_audit.schema import StudySpec
+
+    data = yaml.safe_load(_minimal_valid_study_yaml())
+    data["id"] = study_id
+    with pytest.raises(ValidationError, match="single path component"):
+        StudySpec.model_validate(data)
+
+
+def test_study_rejects_duplicate_agents_and_empty_cost_metrics() -> None:
+    import yaml
+    from pydantic import ValidationError
+
+    from eval_audit.schema import StudySpec
+
+    data = yaml.safe_load(_minimal_valid_study_yaml())
+    data["agents"].append({"id": "a"})
+    data["cost"]["metrics"] = []
+    with pytest.raises(ValidationError) as error:
+        StudySpec.model_validate(data)
+    assert "duplicate agent" in str(error.value)
+    assert "cost.metrics" in str(error.value)
+
+
+@pytest.mark.parametrize("study_id", [".audit-stage-", ".audit-stage-user"])
+def test_study_id_rejects_reserved_staging_namespace(study_id: str) -> None:
+    import yaml
+    from pydantic import ValidationError
+
+    from eval_audit.schema import StudySpec
+
+    data = yaml.safe_load(_minimal_valid_study_yaml())
+    data["id"] = study_id
+    with pytest.raises(ValidationError, match="reserved staging prefix"):
+        StudySpec.model_validate(data)

@@ -12,20 +12,17 @@ Writes:
 
 Usage:
 
-    uv run python tools/regenerate_terminal_bench_mux.py
+    uv run --locked python tools/regenerate_terminal_bench_mux.py --cache-dir .scout-cache/terminal-pinned
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import time
-import urllib.error
 import urllib.parse
-import urllib.request
-from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import yaml
@@ -34,6 +31,12 @@ from eval_audit.ingest.terminal_bench import (
     TERMINAL_BENCH_2_TASK_COUNT,
     TerminalBenchMuxAdapter,
     build_canonical_frame,
+)
+from tools.fixture_io import (
+    FixtureSources,
+    check_refresh_destination,
+    promote_fixture,
+    regeneration_parser,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -58,33 +61,18 @@ SUBMISSIONS = {
 }
 
 
-def _api_tree(path: str) -> list[dict]:
+def _api_tree(sources: FixtureSources, path: str) -> list[dict[str, Any]]:
     quoted = urllib.parse.quote(path, safe="/")
-    url = f"https://huggingface.co/api/datasets/{DATASET_ID}/tree/main/{quoted}"
-    with urllib.request.urlopen(url) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    url = f"https://huggingface.co/api/datasets/{DATASET_ID}/tree/{sources.manifest.revisions['dataset']}/{quoted}?limit=1000"
+    items = json.loads(sources.read(url))
+    if not isinstance(items, list) or len(items) >= 1000:
+        raise ValueError("invalid or paginated dataset tree response")
+    return items
 
 
-def _resolve_url(path: str) -> str:
+def _resolve_url(sources: FixtureSources, path: str) -> str:
     quoted = urllib.parse.quote(path, safe="/")
-    return f"{DATASET_ROOT_URL}/resolve/main/{quoted}"
-
-
-def _fetch(url: str) -> bytes:
-    last_error: urllib.error.HTTPError | None = None
-    for attempt in range(5):
-        try:
-            with urllib.request.urlopen(url) as resp:
-                return resp.read()
-        except urllib.error.HTTPError as exc:
-            last_error = exc
-            if exc.code != 429 or attempt == 4:
-                raise
-            retry_after = exc.headers.get("Retry-After")
-            delay = float(retry_after) if retry_after else 2.0 * (attempt + 1)
-            time.sleep(delay)
-    assert last_error is not None
-    raise last_error
+    return f"{DATASET_ROOT_URL}/resolve/{sources.manifest.revisions['dataset']}/{quoted}"
 
 
 def _sha256(data: bytes) -> str:
@@ -95,19 +83,19 @@ def _submission_path(submission: str) -> str:
     return f"{SUBMISSION_ROOT}/{submission}"
 
 
-def _metadata(submission: str) -> tuple[dict, bytes]:
+def _metadata(sources: FixtureSources, submission: str) -> tuple[dict[str, Any], bytes]:
     path = f"{_submission_path(submission)}/metadata.yaml"
-    raw = _fetch(_resolve_url(path))
+    raw = sources.read(_resolve_url(sources, path))
     return yaml.safe_load(raw.decode("utf-8")), raw
 
 
-def _job_dirs(submission: str) -> list[str]:
-    items = _api_tree(_submission_path(submission))
+def _job_dirs(sources: FixtureSources, submission: str) -> list[str]:
+    items = _api_tree(sources, _submission_path(submission))
     return sorted(item["path"].split("/")[-1] for item in items if item["type"] == "directory")
 
 
-def _task_trial_dirs(submission: str, run_id: str) -> list[str]:
-    items = _api_tree(f"{_submission_path(submission)}/{run_id}")
+def _task_trial_dirs(sources: FixtureSources, submission: str, run_id: str) -> list[str]:
+    items = _api_tree(sources, f"{_submission_path(submission)}/{run_id}")
     task_dirs = sorted(item["path"].split("/")[-1] for item in items if item["type"] == "directory")
     if len(task_dirs) != TERMINAL_BENCH_2_TASK_COUNT:
         raise RuntimeError(
@@ -117,29 +105,48 @@ def _task_trial_dirs(submission: str, run_id: str) -> list[str]:
     return task_dirs
 
 
-def _result(submission: str, run_id: str, trial_dir: str) -> tuple[dict, bytes]:
+def _result(
+    sources: FixtureSources, submission: str, run_id: str, trial_dir: str
+) -> tuple[dict[str, Any], bytes]:
     rel_path = f"{_submission_path(submission)}/{run_id}/{trial_dir}/result.json"
-    raw = _fetch(_resolve_url(rel_path))
+    raw = sources.read(_resolve_url(sources, rel_path))
     parsed = json.loads(raw.decode("utf-8"))
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{rel_path}: expected a result object")
+    usage = parsed.get("agent_result")
+    if not isinstance(usage, dict):
+        raise ValueError(f"{rel_path}: missing agent_result usage")
+    for field in ("n_input_tokens", "n_output_tokens"):
+        if type(usage.get(field)) is not int or usage[field] < 0:
+            raise ValueError(f"{rel_path}: {field} must be an explicit non-negative integer")
+    timestamps = []
+    for field in ("started_at", "finished_at"):
+        value = parsed.get(field)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"{rel_path}: missing {field} timestamp")
+        timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if timestamp.tzinfo is None:
+            raise ValueError(f"{rel_path}: {field} must include a timezone")
+        timestamps.append(timestamp)
+    if timestamps[1] < timestamps[0]:
+        raise ValueError(f"{rel_path}: finished_at precedes started_at")
     parsed["_submission_path"] = rel_path
     return parsed, raw
 
 
-def _load_submission(submission: str) -> tuple[dict, dict]:
-    metadata, metadata_raw = _metadata(submission)
-    runs: dict[str, list[dict]] = {}
+def _load_submission(
+    sources: FixtureSources, submission: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    metadata, metadata_raw = _metadata(sources, submission)
+    runs: dict[str, list[dict[str, Any]]] = {}
     manifest_hash = hashlib.sha256()
     manifest_hash.update(metadata_raw)
     result_count = 0
 
-    for run_id in _job_dirs(submission):
-        task_dirs = _task_trial_dirs(submission, run_id)
+    for run_id in _job_dirs(sources, submission):
+        task_dirs = _task_trial_dirs(sources, submission, run_id)
 
-        def fetch_trial(trial_dir: str, run_id: str = run_id) -> tuple[dict, bytes]:
-            return _result(submission, run_id, trial_dir)
-
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            fetched = list(executor.map(fetch_trial, task_dirs))
+        fetched = [_result(sources, submission, run_id, trial_dir) for trial_dir in task_dirs]
         runs[run_id] = [parsed for parsed, _raw in fetched]
         for _parsed, raw in fetched:
             manifest_hash.update(raw)
@@ -156,14 +163,26 @@ def _load_submission(submission: str) -> tuple[dict, dict]:
 
 
 def main() -> None:
-    fetched_at = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    submissions: dict[str, dict] = {}
-    submission_provenance: dict[str, dict] = {}
+    parser = regeneration_parser(__doc__ or "Regenerate fixture", FIXTURE_DIR)
+    args = parser.parse_args()
+    check_refresh_destination(args.mode, args.output_dir, args.accept_evidence_change)
+    if args.mode == "refresh" and not args.revision:
+        parser.error("refresh requires --revision")
+    if args.mode == "replay" and args.revision:
+        parser.error("replay uses the revision from the cache manifest")
+    sources = FixtureSources(
+        args.cache_dir,
+        mode=args.mode,
+        revisions={"dataset": args.revision} if args.mode == "refresh" else {},
+    )
+    fetched_at = sources.manifest.recorded_at
+    submissions: dict[str, dict[str, Any]] = {}
+    submission_provenance: dict[str, dict[str, Any]] = {}
 
-    print("Fetching Terminal-Bench 2.0 Mux submissions from Hugging Face...")
+    print(f"Reading Terminal-Bench 2.0 Mux sources ({args.mode})...")
     for submission in SUBMISSIONS:
         print(f"  {submission}")
-        parsed, provenance = _load_submission(submission)
+        parsed, provenance = _load_submission(sources, submission)
         submissions[submission] = parsed
         submission_provenance[submission] = provenance
         print(f"    runs={len(parsed['runs'])}, result_json={provenance['result_json_count']}")
@@ -175,14 +194,10 @@ def main() -> None:
         submission_rows = frame.filter(pl.col("agent_id") == submission).height
         print(f"  {submission}: {success_count}/{submission_rows}")
 
-    FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
-    runs_path = FIXTURE_DIR / "runs.parquet"
-    frame.write_parquet(runs_path)
-    print(f"Wrote {runs_path} ({frame.height} rows)")
-
     provenance = {
         "scouting_decision": "scouting/terminal-bench-2-mux-decision.md",
         "fetched_at_utc": fetched_at,
+        "dataset_revision": sources.manifest.revisions["dataset"],
         "retrieved_at": fetched_at,
         "source_url": LEADERBOARD_URL,
         "sources": [
@@ -199,7 +214,9 @@ def main() -> None:
             submission: {
                 **SUBMISSIONS[submission],
                 **submission_provenance[submission],
-                "metadata_url": _resolve_url(f"{_submission_path(submission)}/metadata.yaml"),
+                "metadata_url": _resolve_url(
+                    sources, f"{_submission_path(submission)}/metadata.yaml"
+                ),
             }
             for submission in SUBMISSIONS
         },
@@ -216,11 +233,30 @@ def main() -> None:
             "suppresses cost-derived report views."
         ),
     }
-    provenance_path = FIXTURE_DIR / "provenance.json"
-    provenance_path.write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n")
-    TerminalBenchMuxAdapter().load(FIXTURE_DIR)
-    print(f"Wrote {provenance_path}")
+    sources.save_manifest()
+    promote_fixture(
+        frame,
+        provenance,
+        args.output_dir,
+        TerminalBenchMuxAdapter().load,
+        accept_evidence_change=args.accept_evidence_change,
+    )
+    print(f"Wrote validated fixture to {args.output_dir}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (
+        ValueError,
+        RuntimeError,
+        OSError,
+        KeyError,
+        TypeError,
+        yaml.YAMLError,
+        pl.exceptions.PolarsError,
+    ) as exc:
+        import sys
+
+        print(f"fixture regeneration failed: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None

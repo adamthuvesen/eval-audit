@@ -15,6 +15,13 @@ from eval_audit.schema import RunRecord
 class IngestContractError(RuntimeError):
     """Raised when a fixture or loaded frame violates the canonical contract."""
 
+    def __init__(
+        self, message: str, *, row_index: int | None = None, field_path: str | None = None
+    ) -> None:
+        super().__init__(message)
+        self.row_index = row_index
+        self.field_path = field_path
+
 
 @runtime_checkable
 class IngestAdapter(Protocol):
@@ -102,11 +109,12 @@ def validate_run_records(frame: pl.DataFrame) -> None:
             RunRecord.model_validate(row)
         except ValidationError as exc:
             first = exc.errors()[0] if exc.errors() else None
+            field_path = None
             if first is None:
                 summary = f"row {idx} violates RunRecord"
             else:
                 field_path = ".".join(str(p) for p in first.get("loc", ())) or "<unknown>"
                 msg = first.get("msg", "validation failed")
                 bad_value = first.get("input", "<n/a>")
-                summary = f"row {idx}, field {field_path!r}: value {bad_value!r} — {msg}"
-            raise IngestContractError(summary) from exc
+                summary = f"row {idx}, field {field_path!r}: value {bad_value!r}: {msg}"
+            raise IngestContractError(summary, row_index=idx, field_path=field_path) from exc

@@ -24,8 +24,10 @@ Every `study.yaml` MUST populate every required field listed below. Optional fie
 
 ### id
 
-- **Type:** `str` (required, non-null)
-- **Used by analysis:** yes; appears in the rendered report's Study section and in the snapshot file names.
+- **Type:** `str` (required, non-null, non-blank single path component)
+- **Constraint:** must not be `.` or `..`, and must not contain `/`, `\`, or a null character.
+- **Reserved namespace:** IDs must not start with `.audit-stage-`. Publication uses this prefix for internal staging directories. This intentionally rejects previously accepted IDs that portfolio discovery would hide.
+- **Used by analysis:** yes; appears in the rendered report's Study section and in the `reports/<id>/` directory name.
 - **BYO guidance:** a stable kebab-case identifier (e.g., `byo-minimal`, `my-study`). When `eval-audit init <name>` scaffolds a study, this value is derived from `<name>`.
 
 ### benchmark
@@ -49,7 +51,7 @@ Every `study.yaml` MUST populate every required field listed below. Optional fie
 ### harness
 
 - **Type:** `str` (required, non-null)
-- **Used by analysis:** yes; `eval-audit` refuses cross-harness comparisons. Every `RunRecord` in the audit MUST have a `harness` field matching this value. `CrossHarnessComparisonError` applies when treatment and control harnesses differ; `AnalysisInputError` covers missing rows, per-agent harness mismatch, or rows that do not match `study.harness`.
+- **Used by analysis:** yes; `eval-audit` refuses cross-harness comparisons. Every row for a declared agent MUST have a `harness` field matching this value. Rows for unrelated agents are excluded. `CrossHarnessComparisonError` applies when treatment and control harnesses differ; `AnalysisInputError` covers missing rows, per-agent harness mismatch, or rows that do not match `study.harness`.
 - **BYO guidance:** a stable string naming the scaffold or agent framework. For BYO data, often the same as `benchmark`.
 
 ### primary_outcome
@@ -60,9 +62,9 @@ Every `study.yaml` MUST populate every required field listed below. Optional fie
 
 ### agents
 
-- **Type:** `list[AgentRef]` (required, non-empty); see the `## AgentRef` section below.
+- **Type:** `list[AgentRef]` (required, non-empty, unique IDs); see the `## AgentRef` section below.
 - **Used by analysis:** yes; declares which agent IDs are valid claim treatments and controls. Every `RunRecord.agent_id` referenced in a claim MUST appear here.
-- **BYO guidance:** list every agent that participates in any claim. The `id` strings are pass-throughs from the run data; they MUST match `RunRecord.agent_id` byte-for-byte.
+- **BYO guidance:** list every agent that participates in any claim or the Pareto frontier. The `id` strings are pass-throughs from the run data; they MUST match `RunRecord.agent_id` byte-for-byte.
 
 ### design
 
@@ -80,6 +82,9 @@ Every `study.yaml` MUST populate every required field listed below. Optional fie
 
 - **Type:** `CostConfig` object (required); see the `## CostConfig` section below.
 - **Used by analysis:** yes; drives the cost-quality view (Pareto frontier).
+`cost.metrics` declares supported cost views. It does not select an inference algorithm
+or hide canonical cost summaries. The engine preserves its v0 accounting policy.
+
 - **v0 constraint:** `cost.primary_view` MUST be `"pareto_frontier"`. `cost.metrics` MUST be a subset of `{reconstructed_per_task_cost_usd, reported_run_total_cost_usd, cost_per_success_usd}`.
 
 ### claims
@@ -211,7 +216,10 @@ One paired-task comparison the audit evaluates.
 ## Constraints worth knowing
 
 - `schema_version` MUST be `1` in this version of `eval-audit`.
-- `agents` and `claims` MUST be non-empty.
+- `agents`, `claims`, and `cost.metrics` MUST be non-empty.
+- Agent IDs MUST be unique within a study.
+- `id` MUST be a safe single path component.
+- Every declared agent MUST have rows under `study.harness`, identical task coverage, and the declared run exposure.
 - `primary_outcome.name == "success_rate"`, `primary_outcome.unit == "task"`, and `primary_outcome.direction == "higher_is_better"` in v0.
 - `inference.target_mde` MUST be `> 0` and `<= 1` when declared.
 - Every `Claim.outcome` MUST equal `primary_outcome.name`.

@@ -15,3 +15,11 @@ both are pinned to the code by doc-parity tests under `tests/docs/`.
 - When expanding v0 scope, update schema, analysis, report rendering,
   snapshots, CLI behavior, and docs together, including the parity-checked
   field reference docs.
+
+Canonical `RunRecord` boolean, numeric, and datetime values use strict physical types.
+Finite numeric constraints reject NaN and infinity before Polars computes statistics.
+Enum strings remain accepted canonical encodings. Token structs may contain null padding from Polars.
+
+`StudySpec` rejects duplicate agent IDs, empty cost metrics, and unsafe study IDs.
+Evidence preparation revalidates a defensive study copy because nested declarations remain mutable.
+The prepared frames and study copy remain mutable too. Consumers must treat them as owned, read-only evidence.

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from eval_audit.report.presentation import StudyPresentation
 from eval_audit.schema.enums import CostProvenance
 
@@ -30,7 +32,7 @@ def cost_caveat_one_liner(
     return "control cost is zero, so the cost ratio is undefined"
 
 
-def render_as_reported_only_caveat(cost_recon_data: dict) -> list[str]:
+def render_as_reported_only_caveat(cost_recon_data: dict[str, Any]) -> list[str]:
     """Markdown lines for the as_reported_only cost provenance subsection."""
     parts: list[str] = []
     parts.append("### Cost provenance caveat\n")

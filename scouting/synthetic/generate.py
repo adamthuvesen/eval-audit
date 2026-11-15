@@ -28,11 +28,11 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
 import tempfile
 from itertools import combinations
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pyarrow as pa
@@ -57,7 +57,7 @@ def sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
-def _load_spec() -> dict:
+def _load_spec() -> dict[str, Any]:
     spec = yaml.safe_load(SPEC_PATH.read_text())
     criteria = spec.get("acceptance_criteria") or {}
     missing = [k for k in REQUIRED_CRITERIA_KEYS if k not in criteria]
@@ -70,7 +70,9 @@ def _load_spec() -> dict:
     return spec
 
 
-def _generate_to(spec: dict, runs_path: Path, truth_path: Path) -> tuple[list[dict], dict]:
+def generate_to(
+    spec: dict[str, Any], runs_path: Path, truth_path: Path
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Run generation against arbitrary output paths; return (rows, truth dict)."""
     rng = np.random.default_rng(spec["design"]["random_seed"])
     n_tasks = spec["design"]["n_tasks"]
@@ -217,7 +219,7 @@ def _generate_to(spec: dict, runs_path: Path, truth_path: Path) -> tuple[list[di
 # --- Acceptance criteria checks --------------------------------------------------
 
 
-def _check_primary_delta_proximity(spec: dict, truth: dict) -> tuple[bool, str]:
+def _check_primary_delta_proximity(spec: dict[str, Any], truth: dict[str, Any]) -> tuple[bool, str]:
     primary = spec["inference_targets"]["primary_pair"]
     a_id, b_id = primary[0], primary[1]
     a, b = truth["agents"][a_id], truth["agents"][b_id]
@@ -237,8 +239,8 @@ def _check_primary_delta_proximity(spec: dict, truth: dict) -> tuple[bool, str]:
 
 
 def _check_primary_bootstrap_ci_crosses_zero(
-    spec: dict,
-    rows: list[dict],
+    spec: dict[str, Any],
+    rows: list[dict[str, Any]],
 ) -> tuple[bool, str]:
     primary = spec["inference_targets"]["primary_pair"]
     crit = spec["acceptance_criteria"]
@@ -277,7 +279,7 @@ def _check_primary_bootstrap_ci_crosses_zero(
     )
 
 
-def _check_pareto_membership_match(spec: dict, truth: dict) -> tuple[bool, str]:
+def _check_pareto_membership_match(spec: dict[str, Any], truth: dict[str, Any]) -> tuple[bool, str]:
     expected = set(spec["inference_targets"]["expected_pareto_membership"])
     realized = set(truth["pareto_frontier"])
     if expected == realized:
@@ -291,7 +293,9 @@ def _check_pareto_membership_match(spec: dict, truth: dict) -> tuple[bool, str]:
     )
 
 
-def _check_per_agent_rate_proximity(spec: dict, truth: dict) -> tuple[bool, str]:
+def _check_per_agent_rate_proximity(
+    spec: dict[str, Any], truth: dict[str, Any]
+) -> tuple[bool, str]:
     tol = spec["acceptance_criteria"]["per_agent_rate_tolerance_pp"] / 100.0
     failures: list[str] = []
     for agent_id, a in truth["agents"].items():
@@ -306,10 +310,10 @@ def _check_per_agent_rate_proximity(spec: dict, truth: dict) -> tuple[bool, str]
     return False, "per_agent_rate_proximity FAILED: " + "; ".join(failures)
 
 
-def _evaluate_criteria(
-    spec: dict,
-    rows: list[dict],
-    truth: dict,
+def evaluate_criteria(
+    spec: dict[str, Any],
+    rows: list[dict[str, Any]],
+    truth: dict[str, Any],
 ) -> list[tuple[str, bool, str]]:
     return [
         ("primary_delta_proximity", *_check_primary_delta_proximity(spec, truth)),
@@ -344,8 +348,8 @@ def run(check_only: bool = False) -> int:
     with tempfile.TemporaryDirectory(prefix="eval-audit-synthetic-") as tmp:
         tmp_runs = Path(tmp) / "runs.parquet"
         tmp_truth = Path(tmp) / "truth.json"
-        rows, truth = _generate_to(spec, tmp_runs, tmp_truth)
-        results = _evaluate_criteria(spec, rows, truth)
+        rows, truth = generate_to(spec, tmp_runs, tmp_truth)
+        results = evaluate_criteria(spec, rows, truth)
 
         all_ok = all(ok for _, ok, _ in results)
         for _name, ok, msg in results:
@@ -365,8 +369,8 @@ def run(check_only: bool = False) -> int:
             print("\n--check-only: criteria pass; canonical files NOT touched.")
             return 0
 
-        os.replace(tmp_runs, RUNS_PATH)
-        os.replace(tmp_truth, TRUTH_PATH)
+        tmp_runs.replace(RUNS_PATH)
+        tmp_truth.replace(TRUTH_PATH)
         print(f"\nwrote {RUNS_PATH} ({RUNS_PATH.stat().st_size:,} bytes), {len(rows)} rows")
         print(f"wrote {TRUTH_PATH}")
         print("\nper-agent expected vs observed success rate:")

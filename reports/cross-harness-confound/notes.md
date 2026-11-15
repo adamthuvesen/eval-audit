@@ -18,10 +18,10 @@ This writeup pulls the Tool Calling number from our TAU-bench Airline Tool Calli
 
 ```python
 import json
+
 result = json.load(open("reports/tau-bench-airline-tool-calling/analysis.json"))
 claude = next(
-    a for a in result["per_agent"]
-    if a["agent_id"] == "Taubench ToolCalling (claude-3.7-sonnet)"
+    a for a in result["per_agent"] if a["agent_id"] == "Taubench ToolCalling (claude-3.7-sonnet)"
 )
 print(f"{claude['success_rate']:.4f}")  # -> 0.4400 (22/50, errored counts as failure)
 ```
@@ -36,10 +36,12 @@ Reproducible:
 
 ```python
 import json
+
 prov = json.load(open("scouting/candidates/tau-bench/provenance.json"))
 # Locate the Claude 3.7 Sonnet entry under TAU-bench Tool Calling.
 entry = next(
-    e for e in prov["leaderboard_cross_check"]
+    e
+    for e in prov["leaderboard_cross_check"]
     if "Claude 3.7 Sonnet" in e["agent"] and "Tool Calling" in e["agent"]
 )
 # The note pinpoints which leaderboard row the 56% figure belongs to.

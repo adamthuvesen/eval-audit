@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import polars as pl
 import pytest
 
 
-def _suppressed_row(agent_id: str, task_id: str, success: bool) -> dict:
+def _suppressed_row(agent_id: str, task_id: str, success: bool) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -31,7 +33,7 @@ def _suppressed_row(agent_id: str, task_id: str, success: bool) -> dict:
     }
 
 
-def _reconciled_row(agent_id: str, task_id: str, success: bool) -> dict:
+def _reconciled_row(agent_id: str, task_id: str, success: bool) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -59,39 +61,45 @@ def _reconciled_row(agent_id: str, task_id: str, success: bool) -> dict:
 def _stub_study(treatment: str, control: str, harness: str):
     from eval_audit.schema import StudySpec
 
-    return StudySpec(
-        id="stub",
-        benchmark="stub",
-        analysis_mode="declared_reanalysis",
-        data_observation="full_seen",
-        harness=harness,
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[{"id": treatment}, {"id": control}],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": 1,
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": None,
-        },
-        cost={
-            "metrics": ["reconstructed_per_task_cost_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": "c1",
-                "text": "treatment beats control",
-                "treatment": treatment,
-                "control": control,
-                "outcome": "success_rate",
-            }
-        ],
+    return StudySpec.model_validate(
+        {
+            "id": "stub",
+            "benchmark": "stub",
+            "analysis_mode": "declared_reanalysis",
+            "data_observation": "full_seen",
+            "harness": harness,
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [{"id": treatment}, {"id": control}],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": 1,
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": None,
+            },
+            "cost": {
+                "metrics": ["reconstructed_per_task_cost_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": "c1",
+                    "text": "treatment beats control",
+                    "treatment": treatment,
+                    "control": control,
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
 
@@ -111,7 +119,6 @@ def test_agent_summary__cost_not_available_returns_none_costs() -> None:
     assert by_id["treat"].cost_per_success_usd is None
     assert by_id["ctrl"].total_cost_usd is None
     assert by_id["ctrl"].cost_per_success_usd is None
-    # Outcome accounting unchanged
     assert by_id["treat"].n_graded == 5
     assert by_id["treat"].success_rate == pytest.approx(0.6)
     assert by_id["ctrl"].success_rate == pytest.approx(0.4)

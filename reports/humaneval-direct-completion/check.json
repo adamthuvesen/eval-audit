@@ -1,7 +1,9 @@
 {
   "checks": [
     {
-      "details": {},
+      "details": {
+        "path": "studies/humaneval-direct-completion.yaml"
+      },
       "fix_suggestion": null,
       "id": "study_loads",
       "message": "study YAML loaded",
@@ -10,6 +12,7 @@
     },
     {
       "details": {
+        "path": "examples/humaneval-direct-completion/runs.parquet",
         "rows": 120
       },
       "fix_suggestion": null,

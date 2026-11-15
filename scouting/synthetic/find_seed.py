@@ -17,29 +17,32 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 # Re-use the generator's helpers; this script lives alongside generate.py.
 sys.path.insert(0, str(Path(__file__).parent))
-import generate  # type: ignore[import-not-found]
+import generate
 
 
-def _evaluate_seed(spec_template: dict, seed: int) -> tuple[bool, list[tuple[str, bool, str]]]:
+def _evaluate_seed(
+    spec_template: dict[str, Any], seed: int
+) -> tuple[bool, list[tuple[str, bool, str]]]:
     """Run generation with `seed` against an in-memory spec, return (all_ok, results)."""
     spec = dict(spec_template)
     # Deep-enough copy: design dict is the only place we mutate.
     spec["design"] = {**spec_template["design"], "random_seed": seed}
 
-    # generate._generate_to writes parquet to a real path; use an in-process tempdir.
+    # generate.generate_to writes parquet to a real path; use an in-process tempdir.
     import tempfile
     from pathlib import Path as _P
 
     with tempfile.TemporaryDirectory(prefix=f"seed-{seed}-") as tmp:
         runs_path = _P(tmp) / "runs.parquet"
         truth_path = _P(tmp) / "truth.json"
-        rows, truth = generate._generate_to(spec, runs_path, truth_path)
-        results = generate._evaluate_criteria(spec, rows, truth)
+        rows, truth = generate.generate_to(spec, runs_path, truth_path)
+        results = generate.evaluate_criteria(spec, rows, truth)
 
     return all(ok for _, ok, _ in results), results
 
@@ -71,15 +74,15 @@ def main() -> None:
         f"({'all matches' if args.all else 'first match'})..."
     )
 
-    pass_counts = {
-        name: 0
-        for name in (
+    pass_counts: dict[str, int] = dict.fromkeys(
+        (
             "primary_delta_proximity",
             "primary_bootstrap_ci_crosses_zero",
             "pareto_membership_match",
             "per_agent_rate_proximity",
-        )
-    }
+        ),
+        0,
+    )
     found: list[int] = []
 
     for offset in range(args.budget):

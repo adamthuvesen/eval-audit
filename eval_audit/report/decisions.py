@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from eval_audit.schema.enums import Verdict
+
 
 def _pair_costs(ctx: ClaimContext) -> tuple[float, float]:
     assert ctx.treatment_cost_usd is not None and ctx.control_cost_usd is not None
     return ctx.treatment_cost_usd, ctx.control_cost_usd
 
 
-DECISION_IMPACT_VOCAB: tuple[str, ...] = (
+DECISION_IMPACT_VOCAB: tuple[Verdict, ...] = (
     "switch",
     "hold",
     "drop_from_shortlist",
@@ -37,7 +39,7 @@ class ClaimContext:
 
 @dataclass(frozen=True)
 class VerdictExplanation:
-    verdict: str
+    verdict: Verdict
     first_matching_branch: str
     conditions: dict[str, bool | float | None]
     suppressed_branches: list[str]
@@ -46,7 +48,7 @@ class VerdictExplanation:
 
 def _explanation(
     *,
-    verdict: str,
+    verdict: Verdict,
     branch: str,
     conditions: dict[str, bool | float | None],
     suppressed_branches: list[str],
@@ -141,7 +143,7 @@ def decision_impact(
     ctx: ClaimContext,
     *,
     cost_gap_threshold: float = COST_GAP_THRESHOLD,
-) -> str:
+) -> Verdict:
     """Map an analysis result to a controlled decision_impact label.
 
     Rule order is significant: first match wins. The `cost_gap_threshold`

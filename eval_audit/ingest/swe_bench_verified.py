@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -164,7 +165,7 @@ def _validate_shared_task_universe(agent_task_sets: dict[str, set[str]]) -> None
 def build_canonical_frame(
     *,
     task_universe: list[str],
-    submissions: dict[str, dict],
+    submissions: dict[str, dict[str, Any]],
 ) -> pl.DataFrame:
     """Build a canonical RunRecord frame from a task universe and submission dicts.
 
@@ -189,7 +190,7 @@ def build_canonical_frame(
     """
     _validate_task_universe(task_universe)
     universe_set = set(task_universe)
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for agent_id, submission in submissions.items():
         resolved, no_generation, no_logs = _validated_submission_status_sets(
             agent_id,
@@ -231,7 +232,7 @@ def _validate_task_universe(task_universe: list[str]) -> None:
 def _validated_submission_status_sets(
     agent_id: str,
     universe_set: set[str],
-    submission: dict,
+    submission: dict[str, Any],
 ) -> tuple[set[str], set[str], set[str]]:
     resolved: set[str] = set(submission["resolved"])
     no_generation: set[str] = set(submission.get("no_generation", []))
@@ -302,7 +303,7 @@ def _canonical_row(
     instance_id: str,
     success: bool,
     upstream_status: str,
-) -> dict:
+) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": model_id,

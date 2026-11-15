@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import polars as pl
+import pytest
 
 
 def _row(
@@ -15,7 +18,7 @@ def _row(
     reconstructed_cost: float | None = None,
     reported_run_total: float = 5.00,
     cost_provenance: str = "as_reported_only",
-) -> dict:
+) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -43,45 +46,51 @@ def _row(
 def _stub_study(treatment: str, control: str, harness: str = "tau_bench_tool_calling"):
     from eval_audit.schema import StudySpec
 
-    return StudySpec(
-        id="stub",
-        benchmark="stub",
-        analysis_mode="declared_reanalysis",
-        data_observation="full_seen",
-        harness=harness,
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[{"id": treatment}, {"id": control}],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": 1,
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": None,
-        },
-        cost={
-            "metrics": ["reconstructed_per_task_cost_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": "c1",
-                "text": "treatment beats control",
-                "treatment": treatment,
-                "control": control,
-                "outcome": "success_rate",
-            }
-        ],
+    return StudySpec.model_validate(
+        {
+            "id": "stub",
+            "benchmark": "stub",
+            "analysis_mode": "declared_reanalysis",
+            "data_observation": "full_seen",
+            "harness": harness,
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [{"id": treatment}, {"id": control}],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": 1,
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": None,
+            },
+            "cost": {
+                "metrics": ["reconstructed_per_task_cost_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": "c1",
+                    "text": "treatment beats control",
+                    "treatment": treatment,
+                    "control": control,
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
 
-def _claude_taubench_rows() -> list[dict]:
+def _claude_taubench_rows() -> list[dict[str, Any]]:
     """Synthetic 50-task Claude frame: 22 graded-success, 25 graded-fail, 3 errored."""
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for i in range(22):
         rows.append(
             _row(
@@ -113,9 +122,9 @@ def _claude_taubench_rows() -> list[dict]:
     return rows
 
 
-def _o4mini_taubench_rows() -> list[dict]:
+def _o4mini_taubench_rows() -> list[dict[str, Any]]:
     """Synthetic 50-task o4-mini frame: 28 graded-success, 22 graded-fail, 0 errored."""
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for i in range(28):
         rows.append(
             _row(
@@ -142,7 +151,7 @@ def test_errored_row_policy__gaia_gaia_hal_generalist_byte_identical(repo_root) 
     outcome_status == 'graded' (n_errored == 0 for both agents),
     THEN every per-agent summary value (success_rate, n_graded, n_errored,
     total_cost_usd, cost_per_success_usd) is unchanged from the values committed
-    in tests/report_snapshots/gaia-hal-generalist-report.md, because n_total == n_graded
+    in reports/gaia-hal-generalist/report.md, because n_total == n_graded
     when n_errored == 0.
     """
     from eval_audit.ingest.hal_gaia import HalGaiaAdapter
@@ -157,20 +166,20 @@ def test_errored_row_policy__gaia_gaia_hal_generalist_byte_identical(repo_root) 
     claude = by_id["HAL Generalist Agent (claude-3-7-sonnet-20250219)"]
     o4mini = by_id["HAL Generalist Agent (o4-mini-2025-04-16 high)"]
 
-    # Pinned values from tests/report_snapshots/gaia-hal-generalist-report.md.
+    # Pinned values from reports/gaia-hal-generalist/report.md.
     assert claude.n_graded == 165
     assert claude.n_errored == 0
     assert abs(claude.success_rate - 0.5636) < 5e-5
     assert abs(claude.success_rate_ci_low - 0.4874) < 5e-5
     assert abs(claude.success_rate_ci_high - 0.6370) < 5e-5
-    assert abs(claude.total_cost_usd - 130.68) < 0.01
-    assert abs(claude.cost_per_success_usd - 1.41) < 0.01
+    assert claude.total_cost_usd == pytest.approx(130.68, abs=0.01)
+    assert claude.cost_per_success_usd == pytest.approx(1.41, abs=0.01)
 
     assert o4mini.n_graded == 165
     assert o4mini.n_errored == 0
     assert abs(o4mini.success_rate - 0.5455) < 5e-5
-    assert abs(o4mini.total_cost_usd - 59.39) < 0.01
-    assert abs(o4mini.cost_per_success_usd - 0.66) < 0.01
+    assert o4mini.total_cost_usd == pytest.approx(59.39, abs=0.01)
+    assert o4mini.cost_per_success_usd == pytest.approx(0.66, abs=0.01)
 
 
 def test_errored_row_policy__claude_success_rate_matches_leaderboard_044() -> None:
@@ -217,11 +226,11 @@ def test_errored_row_policy__paired_bootstrap_task_set_aligned_with_errored() ->
     assert abs(claim.delta_point_estimate - (0.44 - 0.56)) < 1e-9
 
 
-def test_errored_row_policy__malformed_errored_success_treated_as_failure() -> None:
-    """WHEN analysis receives a bypassed frame with success=True on an errored row,
-    THEN both the headline summary and bootstrap treat that row as failure.
-    """
-    from eval_audit.stats import analyze
+def test_errored_row_policy__malformed_errored_success_rejected() -> None:
+    """Reject contradictory outcomes before statistical analysis."""
+    import pytest
+
+    from eval_audit.stats import AnalysisInputError, analyze
 
     rows = [
         _row(agent_id="agent", task_id="t0", outcome_status="errored", success=True),
@@ -232,11 +241,8 @@ def test_errored_row_policy__malformed_errored_success_treated_as_failure() -> N
     frame = pl.DataFrame(rows, strict=False)
     study = _stub_study("agent", "control")
 
-    result = analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
-
-    by_id = {s.agent_id: s for s in result.per_agent}
-    assert by_id["agent"].success_rate == 0.0
-    assert result.claims[0].delta_point_estimate == 0.0
+    with pytest.raises(AnalysisInputError, match="success"):
+        analyze(study, frame, bootstrap_iterations=200, bootstrap_seed=42)
 
 
 def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
@@ -250,7 +256,7 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     # Reconciled path: 10 rows, 2 errored, 5 graded-successes, 3 graded-fail.
     # Each row's reconstructed_per_task_cost_usd = 0.10 (errored rows are None).
     # Expected total_cost_usd = 8 * 0.10 = 0.80; cost_per_success = 0.80 / 5 = 0.16.
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for i in range(5):
         rows.append(
             _row(
@@ -316,8 +322,8 @@ def test_errored_row_policy__cost_per_success_uses_graded_successes() -> None:
     # successes = 5 graded-true rows (errored rows can never count as success).
     # total_cost = 8 * 0.10 graded-only = 0.80 (errored rows have null
     # reconstructed cost per analyze.py:201 / errored-row policy).
-    assert abs(agent.total_cost_usd - 0.80) < 1e-9
-    assert abs(agent.cost_per_success_usd - (0.80 / 5)) < 1e-9
+    assert agent.total_cost_usd == pytest.approx(0.80, abs=1e-9)
+    assert agent.cost_per_success_usd == pytest.approx((0.80 / 5), abs=1e-9)
 
 
 def test_errored_row_policy__mixed_reconstructed_cost_fails_analysis() -> None:
@@ -380,8 +386,8 @@ def test_errored_row_policy__mixed_reconstructed_cost_fails_analysis() -> None:
 # Hypothesis property test: for any random agent row distribution with errored,
 # graded-success, and graded-fail counts, the recovered success_rate is consistent.
 
-from hypothesis import given, settings  # noqa: E402
-from hypothesis import strategies as st  # noqa: E402
+from hypothesis import given, settings  # noqa: E402 - the property test imports hypothesis next to its use
+from hypothesis import strategies as st  # noqa: E402 - the property test imports hypothesis next to its use
 
 
 @given(
@@ -404,7 +410,7 @@ def test_errored_row_policy__property_success_rate_invariants(
     if n_total < 2:  # bootstrap needs at least one task per arm to do anything
         return
 
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     task_idx = 0
     for _ in range(n_successes):
         rows.append(

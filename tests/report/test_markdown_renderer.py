@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 import polars as pl
 import pytest
+
+from eval_audit.schema.enums import Verdict
+from eval_audit.stats.results import AgentSummary, ClaimResult
 
 
 @pytest.fixture
@@ -107,7 +111,23 @@ def test_report__inherited_residual_risks_are_not_edited(
     bullets in scouting/gaia-hal-generalist-decision.md byte-for-byte after whitespace normalization.
     """
     study, runs, result = gaia_hal_generalist_inputs
-    text = _render(study, runs, result, repo_root)
+    from eval_audit.evidence_types import EvidenceSource
+    from eval_audit.report.markdown import render_report
+
+    text = render_report(
+        result,
+        study,
+        runs,
+        clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
+        git_commit="deadbeef",
+        fixture_sha256="0" * 64,
+        repo_root=repo_root,
+        source=EvidenceSource.from_path(
+            repo_root / "scouting/candidates/gaia/sample.parquet",
+            source_kind="adapter",
+            source_dir=repo_root / "scouting/candidates/gaia",
+        ),
+    )
 
     # Extract the inherited block from the rendered report.
     marker = "Inherited from scouting decision"
@@ -171,14 +191,27 @@ def test_report__snapshot_diff_caught_in_tests(
     assert mutated != snapshot_path.read_text(), "snapshot mechanism failed to detect mutation"
 
 
-def test_report__cross_harness_study_produces_no_report_file(
-    repo_root: Path, tmp_path: Path
-) -> None:
+def _build(study, runs: pl.DataFrame, repo_root: Path, tmp_path: Path) -> None:
+    from eval_audit.evidence_types import EvidenceSource
+    from eval_audit.pipeline import build_audit
+
+    build_audit(
+        study,
+        runs,
+        study_path=repo_root / "studies" / f"{study.id}.yaml",
+        source=EvidenceSource(tmp_path / "runs.parquet", "0" * 64, "canonical"),
+        repo_root=repo_root,
+        bootstrap_iterations=2_000,
+        bootstrap_seed=42,
+        git_commit="deadbeef",
+    )
+
+
+def test_report__cross_harness_study_builds_no_artifacts(repo_root: Path, tmp_path: Path) -> None:
     """WHEN a study spec is rendered against a frame where treatment and control rows
-    have different harness values, THEN no markdown file is written and a
-    CrossHarnessComparisonError propagates.
+    have different harness values, THEN build_audit raises
+    CrossHarnessComparisonError before it builds any artifact bytes.
     """
-    from eval_audit.report.markdown import render_report_to
     from eval_audit.schema import StudySpec
     from eval_audit.stats import CrossHarnessComparisonError
 
@@ -233,28 +266,17 @@ def test_report__cross_harness_study_produces_no_report_file(
         },
     ]
     runs = pl.DataFrame(rows, strict=False)
-    out_path = tmp_path / "report.md"
 
     with pytest.raises(CrossHarnessComparisonError):
-        render_report_to(
-            out_path,
-            study,
-            runs,
-            clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
-            git_commit="deadbeef",
-            fixture_sha256="0" * 64,
-            repo_root=repo_root,
-        )
-    assert not out_path.exists(), "report file was written despite cross-harness rejection"
+        _build(study, runs, repo_root, tmp_path)
 
 
-def test_report__incomplete_reconstructed_cost_produces_no_report_file(
+def test_report__incomplete_reconstructed_cost_builds_no_artifacts(
     repo_root: Path, tmp_path: Path
 ) -> None:
     """WHEN a claimed agent has mixed null/non-null reconstructed costs,
-    THEN render_report_to propagates the analysis error and writes no report.
+    THEN build_audit propagates the analysis error before it builds any artifact bytes.
     """
-    from eval_audit.report.markdown import render_report_to
     from eval_audit.schema import StudySpec
     from eval_audit.stats import CostProvenanceError
 
@@ -262,7 +284,7 @@ def test_report__incomplete_reconstructed_cost_produces_no_report_file(
     treatment = study.claims[0].treatment
     control = study.claims[0].control
 
-    def row(agent_id: str, task_id: str, success: bool, cost: float | None) -> dict:
+    def row(agent_id: str, task_id: str, success: bool, cost: float | None) -> dict[str, Any]:
         return {
             "agent_id": agent_id,
             "model_id": agent_id,
@@ -295,20 +317,9 @@ def test_report__incomplete_reconstructed_cost_produces_no_report_file(
         ],
         strict=False,
     )
-    out_path = tmp_path / "report.md"
 
     with pytest.raises(CostProvenanceError):
-        render_report_to(
-            out_path,
-            study,
-            runs,
-            clock=lambda: datetime(2026, 5, 2, 12, 0, 0, tzinfo=UTC),
-            git_commit="deadbeef",
-            fixture_sha256="0" * 64,
-            repo_root=repo_root,
-        )
-
-    assert not out_path.exists(), "report file was written despite incomplete cost data"
+        _build(study, runs, repo_root, tmp_path)
 
 
 def test_report__unsupported_lower_is_better_study_is_not_rendered(
@@ -335,11 +346,6 @@ def test_report__unsupported_lower_is_better_study_is_not_rendered(
         )
 
     assert "higher_is_better" in str(exc_info.value)
-
-
-# ---------------------------------------------------------------------------
-# Audit Summary header — unit tests for the helpers and the rendered section.
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -405,9 +411,12 @@ def test_render_audit_summary_stanza__unknown_decision_token_raises() -> None:
     from eval_audit.report import ReportContractError
     from eval_audit.report.sections.audit_summary import render_audit_summary_stanza
 
-    fake_claim = type(
-        "C", (), {"delta_point_estimate": 0.0, "delta_ci_low": -0.05, "delta_ci_high": 0.05}
-    )()
+    fake_claim = cast(
+        ClaimResult,
+        type(
+            "C", (), {"delta_point_estimate": 0.0, "delta_ci_low": -0.05, "delta_ci_high": 0.05}
+        )(),
+    )
 
     with pytest.raises(ReportContractError) as exc_info:
         render_audit_summary_stanza(
@@ -449,7 +458,7 @@ def test_what_would_change_it__ci_inside_mde_surfaces_half_width_and_mde_numbers
     assert line == (
         "the study already resolves below the declared MDE "
         "(CI half-width 1.50 pp ≤ MDE 3.00 pp); "
-        "no additional N would change the verdict"
+        "new evidence can still change the verdict"
     )
 
 
@@ -511,18 +520,24 @@ def _pushback_presentation(cost_provenance_class: str, residual_risks_text: str)
     )
 
 
+def _agent_summary(agent_id: str, n_errored: int) -> AgentSummary:
+    return AgentSummary(
+        agent_id=agent_id,
+        n_graded=10,
+        n_errored=n_errored,
+        success_rate=0.5,
+        success_rate_ci_low=0.4,
+        success_rate_ci_high=0.6,
+        total_cost_usd=None,
+        cost_per_success_usd=None,
+    )
+
+
 def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
     """Errored rows -> cost provenance -> residual risks, comma-separated."""
-    from dataclasses import dataclass
-
     from eval_audit.report.sections.audit_summary import reviewer_pushback
 
-    @dataclass
-    class FakeAgent:
-        agent_id: str
-        n_errored: int
-
-    per_agent = [FakeAgent("a", 3), FakeAgent("b", 0)]
+    per_agent = [_agent_summary("a", 3), _agent_summary("b", 0)]
     residual = "1. risk one\n2. risk two\n"
 
     line = reviewer_pushback(
@@ -541,16 +556,9 @@ def test_reviewer_pushback__joins_all_caveats_in_fixed_order() -> None:
 
 
 def test_reviewer_pushback__none_flagged_when_no_caveats_apply() -> None:
-    from dataclasses import dataclass
-
     from eval_audit.report.sections.audit_summary import reviewer_pushback
 
-    @dataclass
-    class FakeAgent:
-        agent_id: str
-        n_errored: int
-
-    per_agent = [FakeAgent("a", 0), FakeAgent("b", 0)]
+    per_agent = [_agent_summary("a", 0), _agent_summary("b", 0)]
     placeholder = (
         "_(no scouting decision document at scouting/foo-decision.md; "
         "residual risks not surfaced.)_"
@@ -656,7 +664,6 @@ def test_audit_summary__claim_status_matches_claims_table_value(
         for line in after_summary.splitlines()
         if line.startswith("|") and not line.startswith("|---") and "|---" not in line
     ]
-    # Skip header row.
     data_row = claims_rows[1]
     cells = [c.strip() for c in data_row.split("|")[1:-1]]
     table_status = cells[2]
@@ -724,12 +731,7 @@ def test_audit_summary__verdict_rationale_no_per_claim_numbers() -> None:
         )
 
 
-# ---------------------------------------------------------------------------
-# Robustness Review — unit tests for the helpers and the rendered section.
-# ---------------------------------------------------------------------------
-
-
-def _row(dim: str, val: str, verdict: str):
+def _row(dim: str, val: str, verdict: Verdict):
     """Build a SensitivityRow without importing the dataclass at module level."""
     from eval_audit.report.sensitivity import SensitivityRow
 

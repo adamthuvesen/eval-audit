@@ -105,11 +105,11 @@
     },
     {
       "details": {
-        "path": "scouting/byo-minimal-decision.md"
+        "path": "not supplied with this evidence"
       },
       "fix_suggestion": "Add or restore the scouting decision document that records residual risks and provenance notes for this fixture.",
       "id": "residual_risks_source",
-      "message": "no residual-risk/scouting decision document found",
+      "message": "no residual-risk/scouting decision document bound to this evidence",
       "severity": "warning",
       "status": "fail"
     }

@@ -9,13 +9,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
 
+pytestmark = pytest.mark.verify
+
 
 @pytest.fixture(scope="module")
-def truth(scouting_dir: Path) -> dict:
+def truth(scouting_dir: Path) -> dict[str, Any]:
     return json.loads((scouting_dir / "synthetic" / "truth.json").read_text())
 
 
@@ -31,45 +34,50 @@ def analysis(scouting_dir: Path):
     truth_data = json.loads((scouting_dir / "synthetic" / "truth.json").read_text())
     agent_ids = list(truth_data["agents"].keys())
 
-    study = StudySpec(
-        id="synthetic-validation",
-        benchmark="synthetic",
-        analysis_mode="exploratory",
-        data_observation="full_seen",
-        harness="synthetic",
-        primary_outcome={"name": "success_rate", "unit": "task", "direction": "higher_is_better"},
-        agents=[{"id": a} for a in agent_ids],
-        design={
-            "task_sampling": "fixed",
-            "run_strategy": "observed",
-            "observed_runs_per_agent": truth_data["n_seeds_per_task"],
-            "rerun_policy": "n/a",
-        },
-        inference={
-            "alpha": 0.05,
-            "correction_method": "holm_bonferroni",
-            "comparison_family": "declared_claims",
-            "target_mde": None,
-        },
-        cost={
-            "metrics": ["reconstructed_per_task_cost_usd"],
-            "primary_view": "pareto_frontier",
-        },
-        claims=[
-            {
-                "id": f"primary_{truth_data['primary_pair'][0]}_vs_{truth_data['primary_pair'][1]}",
-                "text": "primary pair from truth.json",
-                "treatment": truth_data["primary_pair"][0],
-                "control": truth_data["primary_pair"][1],
-                "outcome": "success_rate",
-            }
-        ],
+    study = StudySpec.model_validate(
+        {
+            "id": "synthetic-validation",
+            "benchmark": "synthetic",
+            "analysis_mode": "exploratory",
+            "data_observation": "full_seen",
+            "harness": "synthetic",
+            "primary_outcome": {
+                "name": "success_rate",
+                "unit": "task",
+                "direction": "higher_is_better",
+            },
+            "agents": [{"id": a} for a in agent_ids],
+            "design": {
+                "task_sampling": "fixed",
+                "run_strategy": "observed",
+                "observed_runs_per_agent": truth_data["n_seeds_per_task"],
+                "rerun_policy": "n/a",
+            },
+            "inference": {
+                "alpha": 0.05,
+                "correction_method": "holm_bonferroni",
+                "comparison_family": "declared_claims",
+                "target_mde": None,
+            },
+            "cost": {
+                "metrics": ["reconstructed_per_task_cost_usd"],
+                "primary_view": "pareto_frontier",
+            },
+            "claims": [
+                {
+                    "id": f"primary_{truth_data['primary_pair'][0]}_vs_{truth_data['primary_pair'][1]}",
+                    "text": "primary pair from truth.json",
+                    "treatment": truth_data["primary_pair"][0],
+                    "control": truth_data["primary_pair"][1],
+                    "outcome": "success_rate",
+                }
+            ],
+        }
     )
 
     return analyze(study, runs, bootstrap_iterations=2_000, bootstrap_seed=42)
 
 
-@pytest.mark.synthetic_validation
 def test_synthetic_validation__per_agent_success_rate_within_tolerance(analysis, truth) -> None:
     """Recovered per-agent success rate is within +/- 10pp of truth.json."""
     by_id = {s.agent_id: s for s in analysis.per_agent}
@@ -81,7 +89,6 @@ def test_synthetic_validation__per_agent_success_rate_within_tolerance(analysis,
         )
 
 
-@pytest.mark.synthetic_validation
 def test_synthetic_validation__pairwise_true_effect_ranking_matches(
     analysis, truth, scouting_dir: Path
 ) -> None:
@@ -111,13 +118,11 @@ def test_synthetic_validation__pairwise_true_effect_ranking_matches(
         )
 
 
-@pytest.mark.synthetic_validation
 def test_synthetic_validation__pareto_membership_matches_truth(analysis, truth) -> None:
     """Pareto frontier membership matches truth.json exactly."""
     assert analysis.pareto_frontier == set(truth["pareto_frontier"])
 
 
-@pytest.mark.synthetic_validation
 def test_synthetic_validation__primary_pair_holm_does_not_reject(analysis, truth) -> None:
     """Holm-Bonferroni adjusted p-value for the primary pair does NOT reject at alpha=0.05."""
     primary_pair = tuple(truth["primary_pair"])

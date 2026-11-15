@@ -1,0 +1,143 @@
+{
+  "study_id": "decision-gallery",
+  "per_agent": [
+    {
+      "agent_id": "hold_treatment",
+      "n_graded": 10,
+      "n_errored": 0,
+      "success_rate": 0.2,
+      "success_rate_ci_low": 0.05668215145437519,
+      "success_rate_ci_high": 0.5098375284633583,
+      "total_cost_usd": 0.19999999999999998,
+      "cost_per_success_usd": 0.09999999999999999
+    },
+    {
+      "agent_id": "hold_control",
+      "n_graded": 10,
+      "n_errored": 0,
+      "success_rate": 0.9,
+      "success_rate_ci_low": 0.5958499732047615,
+      "success_rate_ci_high": 0.9821237869049271,
+      "total_cost_usd": 0.49999999999999994,
+      "cost_per_success_usd": 0.05555555555555555
+    },
+    {
+      "agent_id": "rerun_treatment",
+      "n_graded": 10,
+      "n_errored": 0,
+      "success_rate": 0.6,
+      "success_rate_ci_low": 0.31267376973365824,
+      "success_rate_ci_high": 0.8318196702937638,
+      "total_cost_usd": 0.30000000000000004,
+      "cost_per_success_usd": 0.05000000000000001
+    },
+    {
+      "agent_id": "rerun_control",
+      "n_graded": 10,
+      "n_errored": 0,
+      "success_rate": 0.5,
+      "success_rate_ci_low": 0.236593090512564,
+      "success_rate_ci_high": 0.7634069094874361,
+      "total_cost_usd": 0.32000000000000006,
+      "cost_per_success_usd": 0.06400000000000002
+    },
+    {
+      "agent_id": "inconc_treatment",
+      "n_graded": 10,
+      "n_errored": 0,
+      "success_rate": 0.8,
+      "success_rate_ci_low": 0.49016247153664183,
+      "success_rate_ci_high": 0.9433178485456247,
+      "total_cost_usd": 0.39999999999999997,
+      "cost_per_success_usd": 0.049999999999999996
+    },
+    {
+      "agent_id": "inconc_control",
+      "n_graded": 10,
+      "n_errored": 0,
+      "success_rate": 0.4,
+      "success_rate_ci_low": 0.16818032970623614,
+      "success_rate_ci_high": 0.6873262302663417,
+      "total_cost_usd": 0.6000000000000001,
+      "cost_per_success_usd": 0.15000000000000002
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "hold_pattern",
+      "text": "Synthetic claim targeting the `hold` verdict. The claim asserts hold_treatment beats hold_control on success_rate. The data is constructed so the paired t-test rejects the null at \u03b1=0.05 AND the observed direction is opposite the claim \u2014 treatment significantly underperforms control. hold_treatment is cheaper than hold_control so it is not Pareto-dominated, which is what lets the engine reach the `hold` rule branch instead of `drop_from_shortlist`.",
+      "treatment": "hold_treatment",
+      "control": "hold_control",
+      "delta_point_estimate": -0.7,
+      "delta_ci_low": -1.0,
+      "delta_ci_high": -0.4,
+      "raw_p_value": 0.0013229505842674975,
+      "adjusted_p_value": 0.003968851752802493,
+      "rejects_null": true,
+      "treatment_total_cost_usd": 0.19999999999999998,
+      "control_total_cost_usd": 0.49999999999999994,
+      "bootstrap": [
+        -0.7,
+        -1.0,
+        -0.4,
+        10000,
+        42
+      ]
+    },
+    {
+      "claim_id": "rerun_more_n_pattern",
+      "text": "Synthetic claim targeting the `rerun_more_n` verdict. The claim asserts rerun_treatment beats rerun_control on success_rate. The data is constructed with similar per-arm success rates and per-task differences that span both directions, so the bootstrap CI clearly crosses zero and the paired t-test does not reject. Costs differ by ~6.67% of the cheaper arm \u2014 below the 10% material threshold \u2014 so the engine reaches `rerun_more_n` rather than `hedge_on_cost`.",
+      "treatment": "rerun_treatment",
+      "control": "rerun_control",
+      "delta_point_estimate": 0.09999999999999998,
+      "delta_ci_low": -0.30000000000000004,
+      "delta_ci_high": 0.5,
+      "raw_p_value": 0.6783097418055797,
+      "adjusted_p_value": 0.6783097418055797,
+      "rejects_null": false,
+      "treatment_total_cost_usd": 0.30000000000000004,
+      "control_total_cost_usd": 0.32000000000000006,
+      "bootstrap": [
+        0.09999999999999998,
+        -0.30000000000000004,
+        0.5,
+        10000,
+        42
+      ]
+    },
+    {
+      "claim_id": "inconclusive_no_action_pattern",
+      "text": "Synthetic claim targeting the `inconclusive_no_action` verdict. The claim asserts inconc_treatment beats inconc_control on success_rate. The data is constructed so the bootstrap CI is entirely positive (no negative per-task differences), but the paired raw p-value is large enough that Holm-Bonferroni correction across the three-claim family pushes the adjusted p above \u03b1=0.05. This is the CI vs adjusted-p disagreement case the verdict was designed for; it is naturally rare and the rationale text describes the verdict as a fallback.",
+      "treatment": "inconc_treatment",
+      "control": "inconc_control",
+      "delta_point_estimate": 0.4,
+      "delta_ci_low": 0.09999999999999998,
+      "delta_ci_high": 0.7,
+      "raw_p_value": 0.03678749787978615,
+      "adjusted_p_value": 0.0735749957595723,
+      "rejects_null": false,
+      "treatment_total_cost_usd": 0.39999999999999997,
+      "control_total_cost_usd": 0.6000000000000001,
+      "bootstrap": [
+        0.4,
+        0.09999999999999998,
+        0.7,
+        10000,
+        42
+      ]
+    }
+  ],
+  "pareto_frontier": [
+    "hold_control",
+    "hold_treatment",
+    "inconc_treatment",
+    "rerun_treatment"
+  ],
+  "settings": {
+    "alpha": 0.05,
+    "bootstrap_iterations": 10000,
+    "bootstrap_seed": 42
+  },
+  "pareto_status": "computed",
+  "bootstrap_seed": 42
+}

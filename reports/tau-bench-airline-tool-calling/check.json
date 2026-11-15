@@ -1,7 +1,9 @@
 {
   "checks": [
     {
-      "details": {},
+      "details": {
+        "path": "studies/tau-bench-airline-tool-calling.yaml"
+      },
       "fix_suggestion": null,
       "id": "study_loads",
       "message": "study YAML loaded",
@@ -10,6 +12,7 @@
     },
     {
       "details": {
+        "path": "scouting/candidates/tau-bench/sample.parquet",
         "rows": 150
       },
       "fix_suggestion": null,

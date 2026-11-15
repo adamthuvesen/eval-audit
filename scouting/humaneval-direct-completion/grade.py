@@ -1,40 +1,21 @@
-"""Grade HumanEval Direct Completion raw outputs by executing HumanEval unit tests in subprocess.
+"""Historical HumanEval completion formatting and grading helpers.
 
-Reads ``scouting/humaneval-direct-completion/raw/<agent_short>/<task_id>/<run_id>.json``,
-extracts the model's completion, concatenates it with the HumanEval `prompt`
-and `test`, and runs the result under a fresh `python` subprocess with a
-10-second timeout. No `eval()` happens in the parent process.
-
-Writes ``scouting/humaneval-direct-completion/graded/<agent_short>/<task_id>/<run_id>.json``
-with grading details. Idempotent: existing graded files are not overwritten.
-
-Trust boundary (v0):
-  The grader executes untrusted model-generated code. The sandbox is:
-    - sanitized environment (only PATH passed; ANTHROPIC_API_KEY, HOME, and
-      other secrets are scrubbed)
-    - Python isolated mode (-I): ignores PYTHONPATH, PYTHONHOME, and user
-      site-packages, so the candidate cannot import repo-local code
-    - 10s timeout
-    - temporary cwd
-  Stronger isolation (container, network deny, rlimit-based memory cap) is
-  out of scope for v0. Do not run this grader on shared infrastructure or
-  with secrets present in the environment of the parent process.
-
-Usage:
-
-    uv run python scouting/humaneval-direct-completion/grade.py
+Host execution of model completions is disabled. Python isolated mode and a
+sanitized environment do not restrict filesystem access, network access, or resources.
+The CLI refuses execution until an isolated execution backend exists.
+`grade_trusted_fixture` runs repository-authored test programs only. Never pass model output to it.
+Recorded historical grades are preserved and are not revalidated by this tool.
 """
 
 from __future__ import annotations
 
-import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
 import textwrap
 from pathlib import Path
+from typing import Any
 
 HERE = Path(__file__).resolve().parent
 TASKS_PATH = HERE / "humaneval-tasks-30.jsonl"
@@ -42,18 +23,6 @@ RAW_DIR = HERE / "raw"
 GRADED_DIR = HERE / "graded"
 
 GRADE_TIMEOUT_S = 10
-_FENCE_RE = re.compile(r"```(?:python)?\n?(.*?)```", re.DOTALL)
-
-
-def _extract_completion(payload: dict) -> str:
-    """Pull the assistant's text out of an Anthropic Messages API payload."""
-    blocks = payload.get("content", [])
-    text_parts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
-    raw = "\n".join(text_parts)
-    fence = _FENCE_RE.search(raw)
-    if fence:
-        return fence.group(1)
-    return raw
 
 
 def _candidates(prompt: str, completion: str, test: str, entry_point: str) -> list[str]:
@@ -151,33 +120,25 @@ def _build_program(prompt: str, completion: str, test: str, entry_point: str) ->
         try:
             compile(c, "<humaneval-direct-completion>", "exec")
             return c
-        except (SyntaxError, ValueError):
+        except SyntaxError, ValueError:
             continue
     return cands[0]
 
 
-def _sandboxed_env() -> dict[str, str]:
-    """Return the sanitized env passed to the grader subprocess.
-
-    Only ``PATH`` is forwarded from the parent. ``ANTHROPIC_API_KEY``, ``HOME``,
-    repo-relative ``PYTHONPATH``, and other secrets are intentionally absent
-    so a malicious or accidental completion cannot read them. ``PATH`` is
-    needed to resolve the Python interpreter itself on some platforms.
-    """
+def _trusted_fixture_env() -> dict[str, str]:
+    """Reduce inherited environment exposure for trusted test programs, without containment."""
     return {"PATH": os.environ.get("PATH", "")}
 
 
-def _grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dict:
-    """Run prompt + completion + test in a subprocess. Return grade dict.
-
-    Sandbox (see module docstring): sanitized env, Python isolated mode (-I),
-    10s timeout, temporary cwd. The candidate program runs against an
-    interpreter that has no access to PYTHONPATH, user site-packages, or the
-    parent's environment variables.
-    """
+def grade_trusted_fixture(
+    prompt: str, completion: str, test: str, entry_point: str
+) -> dict[str, Any]:
+    """Execute repository-authored fixtures only. This helper provides no containment."""
     program = _build_program(prompt, completion, test, entry_point)
     with tempfile.TemporaryDirectory(prefix="humaneval-direct-completion-grade-") as tmp:
         path = Path(tmp) / "candidate.py"
+        receipt = Path(tmp) / "check-completed"
+        program += "\nfrom pathlib import Path as _ReceiptPath\n_ReceiptPath('check-completed').write_text('completed')\n"
         path.write_text(program)
         try:
             proc = subprocess.run(
@@ -185,10 +146,18 @@ def _grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dic
                 capture_output=True,
                 timeout=GRADE_TIMEOUT_S,
                 cwd=tmp,
-                env=_sandboxed_env(),
+                env=_trusted_fixture_env(),
             )
             return {
-                "success": proc.returncode == 0,
+                "success": proc.returncode == 0 and receipt.is_file(),
+                "check_completed": receipt.is_file(),
+                "reason": (
+                    "completed"
+                    if proc.returncode == 0 and receipt.is_file()
+                    else "candidate_failure"
+                    if proc.returncode != 0
+                    else "incomplete_execution"
+                ),
                 "returncode": proc.returncode,
                 "stderr_tail": proc.stderr.decode(errors="replace")[-500:],
                 "timeout": False,
@@ -199,6 +168,7 @@ def _grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dic
                 "success": False,
                 "returncode": None,
                 "stderr_tail": "TIMEOUT",
+                "reason": "timeout",
                 "timeout": True,
                 "grader_crash": False,
             }
@@ -207,93 +177,32 @@ def _grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dic
                 "success": None,
                 "returncode": None,
                 "stderr_tail": f"GRADER_CRASH: {type(exc).__name__}: {exc}",
+                "reason": "infrastructure_error",
                 "timeout": False,
                 "grader_crash": True,
             }
 
 
-def main() -> None:
-    if not TASKS_PATH.exists():
-        raise SystemExit(f"missing tasks file: {TASKS_PATH}")
-    tasks = {
-        json.loads(line)["task_id"]: json.loads(line)
-        for line in TASKS_PATH.read_text().splitlines()
-        if line.strip()
+def grade_one(prompt: str, completion: str, test: str, entry_point: str) -> dict[str, Any]:
+    """Refuse untrusted execution until an isolated execution backend is available."""
+    return {
+        "success": None,
+        "returncode": None,
+        "stderr_tail": "ISOLATION_REQUIRED: no isolated execution backend is configured",
+        "timeout": False,
+        "grader_crash": True,
+        "reason": "isolation_required",
     }
-    assert len(tasks) == 30, len(tasks)
 
-    raw_files = sorted(RAW_DIR.rglob("*.json"))
-    if not raw_files:
-        raise SystemExit(f"no raw outputs under {RAW_DIR}; run run.py first.")
 
-    total = 0
-    skipped = 0
-    n_pass = 0
-    n_fail = 0
-    n_errored = 0
-    for raw_path in raw_files:
-        rel = raw_path.relative_to(RAW_DIR)
-        graded_path = GRADED_DIR / rel
-        if graded_path.exists():
-            skipped += 1
-            total += 1
-            continue
-        record = json.loads(raw_path.read_text())
-        task_id = record["task_id"]
-        if task_id not in tasks:
-            raise SystemExit(f"unknown task_id in {raw_path}: {task_id}")
-        task = tasks[task_id]
-
-        graded: dict
-        if not record.get("ok"):
-            graded = {
-                "outcome_status": "errored",
-                "success": None,
-                "completion": None,
-                "grader": {"reason": "api_error", "detail": record.get("error", "")[:500]},
-            }
-            n_errored += 1
-        else:
-            completion = _extract_completion(record["payload"])
-            grade = _grade_one(
-                prompt=task["prompt"],
-                completion=completion,
-                test=task["test"],
-                entry_point=task["entry_point"],
-            )
-            if grade.get("grader_crash"):
-                graded = {
-                    "outcome_status": "errored",
-                    "success": None,
-                    "completion": completion,
-                    "grader": grade,
-                }
-                n_errored += 1
-            else:
-                graded = {
-                    "outcome_status": "graded",
-                    "success": grade["success"],
-                    "completion": completion,
-                    "grader": grade,
-                }
-                if grade["success"]:
-                    n_pass += 1
-                else:
-                    n_fail += 1
-
-        graded_path.parent.mkdir(parents=True, exist_ok=True)
-        graded_path.write_text(json.dumps({**record, **graded}, indent=2) + "\n")
-        total += 1
-        marker = (
-            "PASS"
-            if graded.get("success")
-            else "FAIL"
-            if graded.get("outcome_status") == "graded"
-            else "ERR"
-        )
-        print(f"  {marker:4s} {record['agent_short']} {task_id} {record['run_id']}")
-
-    print(f"done: total={total} skipped={skipped} pass={n_pass} fail={n_fail} errored={n_errored}")
+def main() -> None:
+    print(
+        "grading disabled: model completions require an isolated execution backend. "
+        "Sanitized environment and Python -I do not provide containment. "
+        "Historical grades are preserved.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
 
 
 if __name__ == "__main__":

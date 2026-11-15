@@ -35,7 +35,7 @@ def what_would_change_it(
     return (
         f"the study already resolves below the declared MDE "
         f"(CI half-width {ci_half_width * 100:.2f} pp ≤ MDE "
-        f"{target_mde * 100:.2f} pp); no additional N would change the verdict"
+        f"{target_mde * 100:.2f} pp); new evidence can still change the verdict"
     )
 
 
@@ -66,6 +66,8 @@ def reviewer_pushback(
         caveats.append("cost provenance is as_reported_only")
     elif presentation.cost_provenance == CostProvenance.COST_NOT_AVAILABLE.value:
         caveats.append("cost provenance is cost_not_available")
+    if presentation.decision_md_label is None:
+        caveats.append("no residual-risk document bound to this evidence")
     risks_count = count_residual_risks(presentation.residual_risks_text)
     if risks_count > 0:
         plural = "s" if risks_count != 1 else ""

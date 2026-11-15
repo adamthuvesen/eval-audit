@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from typing import Any
 
 import polars as pl
 from hypothesis import given, settings
@@ -37,7 +38,7 @@ def _to_frame(agents: list[tuple[str, float, float]]) -> pl.DataFrame:
     )
 
 
-def _is_dominated(agent: tuple[str, float, float], others: list) -> bool:
+def _is_dominated(agent: tuple[str, float, float], others: list[Any]) -> bool:
     name, success, cost = agent
     for other_name, other_success, other_cost in others:
         if other_name == name:
@@ -53,7 +54,7 @@ def _is_dominated(agent: tuple[str, float, float], others: list) -> bool:
 
 @_SETTINGS
 @given(_agent_universe())
-def test_pareto__every_non_frontier_agent_is_dominated(agents: list) -> None:
+def test_pareto__every_non_frontier_agent_is_dominated(agents: list[Any]) -> None:
     """Every agent NOT in the frontier is strictly dominated by at least one frontier agent."""
     frontier = pareto_frontier(_to_frame(agents), success_col="success_rate", cost_col="cost")
     non_frontier = [a for a in agents if a[0] not in frontier]
@@ -65,7 +66,7 @@ def test_pareto__every_non_frontier_agent_is_dominated(agents: list) -> None:
 
 @_SETTINGS
 @given(_agent_universe())
-def test_pareto__every_frontier_agent_is_not_dominated(agents: list) -> None:
+def test_pareto__every_frontier_agent_is_not_dominated(agents: list[Any]) -> None:
     """Every agent IN the frontier is NOT strictly dominated by any other agent."""
     frontier = pareto_frontier(_to_frame(agents), success_col="success_rate", cost_col="cost")
     in_frontier = [a for a in agents if a[0] in frontier]
@@ -75,7 +76,7 @@ def test_pareto__every_frontier_agent_is_not_dominated(agents: list) -> None:
 
 @_SETTINGS
 @given(_agent_universe(), st.integers(min_value=0, max_value=2**31 - 1))
-def test_pareto__closure_under_input_permutation(agents: list, seed: int) -> None:
+def test_pareto__closure_under_input_permutation(agents: list[Any], seed: int) -> None:
     """Frontier set is invariant under permutation of input rows."""
     rng = random.Random(seed)
     permuted = list(agents)

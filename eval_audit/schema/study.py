@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, model_validator
+
+from eval_audit.schema.artifacts import STAGING_PREFIX
 
 _SUPPORTED_V0_COST_METRICS = {
     "reconstructed_per_task_cost_usd",
@@ -71,6 +74,23 @@ def _study_invariant_errors(study: StudySpec) -> list[str]:
             f"schema_version must be 1 (got {study.schema_version}); this version of "
             f"eval-audit only supports schema_version=1"
         )
+    if (
+        not study.id.strip()
+        or study.id in {".", ".."}
+        or any(character in study.id for character in ("/", "\\", "\x00"))
+    ):
+        errors.append("id must be a non-empty single path component without traversal")
+    if study.id.startswith(STAGING_PREFIX):
+        errors.append(f"id must not start with reserved staging prefix {STAGING_PREFIX!r}")
+    duplicate_agent_ids = sorted(
+        agent_id
+        for agent_id, count in Counter(agent.id for agent in study.agents).items()
+        if count > 1
+    )
+    if duplicate_agent_ids:
+        errors.append(f"duplicate agent id(s): {duplicate_agent_ids}")
+    if not study.cost.metrics:
+        errors.append("cost.metrics must contain at least one entry")
     if not study.agents:
         errors.append("agents must contain at least one entry")
     if not study.claims:
@@ -196,5 +216,6 @@ class StudySpec(BaseModel):
         rather than bailing on the first.
         """
         path = Path(path)
-        data = yaml.safe_load(path.read_text())
+        with path.open() as stream:
+            data = yaml.safe_load(stream)
         return cls.model_validate(data)

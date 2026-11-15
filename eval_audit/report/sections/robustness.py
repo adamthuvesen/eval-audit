@@ -38,6 +38,8 @@ def robustness_multiple_comparison(rows: list[SensitivityRow], baseline: str) ->
 def robustness_errored_policy(rows: list[SensitivityRow], baseline: str) -> tuple[str, str]:
     for r in rows:
         if r.dimension == "errored_policy" and r.value == "excluded":
+            if not r.available:
+                return ("not assessed", r.unavailable_reason or "scenario unavailable")
             if r.verdict == baseline:
                 return ("survives", "verdict unchanged when errored rows excluded")
             return (
@@ -136,6 +138,7 @@ def render_robustness_review(
     for c in result.claims:
         rows = sensitivity_rows_by_claim[c.claim_id]
         baseline = rows[0].verdict
+        assert baseline is not None
         ci_half_width = (c.delta_ci_high - c.delta_ci_low) / 2.0
         if multi_claim:
             parts.append(f"### Claim `{c.claim_id}`\n")

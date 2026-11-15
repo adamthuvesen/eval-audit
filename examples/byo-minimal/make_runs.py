@@ -16,6 +16,7 @@ tests/examples/test_byo_minimal_round_trip.py pins this).
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -33,7 +34,7 @@ def _row(
     cost: float,
     tokens_in: int,
     tokens_out: int,
-) -> dict:
+) -> dict[str, Any]:
     return {
         "agent_id": agent_id,
         "model_id": agent_id,
@@ -59,7 +60,7 @@ def _row(
 
 
 def build_frame() -> pl.DataFrame:
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for i, success in enumerate(ALICE_SUCCESS, start=1):
         rows.append(
             _row(

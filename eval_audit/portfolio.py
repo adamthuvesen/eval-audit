@@ -3,26 +3,16 @@
 from __future__ import annotations
 
 import json
-import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 
+from eval_audit.artifacts import INCOMPLETE_MARKER, ArtifactError, artifact_path
 from eval_audit.report.summary import file_sha256
-from eval_audit.schema.audit_summary import AuditSummary
-
-REQUIRED_CLAIM_TEXT_FIELDS: tuple[str, ...] = (
-    "study_id",
-    "claim_id",
-    "treatment",
-    "control",
-    "verdict",
-    "readiness",
-    "cost_provenance",
-)
-REQUIRED_CLAIM_NUMERIC_FIELDS: tuple[str, ...] = ("delta", "ci_low", "ci_high")
+from eval_audit.schema.artifacts import STAGING_PREFIX
+from eval_audit.schema.audit_summary import AuditSummary, ClaimSummary
 
 
 @dataclass(frozen=True)
@@ -67,11 +57,15 @@ class _PortfolioSummaryError(ValueError):
 
 
 def _candidate_report_dirs(reports_dir: Path) -> list[Path]:
-    if (reports_dir / "summary.json").exists():
-        return [reports_dir]
-    if not reports_dir.exists() or not reports_dir.is_dir():
+    if reports_dir.name.startswith(STAGING_PREFIX) or not reports_dir.is_dir():
         return []
-    return sorted(path for path in reports_dir.iterdir() if path.is_dir())
+    if (reports_dir / "summary.json").exists() or (reports_dir / INCOMPLETE_MARKER).exists():
+        return [reports_dir]
+    return sorted(
+        path
+        for path in reports_dir.iterdir()
+        if path.is_dir() and not path.name.startswith(STAGING_PREFIX)
+    )
 
 
 def _incomplete_row(report_dir: Path, status: str, note: str) -> PortfolioRow:
@@ -92,68 +86,40 @@ def _incomplete_row(report_dir: Path, status: str, note: str) -> PortfolioRow:
     )
 
 
-def _staleness_note(report_dir: Path, payload: dict[str, Any]) -> str | None:
-    hashes = payload.get("artifact_hashes")
-    paths = payload.get("artifact_paths")
-    if not isinstance(hashes, dict) or not isinstance(paths, dict):
-        return "summary.json lacks artifact paths or hashes"
-    for path_key, hash_key in (
-        ("check_json", "check_json"),
-        ("analysis_json", "analysis_json"),
-        ("report_md", "report_md"),
-    ):
-        artifact_name = paths.get(path_key)
-        expected_hash = hashes.get(hash_key)
-        if not isinstance(artifact_name, str) or not isinstance(expected_hash, str):
-            return f"summary.json lacks {path_key} hash"
-        artifact = report_dir / artifact_name
-        if not artifact.exists():
-            return f"{artifact_name} is missing"
-        actual_hash = file_sha256(artifact)
-        if actual_hash != expected_hash:
-            return f"{artifact_name} hash differs from summary.json"
+def _staleness_note(report_dir: Path, summary: AuditSummary) -> str | None:
+    for key in ("check_json", "analysis_json", "report_md"):
+        if key not in summary.artifact_paths or key not in summary.artifact_hashes:
+            return f"summary.json lacks {key} path or hash"
+    for key, expected_hash in summary.artifact_hashes.items():
+        name = summary.artifact_paths.get(key)
+        if name is None:
+            return f"summary.json lacks path for {key} hash"
+        try:
+            artifact = artifact_path(report_dir, name)
+            if not artifact.is_file():
+                return f"{name} is missing"
+            if file_sha256(artifact) != expected_hash:
+                return f"{name} hash differs from summary.json"
+        except (OSError, ArtifactError) as exc:
+            return str(exc)
     return None
 
 
-def _required_text(claim: dict[str, Any], key: str) -> str:
-    value = claim[key]
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"{key} must be a non-empty string")
-    return value
-
-
-def _required_finite_float(claim: dict[str, Any], key: str) -> float:
-    value = claim[key]
-    if isinstance(value, bool):
-        raise ValueError(f"{key} must be a finite number")
-    converted = float(value)
-    if not math.isfinite(converted):
-        raise ValueError(f"{key} must be a finite number")
-    return converted
-
-
-def _complete_claim_row(report_dir: Path, claim: object) -> PortfolioRow:
-    if not isinstance(claim, dict):
-        raise ValueError("claim record is not an object")
-    for key in REQUIRED_CLAIM_TEXT_FIELDS:
-        _required_text(claim, key)
-    numeric_fields = {
-        key: _required_finite_float(claim, key) for key in REQUIRED_CLAIM_NUMERIC_FIELDS
-    }
+def _complete_claim_row(report_dir: Path, claim: ClaimSummary) -> PortfolioRow:
     return PortfolioRow(
-        study_id=claim["study_id"],
-        claim_id=claim["claim_id"],
-        treatment=claim["treatment"],
-        control=claim["control"],
-        verdict=claim["verdict"],
-        readiness=claim["readiness"],
-        delta=numeric_fields["delta"],
-        ci_low=numeric_fields["ci_low"],
-        ci_high=numeric_fields["ci_high"],
-        cost_provenance=claim["cost_provenance"],
+        study_id=claim.study_id,
+        claim_id=claim.claim_id,
+        treatment=claim.treatment,
+        control=claim.control,
+        verdict=claim.verdict,
+        readiness=claim.readiness,
+        delta=claim.delta,
+        ci_low=claim.ci_low,
+        ci_high=claim.ci_high,
+        cost_provenance=claim.cost_provenance,
         artifact_status="complete",
         report_dir=str(report_dir),
-        note=str(claim.get("cost_caveat", "")),
+        note=claim.cost_caveat,
     )
 
 
@@ -163,16 +129,16 @@ def _has_partial_artifacts(report_dir: Path) -> bool:
     )
 
 
-def _validated_summary_payload(report_dir: Path) -> dict[str, Any]:
+def _validated_summary_payload(report_dir: Path) -> AuditSummary:
     summary_path = report_dir / "summary.json"
     try:
         raw_payload = json.loads(summary_path.read_text())
-    except json.JSONDecodeError as exc:
+    except (OSError, ValueError) as exc:
         raise _PortfolioSummaryError("invalid_summary", str(exc)) from exc
     if not isinstance(raw_payload, dict):
         raise _PortfolioSummaryError("invalid_summary", "summary.json root must be an object")
     try:
-        payload = AuditSummary.model_validate(raw_payload).to_json_dict()
+        payload = AuditSummary.model_validate(raw_payload)
     except (ValidationError, ValueError, TypeError) as exc:
         raise _PortfolioSummaryError("invalid_summary", str(exc)) from exc
     if stale_note := _staleness_note(report_dir, payload):
@@ -180,27 +146,23 @@ def _validated_summary_payload(report_dir: Path) -> dict[str, Any]:
     return payload
 
 
-def _complete_claim_rows(report_dir: Path, claims: object) -> list[PortfolioRow]:
-    if not isinstance(claims, list) or not claims:
-        raise _PortfolioSummaryError("invalid_summary", "summary.json has no claim records")
-    try:
-        return [_complete_claim_row(report_dir, claim) for claim in claims]
-    except (KeyError, TypeError, ValueError) as exc:
-        raise _PortfolioSummaryError(
-            "invalid_summary",
-            f"summary.json has invalid claim record: {exc}",
-        ) from exc
-
-
 def _report_dir_rows(report_dir: Path) -> list[PortfolioRow]:
     summary_path = report_dir / "summary.json"
+    if (report_dir / INCOMPLETE_MARKER).exists():
+        return [
+            _incomplete_row(
+                report_dir,
+                "incomplete_publication",
+                "Audit publication was interrupted. Re-run the audit.",
+            )
+        ]
     if not summary_path.exists():
         if _has_partial_artifacts(report_dir):
             return [_incomplete_row(report_dir, "missing_summary", "summary.json is missing")]
         return []
     try:
         payload = _validated_summary_payload(report_dir)
-        return _complete_claim_rows(report_dir, payload.get("claims"))
+        return [_complete_claim_row(report_dir, claim) for claim in payload.claims]
     except _PortfolioSummaryError as exc:
         return [_incomplete_row(report_dir, exc.status, exc.note)]
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -52,8 +53,25 @@ def hal_success_fields(
 ) -> tuple[bool | None, Any | None]:
     is_errored = row["outcome_status"] == "errored"
     success_raw = row["success_bool"]
+    if success_raw is not None and (
+        not isinstance(success_raw, (bool, int)) or success_raw not in (0, 1)
+    ):
+        raise IngestContractError(
+            f"HAL success_bool must be boolean or integer 0/1, got {success_raw!r}"
+        )
     success = None if is_errored or success_raw is None else bool(success_raw)
     partial_credit = None if is_errored else row[partial_credit_column]
+    if isinstance(partial_credit, str):
+        try:
+            partial_credit = json.loads(partial_credit)
+        except ValueError as exc:
+            raise IngestContractError(
+                f"HAL {partial_credit_column} must encode a boolean or number"
+            ) from exc
+        if not isinstance(partial_credit, (bool, int, float)):
+            raise IngestContractError(
+                f"HAL {partial_credit_column} must encode a boolean or number"
+            )
     return success, partial_credit
 
 
@@ -70,6 +88,12 @@ def hal_common_record_fields(
     rerun_metadata: dict[str, str],
     task_category: str | None = None,
 ) -> dict[str, Any]:
+    timestamp = row["first_call_ts"]
+    if isinstance(timestamp, str):
+        try:
+            timestamp = datetime.fromisoformat(timestamp)
+        except ValueError as exc:
+            raise IngestContractError(f"invalid HAL first_call_ts: {timestamp!r}") from exc
     return {
         "agent_id": row["agent_id"],
         "model_id": row["model_id"],
@@ -88,7 +112,7 @@ def hal_common_record_fields(
         "latency_s": (
             float(row["latency_total_s"]) if row["latency_total_s"] is not None else None
         ),
-        "timestamp": row["first_call_ts"],
+        "timestamp": timestamp,
         "reconstructed_per_task_cost_usd": reconstructed_cost,
         "reported_run_total_cost_usd": float(row["run_total_cost_usd"]),
         "cost_provenance": cost_provenance,

@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   check:
-    name: make check (ruff + format + mypy + pytest)
+    name: make check (fast lane)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -33,14 +33,15 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@f98e06938123ccabd21905ea5d0069192241f9f1  # v8.3.1
         with:
+          version: "0.13.5"
           enable-cache: true
           cache-dependency-glob: uv.lock
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.14
 
       - name: Install dependencies
-        run: uv sync --extra dev --frozen
+        run: make setup
 
       # Single source of truth: the workflow MUST invoke `make check` directly
       # rather than re-implementing its steps. If `make check` changes (adds
@@ -48,3 +49,29 @@ jobs:
       # edits.
       - name: Run make check
         run: make check
+
+  slow:
+    name: make slow (wheel install + synthetic validation)
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@f98e06938123ccabd21905ea5d0069192241f9f1  # v8.3.1
+        with:
+          version: "0.13.5"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: make setup
+
+      - name: Run make slow
+        run: make slow

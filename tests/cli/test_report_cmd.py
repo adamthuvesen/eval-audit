@@ -17,14 +17,13 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
-def test_cli_report__default_invocation_runs_validation_first(
+def test_cli_report__default_invocation_writes_complete_audit(
     runner: CliRunner,
     repo_root: Path,
     tmp_path: Path,
 ) -> None:
     """WHEN the user runs `eval-audit report studies/gaia-hal-generalist.yaml` with no flags,
-    THEN the synthetic-validation suite runs first and the report is only
-    written if it passes.
+    THEN shared evidence validation runs and a completed artifact set is written.
     """
     from eval_audit.cli import app
 
@@ -43,9 +42,7 @@ def test_cli_report__default_invocation_runs_validation_first(
     if result.exit_code != 0:
         print(result.output)
     assert result.exit_code == 0, f"report cmd failed: {result.output}"
-    # Validation must have run before report — its marker output appears in output.
-    assert "synthetic_validation" in result.output or "synthetic-validation" in result.output
-    # Report file written.
+    assert (out_dir / "gaia-hal-generalist" / "summary.json").is_file()
     assert (out_dir / "gaia-hal-generalist" / "report.md").exists()
 
 
@@ -55,7 +52,7 @@ def test_cli_report__skip_flag_warns(
     tmp_path: Path,
 ) -> None:
     """WHEN the user passes --skip-validation,
-    THEN a warning containing 'WARNING: synthetic validation skipped' is written
+    THEN a deprecation notice is written
     to stderr before the report is written.
     """
     from eval_audit.cli import app
@@ -74,7 +71,7 @@ def test_cli_report__skip_flag_warns(
         ],
     )
     assert result.exit_code == 0
-    assert "WARNING: synthetic validation skipped" in result.output
+    assert "--skip-validation is deprecated" in result.stderr
     assert (out_dir / "gaia-hal-generalist" / "report.md").exists()
 
 

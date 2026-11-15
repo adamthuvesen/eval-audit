@@ -11,6 +11,7 @@ the contract check that the GAIA fixture remains `reconciled`.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -99,7 +100,7 @@ class HalGaiaAdapter:
         # use the full per-task cost — including errored rows — to compare
         # against HAL's reported run total, which bills tokens spent on
         # errored runs.
-        records: list[dict] = []
+        records: list[dict[str, Any]] = []
         recon_for_reconciliation: list[float] = []
         for r in raw.iter_rows(named=True):
             tin, tout = decode_hal_token_counts(r)

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 
@@ -222,7 +224,8 @@ def test_portfolio__reports_non_finite_numeric_claim_fields_without_aborting(
     rows = json.loads(result.output)["rows"]
     malformed_row = next(row for row in rows if row["study_id"] == "malformed-summary")
     assert malformed_row["artifact_status"] == "invalid_summary"
-    assert "delta must be a finite number" in malformed_row["note"]
+    assert "claims.0.delta" in malformed_row["note"]
+    assert "valid number" in malformed_row["note"]
     assert "NaN" not in result.output
 
 
@@ -249,3 +252,49 @@ def test_portfolio_json_bytes__rejects_non_finite_row_values() -> None:
 
     with pytest.raises(ValueError):
         portfolio_json_bytes([row])
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_portfolio_ignores_abandoned_staging_with_valid_summary(
+    repo_root: Path, tmp_path: Path, interrupted: bool
+) -> None:
+    from eval_audit.artifacts import INCOMPLETE_MARKER
+    from eval_audit.cli import app
+    from eval_audit.portfolio import load_portfolio_rows
+
+    runner = CliRunner()
+    reports_dir = tmp_path / "reports"
+    _run_byo_audit(runner=runner, repo_root=repo_root, out_dir=reports_dir)
+    canonical = reports_dir / "byo-minimal"
+    staging = reports_dir / ".audit-stage-abandoned"
+    shutil.copytree(canonical, staging)
+    if interrupted:
+        (canonical / INCOMPLETE_MARKER).write_text("interrupted publication")
+        (canonical / "summary.json").unlink()
+
+    result = runner.invoke(app, ["portfolio", str(reports_dir), "--json"])
+
+    assert result.exit_code == 0, result.output
+    rows = json.loads(result.output)["rows"]
+    assert len(rows) == 1
+    assert rows[0]["report_dir"] == str(canonical)
+    assert rows[0]["artifact_status"] == ("incomplete_publication" if interrupted else "complete")
+    assert load_portfolio_rows(staging) == []
+
+
+def test_portfolio_direct_interrupted_directory_without_summary_is_visible(tmp_path: Path) -> None:
+    from eval_audit.artifacts import INCOMPLETE_MARKER
+    from eval_audit.cli import app
+
+    directory = tmp_path / "interrupted-audit"
+    directory.mkdir()
+    (directory / INCOMPLETE_MARKER).write_text("interrupted publication")
+
+    result = CliRunner().invoke(app, ["portfolio", str(directory), "--json"])
+
+    assert result.exit_code == 0, result.output
+    rows = json.loads(result.output)["rows"]
+    assert len(rows) == 1
+    assert rows[0]["study_id"] == "interrupted-audit"
+    assert rows[0]["artifact_status"] == "incomplete_publication"
+    assert rows[0]["verdict"] is None

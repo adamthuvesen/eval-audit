@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 
-def _gaia_row_kwargs() -> dict:
+def _gaia_row_kwargs() -> dict[str, Any]:
     return {
         "agent_id": "gaia_hg_claude37",
         "model_id": "claude-3-7-sonnet",
@@ -154,3 +155,47 @@ def test_run_record__provenance_enum_rejects_unknown_values() -> None:
         RunRecord(**kwargs)
 
     assert "cost_provenance" in str(exc_info.value)
+
+
+def test_run_record__canonical_boolean_and_numeric_fields_do_not_coerce() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    from eval_audit.schema import RunRecord
+
+    for field, value in (
+        ("success", "true"),
+        ("success", 1),
+        ("tokens_in", "100"),
+        ("tokens_out", 1.0),
+        ("tokens_in_by_model", {"m": True}),
+        ("tokens_out_by_model", {"m": "1"}),
+        ("seed", True),
+        ("latency_s", "0.1"),
+        ("reconstructed_per_task_cost_usd", "0.1"),
+        ("reported_run_total_cost_usd", True),
+        ("partial_credit", "true"),
+    ):
+        row = _gaia_row_kwargs()
+        row[field] = value
+        with pytest.raises(ValidationError, match=field):
+            RunRecord(**row)
+
+
+def test_run_record__nonfinite_values_are_rejected() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    from eval_audit.schema import RunRecord
+
+    for field in (
+        "latency_s",
+        "reconstructed_per_task_cost_usd",
+        "reported_run_total_cost_usd",
+        "partial_credit",
+    ):
+        for value in (float("inf"), float("-inf"), float("nan")):
+            row = _gaia_row_kwargs()
+            row[field] = value
+            with pytest.raises(ValidationError, match=field):
+                RunRecord(**row)

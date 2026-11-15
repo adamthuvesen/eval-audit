@@ -49,6 +49,11 @@
     "humaneval-direct-haiku-4-5",
     "humaneval-direct-sonnet-4-6"
   ],
-  "bootstrap_seed": 42,
-  "pareto_status": "computed"
+  "settings": {
+    "alpha": 0.05,
+    "bootstrap_iterations": 10000,
+    "bootstrap_seed": 42
+  },
+  "pareto_status": "computed",
+  "bootstrap_seed": 42
 }

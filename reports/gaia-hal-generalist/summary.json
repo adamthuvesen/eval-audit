@@ -1,0 +1,64 @@
+{
+  "artifact_hashes": {
+    "analysis_json": "9f21502c11caa99b0e5369553204aab6e6201740401dd73ee1766abab3d07186",
+    "check_json": "283ad19f0275f20eaaba4306e8ce6f4a386ee35abb7c8ea593b2d7ccdee0c252",
+    "report_md": "82c17d70f3b2e59eabb4f918e73633fe19673e298792acf2e2ac5bbf30dbab3a"
+  },
+  "artifact_paths": {
+    "analysis_json": "analysis.json",
+    "check_json": "check.json",
+    "report_md": "report.md"
+  },
+  "claims": [
+    {
+      "adjusted_p_value": 0.7021297222590569,
+      "artifact_hashes": {
+        "analysis_json": "9f21502c11caa99b0e5369553204aab6e6201740401dd73ee1766abab3d07186",
+        "check_json": "283ad19f0275f20eaaba4306e8ce6f4a386ee35abb7c8ea593b2d7ccdee0c252",
+        "report_md": "82c17d70f3b2e59eabb4f918e73633fe19673e298792acf2e2ac5bbf30dbab3a"
+      },
+      "artifact_paths": {
+        "analysis_json": "analysis.json",
+        "check_json": "check.json",
+        "report_md": "report.md"
+      },
+      "ci_high": 0.10909090909090913,
+      "ci_low": -0.07272727272727275,
+      "claim_id": "claude37_vs_o4mini_high_on_gaia",
+      "claim_status": "inconclusive",
+      "claim_text": "On GAIA validation under the HAL Generalist agent harness, Claude 3.7 Sonnet (56.4%) outperforms o4-mini High (54.5%) by 1.9 percentage points while costing 2.2x more ($130.68 vs $59.39). This reanalysis evaluates whether that 1.9 pp accuracy advantage is statistically distinguishable from noise on n=165, and whether it is decision-relevant given the cost gap.",
+      "control": "HAL Generalist Agent (o4-mini-2025-04-16 high)",
+      "control_total_cost_usd": 59.39132980000001,
+      "cost_caveat": "treatment cost is 2.20x control",
+      "cost_provenance": "reconciled",
+      "delta": 0.018181818181818188,
+      "human_summary": "Claim `claude37_vs_o4mini_high_on_gaia` verdict `hedge_on_cost` for `HAL Generalist Agent (claude-3-7-sonnet-20250219)` vs `HAL Generalist Agent (o4-mini-2025-04-16 high)`: delta +1.82 pp with bootstrap CI [-7.27 pp, +10.91 pp]; evidence readiness `ready`. Cost caveat: treatment cost is 2.20x control.",
+      "paired_tasks": 165,
+      "readiness": "ready",
+      "rejects_null": false,
+      "study_id": "gaia-hal-generalist",
+      "treatment": "HAL Generalist Agent (claude-3-7-sonnet-20250219)",
+      "treatment_total_cost_usd": 130.678222,
+      "verdict": "hedge_on_cost",
+      "verdict_explanation": {
+        "conditions": {
+          "ci_crosses_zero": true,
+          "cost_available": true,
+          "cost_gap_ratio": 1.200291228367141,
+          "cost_gap_threshold": 0.1,
+          "effect_direction_matches_claim": true,
+          "has_material_cost_gap": true,
+          "rejects_adjusted_null": false,
+          "treatment_is_dominated": false
+        },
+        "first_matching_branch": "uncertainty_with_material_cost_gap",
+        "summary": "The quality interval crosses zero and the cost gap meets the material threshold.",
+        "suppressed_branches": [],
+        "verdict": "hedge_on_cost"
+      }
+    }
+  ],
+  "readiness": "ready",
+  "schema_version": 1,
+  "study_id": "gaia-hal-generalist"
+}

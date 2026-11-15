@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 
@@ -146,7 +147,7 @@ def _validate_shared_task_universe(agent_task_sets: dict[str, set[str]]) -> None
 
 def build_canonical_frame(
     *,
-    submissions: dict[str, dict],
+    submissions: dict[str, dict[str, Any]],
     expected_task_count: int = TERMINAL_BENCH_2_TASK_COUNT,
     expected_runs_per_agent: int = TERMINAL_BENCH_2_RUNS_PER_AGENT,
 ) -> pl.DataFrame:
@@ -161,7 +162,7 @@ def build_canonical_frame(
     The function is pure so both tests and the network-backed regenerator can
     share the same outcome mapping.
     """
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     reference_tasks: set[str] | None = None
     for agent_id, submission in submissions.items():
         submission_rows, agent_tasks = _canonical_submission_rows(
@@ -180,11 +181,11 @@ def build_canonical_frame(
 
 def _canonical_submission_rows(
     agent_id: str,
-    submission: dict,
+    submission: dict[str, Any],
     *,
     expected_task_count: int,
     expected_runs_per_agent: int,
-) -> tuple[list[dict], set[str]]:
+) -> tuple[list[dict[str, Any]], set[str]]:
     metadata = dict(submission.get("metadata") or {})
     runs = dict(submission["runs"])
     if len(runs) != expected_runs_per_agent:
@@ -193,7 +194,7 @@ def _canonical_submission_rows(
             f"{expected_runs_per_agent} runs; got {len(runs)}"
         )
 
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     agent_tasks: set[str] | None = None
     for run_id, records in sorted(runs.items()):
         unique_tasks = _validated_run_tasks(
@@ -221,7 +222,7 @@ def _canonical_submission_rows(
 def _validated_run_tasks(
     agent_id: str,
     run_id: str,
-    records: list[dict],
+    records: list[dict[str, Any]],
     *,
     expected_task_count: int,
 ) -> set[str]:
@@ -261,9 +262,9 @@ def _validate_reference_tasks(
 def _record_to_row(
     agent_id: str,
     run_id: str,
-    metadata: dict,
-    record: dict,
-) -> dict:
+    metadata: dict[str, Any],
+    record: dict[str, Any],
+) -> dict[str, Any]:
     agent_result = dict(record.get("agent_result") or {})
     config_agent = dict((record.get("config") or {}).get("agent") or {})
     model_id = str(config_agent.get("model_name") or metadata["model"]["name"])
@@ -311,7 +312,7 @@ def _outcome_fields(reward: float | None) -> tuple[str, bool | None, float | Non
     return "graded", bool(float(reward) >= 1.0), float(reward)
 
 
-def _token_counts(agent_result: dict) -> tuple[int, int]:
+def _token_counts(agent_result: dict[str, Any]) -> tuple[int, int]:
     return int(agent_result.get("n_input_tokens") or 0), int(
         agent_result.get("n_output_tokens") or 0
     )
@@ -325,11 +326,11 @@ def _latency_s(started_at: datetime | None, finished_at: datetime | None) -> flo
 
 def _rerun_metadata(
     *,
-    metadata: dict,
-    config_agent: dict,
-    record: dict,
-    task_info: dict,
-    agent_result: dict,
+    metadata: dict[str, Any],
+    config_agent: dict[str, Any],
+    record: dict[str, Any],
+    task_info: dict[str, Any],
+    agent_result: dict[str, Any],
     reward: float | None,
 ) -> dict[str, str]:
     return {
@@ -347,7 +348,7 @@ def _rerun_metadata(
     }
 
 
-def _reward(record: dict) -> float | None:
+def _reward(record: dict[str, Any]) -> float | None:
     verifier_result = record.get("verifier_result")
     if not isinstance(verifier_result, dict):
         return None

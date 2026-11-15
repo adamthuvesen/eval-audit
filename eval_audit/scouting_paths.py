@@ -1,38 +1,61 @@
-"""Shared resolution helpers for scouting-keyed paths.
-
-Both the readiness checker (`eval_audit.checks`) and the markdown renderer
-(`eval_audit.report.markdown`) need to find the per-study scouting decision
-document. The resolution rule is the same in both places, so it lives here
-to avoid drift.
-
-Resolution order for the residual-risks decision document:
-    1. Benchmark alias (preserves historical filenames such as
-       ``gaia-hal-generalist-decision.md`` and the ``tau-bench`` hyphenation
-       used by the scouting fixture directory).
-    2. ``scouting/<benchmark>-decision.md`` if it exists.
-    3. ``scouting/<study_id>-decision.md`` as the fallback for
-       controlled-evidence exhibits whose decision doc is keyed by study id
-       rather than by a public-benchmark name (e.g. HumanEval Direct
-       Completion uses ``scouting/humaneval-direct-completion-decision.md``).
-"""
+"""Decision documents bound to the committed evidence and declared study identity."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-DECISION_DOC_ALIAS: dict[str, str] = {
-    "gaia": "gaia-hal-generalist-decision.md",
-    "tau_bench": "tau-bench-airline-tool-calling-decision.md",
+if TYPE_CHECKING:
+    from eval_audit.evidence_types import EvidenceSource
+    from eval_audit.schema import StudySpec
+
+
+_EVIDENCE_DECISION_DOCS: dict[tuple[str, str, str, str], str] = {
+    (
+        "scouting/candidates/gaia/sample.parquet",
+        "gaia-hal-generalist",
+        "gaia",
+        "hal_generalist_agent",
+    ): "scouting/gaia-hal-generalist-decision.md",
+    (
+        "scouting/candidates/tau-bench/sample.parquet",
+        "tau-bench-airline-tool-calling",
+        "tau_bench",
+        "tau_bench_tool_calling",
+    ): "scouting/tau-bench-airline-tool-calling-decision.md",
+    (
+        "examples/swe-bench-verified-openhands/runs.parquet",
+        "swe-bench-verified-openhands",
+        "swe-bench-verified",
+        "swe-bench-verified/openhands-public-submission-v1",
+    ): "scouting/swe-bench-verified-openhands-decision.md",
+    (
+        "examples/terminal-bench-2-mux/runs.parquet",
+        "terminal-bench-2-mux",
+        "terminal-bench-2",
+        "terminal-bench-2/mux-public-submission-v1",
+    ): "scouting/terminal-bench-2-mux-decision.md",
+    (
+        "examples/humaneval-direct-completion/runs.parquet",
+        "humaneval-direct-completion",
+        "humaneval",
+        "eval-audit/humaneval-direct-completion-v1",
+    ): "scouting/humaneval-direct-completion-decision.md",
 }
 
 
-def resolve_decision_doc(repo_root: Path, benchmark: str, study_id: str) -> tuple[Path, str]:
-    """Return ``(path, repo-relative label)`` for the study's decision doc."""
-    if benchmark in DECISION_DOC_ALIAS:
-        filename = DECISION_DOC_ALIAS[benchmark]
-        return repo_root / "scouting" / filename, f"scouting/{filename}"
-    by_benchmark = repo_root / "scouting" / f"{benchmark}-decision.md"
-    if by_benchmark.exists():
-        return by_benchmark, f"scouting/{benchmark}-decision.md"
-    by_study = repo_root / "scouting" / f"{study_id}-decision.md"
-    return by_study, f"scouting/{study_id}-decision.md"
+def resolve_evidence_decision_doc(
+    repo_root: Path, study: StudySpec, source: EvidenceSource | None
+) -> tuple[Path, str] | None:
+    """Return a decision document only for its registered evidence and study identity."""
+    if source is None:
+        return None
+    fixture_path = source.fixture_path.resolve()
+    identity = (study.id, study.benchmark, study.harness)
+    for (fixture, study_id, benchmark, harness), document in _EVIDENCE_DECISION_DOCS.items():
+        if (
+            identity == (study_id, benchmark, harness)
+            and fixture_path == (repo_root / fixture).resolve()
+        ):
+            return repo_root / document, document
+    return None

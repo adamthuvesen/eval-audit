@@ -27,10 +27,9 @@ VERDICT_RATIONALE: dict[str, str] = {
         "deciding among the rest."
     ),
     "rerun_more_n": (
-        "The bootstrap CI for the delta crosses zero (no decisive direction), and the cost "
-        "gap is below the material threshold of 10% of the cheaper arm. Neither side has a "
-        "clean argument from this evidence. Action: collect more paired tasks before "
-        "deciding; the current N is under-resolved for the question asked."
+        "The bootstrap CI for the delta crosses zero. The cost-gap rule does not select "
+        "an arm. Action: collect more paired tasks to improve precision. The target MDE "
+        "is a separate precision diagnostic and does not determine this verdict."
     ),
     "hedge_on_cost": (
         "The bootstrap CI for the delta crosses zero (no quality decision is available), "
