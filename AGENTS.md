@@ -5,6 +5,8 @@ score differences are large, reliable, and cost-aware enough to justify a model
 switch. It is not a benchmark runner, leaderboard, tracing system,
 composite-score factory, or causal model of scaffolds. Keep that shape.
 
+Domain terms are in `GLOSSARY.md`. A change that adds, renames, or redefines a term updates it in the same commit.
+
 ## Commands
 
 ```bash
@@ -50,6 +52,7 @@ For the module owner of each change and focused test commands, read
 | v0 outcomes are `success_rate`, higher is better | `eval_audit/schema/study.py::_study_invariant_errors`, `tests/stats/test_analyze.py::test_analyze__unsupported_outcome_fails_loudly` |
 | Cross-harness claims are refused and write no report | `tests/cli/test_audit_cmd.py::test_audit__cross_harness_refusal_does_not_write_report` |
 | Cost provenance has exactly four modes | `eval_audit/schema/enums.py::CostProvenance`, `tests/schema/test_cost_not_available_provenance.py::test_cost_not_available__reports_both_violations_together` |
+| The committed RunRecord JSON schema that exporters copy matches the model | `tests/schema/test_run_record_snapshot.py::test_run_record_snapshot__matches_model` |
 | Field references match the Pydantic models | `tests/docs/test_study_schema.py::test_study_schema__top_level_fields_match_studyspec`, `tests/docs/test_input_contract.py::test_input_contract__field_list_matches_run_record_schema` |
 | Committed reports match a fresh render from committed evidence | `tests/report/test_committed_reports.py::test_committed_reports__match_fresh_render` |
 | Local caches and `.env` stay out of the sdist | `tests/packaging/test_sdist.py::test_sdist__excludes_local_caches_and_build_outputs` |
@@ -57,6 +60,7 @@ For the module owner of each change and focused test commands, read
 | `verify control` must observe FAIL before a verify pass counts | `.agents/skills/verify-eval-audit/verify::control` |
 | Paid API calls refuse without approval, before any raw output is written | `scouting/humaneval-direct-completion/run.py::require_approval`, `tests/scouting/test_humaneval_run_spend.py::test_call_api__refuses_without_explicit_approval` |
 | Process, network, and paid-SDK modules are banned outside their owner files | `pyproject.toml::tool.ruff.lint.flake8-tidy-imports.banned-api`, `tests/test_module_bans.py::test_module_bans__owners_use_only_their_own_modules` |
+| Tests do not sleep or read the clock, and every skip or xfail gives a reason | `tests/ruff.toml::lint.flake8-tidy-imports.banned-api`, `tests/test_strict_mode.py::test_skips_and_xfails_give_a_reason` |
 
 ## Docs
 

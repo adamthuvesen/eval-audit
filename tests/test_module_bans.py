@@ -61,7 +61,8 @@ def test_module_bans__owners_use_only_their_own_modules(repo_root: Path) -> None
     ignores = pyproject["tool"]["ruff"]["lint"]["per-file-ignores"]
     exempt = {pattern for pattern, rules in ignores.items() if "TID251" in rules}
     assert exempt == set(OWNER_ALLOWANCES), (
-        "Every TID251 exemption in pyproject.toml needs an entry in OWNER_ALLOWANCES."
+        "Every TID251 per-file-ignore in pyproject.toml needs an OWNER_ALLOWANCES entry in "
+        "tests/test_module_bans.py that names the banned modules the owner may use."
     )
     ruff = Path(sys.executable).parent / "ruff"
     done = subprocess.run(
@@ -90,10 +91,14 @@ def test_module_bans__owners_use_only_their_own_modules(repo_root: Path) -> None
     hits = json.loads(done.stdout)
     assert hits, done.stderr
     misplaced = sorted(
-        f"{relative}: {banned}"
+        f"{relative}:{hit['location']['row']}: {banned}"
         for hit in hits
         for relative in [Path(hit["filename"]).relative_to(repo_root).as_posix()]
         for banned in [hit["message"].split("`")[1]]
         if banned not in OWNER_ALLOWANCES.get(_owner(relative), set())
     )
-    assert not misplaced, f"Banned modules outside their owner allowance: {misplaced}"
+    assert not misplaced, (
+        f"Banned modules outside their owner allowance: {misplaced}. Move the call into an owner "
+        "file in OWNER_ALLOWANCES, or add the module to that owner's allowance here and a TID251 "
+        "per-file-ignore in pyproject.toml."
+    )

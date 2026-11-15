@@ -39,7 +39,10 @@ def test_ci_workflow__pins_actions_and_uv_exactly(repo_root: Path) -> None:
         for step in job.get("steps", [])
     ]
     actions = [step["uses"] for step in steps if "uses" in step]
-    assert all(re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", uses) for uses in actions), actions
+    unpinned = [uses for uses in actions if not re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", uses)]
+    assert not unpinned, (
+        f"Pin every action in .github/workflows/ to a full 40-character commit SHA. Got: {unpinned}"
+    )
     uv_versions = [
         str(step.get("with", {}).get("version", ""))
         for step in steps

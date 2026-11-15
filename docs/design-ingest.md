@@ -11,7 +11,7 @@ artifacts into canonical task-level `RunRecord` rows.
 
 Cost provenance is first-class. Each adapter declares exactly one mode:
 
-- **`reconciled`**: reconstructed per-task cost matches reported totals.
+- **`reconciled`**: reconstructed per-task cost matches reported totals within ~1%.
 - **`as_reported_only`**: reconstruction does not reconcile; this state MUST
   stay visible in reports rather than being smoothed away.
 - **`partial`**: incomplete provenance, accepted when the selected cost basis is complete.

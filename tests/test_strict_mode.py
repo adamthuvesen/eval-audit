@@ -1,5 +1,6 @@
 """No file turns strict type checking or lint off, and every inline `noqa` gives a reason."""
 
+import ast
 import os
 import re
 import subprocess
@@ -55,8 +56,10 @@ def test_scan_finds_an_unstaged_downgrade(tmp_path: Path) -> None:
 
 def test_no_file_downgrades_type_checking_mode() -> None:
     downgrades = downgrades_in(checkout_python_files())
-    assert not downgrades, "file-level `# pyright:` comment turns strict mode off: " + ", ".join(
-        downgrades
+    assert not downgrades, (
+        "file-level `# pyright:` comment turns strict mode off: "
+        + ", ".join(downgrades)
+        + ". Remove it; fix the type error, or put `# pyright: ignore[rule]  # reason` on the line."
     )
 
 
@@ -73,13 +76,19 @@ def lint_suppression_problems(paths: list[Path], root: Path = ROOT) -> list[str]
         for number, line in enumerate(path.read_text(errors="replace").splitlines(), start=1):
             where = f"{path.relative_to(root)}:{number}"
             if FILE_WIDE_LINT_OFF.match(line):
-                problems.append(f"{where} turns lint off for the whole file")
+                problems.append(
+                    f"{where} turns lint off for the whole file; remove it and use `# noqa: CODE - reason` on the line"
+                )
             elif path.name == Path(__file__).name:
                 continue
             elif NOQA_ON_BAN.search(line):
-                problems.append(f"{where} silences a banned API; name an owner in pyproject.toml")
+                problems.append(
+                    f"{where} silences a banned API; move the call to an owner file, or add a TID251 per-file-ignore in pyproject.toml"
+                )
             elif NOQA_WITHOUT_REASON.search(line):
-                problems.append(f"{where} has a noqa with no rule code or no ` - reason`")
+                problems.append(
+                    f"{where} has a noqa with no rule code or no reason; write `# noqa: CODE - reason`"
+                )
     return problems
 
 
@@ -93,10 +102,10 @@ def test_scan_finds_lint_suppressions_without_a_reason(tmp_path: Path) -> None:
         "import subprocess  # noqa: TID251 - needed here\n"
     )
     assert lint_suppression_problems(checkout_python_files(tmp_path), tmp_path) == [
-        "probe.py:1 turns lint off for the whole file",
-        "probe.py:2 has a noqa with no rule code or no ` - reason`",
-        "probe.py:3 has a noqa with no rule code or no ` - reason`",
-        "probe.py:5 silences a banned API; name an owner in pyproject.toml",
+        "probe.py:1 turns lint off for the whole file; remove it and use `# noqa: CODE - reason` on the line",
+        "probe.py:2 has a noqa with no rule code or no reason; write `# noqa: CODE - reason`",
+        "probe.py:3 has a noqa with no rule code or no reason; write `# noqa: CODE - reason`",
+        "probe.py:5 silences a banned API; move the call to an owner file, or add a TID251 per-file-ignore in pyproject.toml",
     ]
 
 
@@ -137,3 +146,86 @@ def test_scan_finds_pyright_ignores_without_a_reason(tmp_path: Path) -> None:
 def test_pyright_ignores_name_a_rule_and_give_a_reason() -> None:
     problems = unexplained_pyright_ignores(checkout_python_files())
     assert not problems, "write `# pyright: ignore[rule]  # reason`: " + ", ".join(problems)
+
+
+# pytest reads a mark's reason only from its keyword; pytest.skip and unittest.skip take it first.
+SKIP_MARKERS = frozenset({"pytest.skip", "unittest.skip", "pytest.mark.skip", "pytest.mark.xfail"})
+
+
+def dotted_name(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        base = dotted_name(node.value)
+        return None if base is None else f"{base}.{node.attr}"
+    return None
+
+
+def has_skip_reason(call: ast.Call, marker: str) -> bool:
+    keyword = next((item.value for item in call.keywords if item.arg == "reason"), None)
+    if marker.startswith("pytest.mark."):
+        reason = keyword
+    else:
+        reason = call.args[0] if call.args else keyword
+    return (
+        isinstance(reason, ast.Constant)
+        and isinstance(reason.value, str)
+        and bool(reason.value.strip())
+    )
+
+
+def skips_without_a_reason(paths: list[Path], root: Path = ROOT) -> list[str]:
+    problems: list[str] = []
+    for path in paths:
+        tree = ast.parse(path.read_text(errors="replace"), filename=str(path))
+        called = {id(node.func) for node in ast.walk(tree) if isinstance(node, ast.Call)}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                marker = dotted_name(node.func)
+                if (
+                    marker is not None
+                    and marker in SKIP_MARKERS
+                    and not has_skip_reason(node, marker)
+                ):
+                    problems.append(f"{path.relative_to(root)}:{node.lineno}")
+            elif isinstance(node, ast.Name | ast.Attribute):
+                bare = id(node) not in called and dotted_name(node) in SKIP_MARKERS
+                if bare:
+                    problems.append(f"{path.relative_to(root)}:{node.lineno}")
+    return problems
+
+
+def test_scan_finds_skips_and_xfails_without_a_reason(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], env=git_env(), check=True)
+    (tmp_path / "probe.py").write_text(
+        "import pytest\n"
+        "import unittest\n"
+        "@pytest.mark.skip\n"
+        "def test_bare() -> None: ...\n"
+        "@pytest.mark.skip(reason='')\n"
+        "def test_empty() -> None: ...\n"
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_keyword_missing() -> None: ...\n"
+        "@pytest.mark.skip(reason='waits for the fixture')\n"
+        "def test_ok() -> None: ...\n"
+        "def test_skip_call() -> None:\n"
+        "    pytest.skip()\n"
+        "    pytest.skip('needs network')\n"
+        "@unittest.skip('needs a TTY')\n"
+        "def test_unittest_ok() -> None: ...\n"
+    )
+    assert skips_without_a_reason(checkout_python_files(tmp_path), tmp_path) == [
+        "probe.py:3",
+        "probe.py:5",
+        "probe.py:7",
+        "probe.py:12",
+    ]
+
+
+def test_skips_and_xfails_give_a_reason() -> None:
+    problems = skips_without_a_reason(checkout_python_files())
+    assert not problems, (
+        "give every skip and xfail a reason: "
+        + ", ".join(problems)
+        + ". Pass reason='...' to pytest.mark.skip or xfail; pass the reason first to pytest.skip()."
+    )

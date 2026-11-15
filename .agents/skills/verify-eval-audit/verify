@@ -363,10 +363,14 @@ def preflight(run_dir: Path) -> None:
         )
     location, version = proc.stdout.split()[-2:]
     if not Path(location).resolve().is_relative_to(ROOT):
-        sys.exit(f"preflight: eval_audit imports from {location}, not this checkout")
+        sys.exit(
+            f"preflight: eval_audit imports from {location}, not this checkout; run `make setup` in this checkout"
+        )
     declared = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
     if version != declared:
-        sys.exit(f"preflight: installed eval-audit {version} != pyproject {declared}")
+        sys.exit(
+            f"preflight: installed eval-audit {version} != pyproject {declared}; run `make setup` to reinstall"
+        )
     real_home = Path.home().resolve()
     for key, value in Run(run_dir, "preflight").env.items():
         if key.endswith(("HOME", "_DIR")) and Path(value).resolve().is_relative_to(real_home):
